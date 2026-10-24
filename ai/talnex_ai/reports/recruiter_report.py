@@ -16,6 +16,7 @@ from psycopg_pool import ConnectionPool
 from talnex_ai.checks.authorship import report as authorship_report
 from talnex_ai.reports.interview_kit import build_kit
 from talnex_ai.reports.proof import features
+from talnex_ai.reports.run_cost import run_usage
 
 REPORT_VERSION = 1
 MANUAL_MINUTES_PER_PROJECT = 12   # checking one project by hand takes 10 to 15 minutes (architecture)
@@ -145,6 +146,7 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
             "SELECT flag_type, level, reason FROM flags WHERE candidate_id = %s::uuid ORDER BY created_at, id", (candidate_id,))]
         talnex_minutes = _minutes_taken(conn, candidate_id)
         role_row = conn.execute("SELECT title, skills FROM roles WHERE id = %s::uuid", (cand[1],)).fetchone() if cand[1] else None
+        run = run_usage(conn, [("candidate", candidate_id)] + [("candidate_project", r[0]) for r in rows])
 
     untested_features = sum(1 for p in projects for f in p["features"] if f["testable"] and f["verdict"] in (None, "could_not_test"))
     not_tested_projects = [p for p in projects if p["status"] != "tested"]
@@ -168,6 +170,7 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
         "role_level": cand[0], "has_gaps": has_gaps,
         "time_saved": {"manual_minutes_estimate": manual, "talnex_minutes": talnex_minutes,
                        "saved_minutes": max(0, manual - talnex_minutes)},
+        "run": run,  # how long the check took and what it cost (model and browser apart)
         "projects": projects, "coding_signals": signals, "flags": flags, "notes": notes,
     }
     report["role"] = role_fit(role_row[0], role_row[1] or [], projects) if role_row else None

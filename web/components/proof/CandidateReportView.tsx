@@ -4,7 +4,7 @@ import { FlagList } from "@/components/flags/FlagBadge";
 import { InterviewKit } from "@/components/proof/InterviewKit";
 import { ProjectCard } from "@/components/proof/ProjectCard";
 import { StatTile } from "@/components/ui/StatTile";
-import { BADGE_CLASS, formatDate } from "@/lib/format";
+import { BADGE_CLASS, formatCost, formatDate, formatDuration } from "@/lib/format";
 import { SITE_NAMES, evidenceFacts, reportSummary, signalWeightInfo } from "@/lib/report-format";
 import type { CandidateReport } from "@/lib/types";
 
@@ -23,6 +23,13 @@ export function CandidateReportView({ report }: { report: CandidateReport }) {
           value={`about ${saved.saved_minutes} min`}
           hint={`By hand: roughly ${saved.manual_minutes_estimate} min. TalNex: about ${saved.talnex_minutes} min.`}
         />
+        {report.run && (
+          <StatTile
+            label="Time and cost of this check"
+            value={`${formatDuration(report.run.seconds)} · ${formatCost(report.run.cost_usd)}`}
+            hint={`Model ${formatCost(report.run.model_usd)} (${report.run.model_calls} calls) · browser ${formatCost(report.run.browser_usd)} (${report.run.browser_sessions} sessions).`}
+          />
+        )}
       </div>
 
       {report.has_gaps && (

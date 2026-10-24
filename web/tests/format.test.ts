@@ -53,3 +53,22 @@ describe("candidate status", () => {
     for (const cls of Object.values(BADGE_CLASS)) expect(cls).toMatch(/^badge/);
   });
 });
+
+describe("time and cost of a check", () => {
+  it("says time the way a person would and keeps tiny costs visible", async () => {
+    const { formatDuration, formatCost, runLine } = await import("@/lib/format");
+    expect(formatDuration(42)).toBe("42 s");
+    expect(formatDuration(281)).toBe("4 min 41 s");
+    expect(formatDuration(240)).toBe("4 min");
+    expect(formatDuration(3780)).toBe("1 h 3 min");
+    expect(formatCost(0.1412)).toBe("$0.14");
+    expect(formatCost(0.0026)).toBe("$0.0026");
+    expect(formatCost(0)).toBe("$0.00");
+    expect(runLine({ seconds: 281, finished: true, cost_usd: 0.14, model_usd: 0.09, browser_usd: 0.05 })).toBe(
+      "Checked in 4 min 41 s · $0.14 (model $0.09 · browser $0.05)",
+    );
+    expect(runLine({ seconds: 30, finished: false, cost_usd: 0.004, model_usd: 0.004, browser_usd: 0 })).toBe(
+      "Running for 30 s · $0.0040 (model $0.0040 · browser $0.00)",
+    );
+  });
+});
