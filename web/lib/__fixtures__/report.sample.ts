@@ -38,6 +38,34 @@ export const sampleReport: CandidateReport = {
       features: [
         feature({
           claim_id: "f1",
+          authorship: {
+            status: "traced",
+            reason: null,
+            repo: "asha/chat",
+            commit_sha: "9f2c1ab",
+            files: [
+              {
+                path: "src/auth/login.ts",
+                start: 12,
+                end: 40,
+                url: "https://github.com/asha/chat/blob/9f2c1ab/src/auth/login.ts#L12-L40",
+              },
+            ],
+            accounts: [
+              {
+                account: "asha",
+                line_share: 0.82,
+                lines: 120,
+                commits: 14,
+                days_spanned: 19,
+                first_pushed_at: "2026-03-03T10:00:00Z",
+                last_pushed_at: "2026-03-22T10:00:00Z",
+                date_source: "push",
+              },
+            ],
+            summary: "82% written by @asha, 14 commits over 19 days, first pushed 3 Mar (GitHub records)",
+            candidate_share: 0.82,
+          },
           text: "Users can sign up and log in",
           verdict: "works",
           confidence: "high",
@@ -71,6 +99,16 @@ export const sampleReport: CandidateReport = {
         }),
         feature({
           claim_id: "f2",
+          authorship: {
+            status: "not_traced",
+            reason: "the repository history is private",
+            repo: "asha/chat",
+            commit_sha: null,
+            files: [],
+            accounts: [],
+            summary: null,
+            candidate_share: null,
+          },
           text: "Messages arrive in real time",
           verdict: "partly_works",
           confidence: "disagree",

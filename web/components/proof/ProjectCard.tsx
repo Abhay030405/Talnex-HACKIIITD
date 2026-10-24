@@ -1,5 +1,6 @@
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
+import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { ProjectScore } from "@/components/scores/ProjectScore";
 import { BADGE_CLASS, formatDate } from "@/lib/format";
 import { projectStatusInfo } from "@/lib/report-format";
@@ -78,6 +79,8 @@ export function ProjectCard({ project }: { project: ReportProject }) {
             )}
           </dl>
         )}
+
+        {project.features.length > 0 && <WalkthroughBox subject="candidate_project" subjectId={project.id} />}
       </div>
     </section>
   );

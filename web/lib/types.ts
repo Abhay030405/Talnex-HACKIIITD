@@ -198,6 +198,8 @@ export interface ReportFeature {
   score_reason: string | null;
   proof: ProofStep[];
   code_review?: CodeReview | null;
+  /** Who wrote the code behind this claim. Missing on reports made before authorship existed. */
+  authorship?: Authorship | null;
 }
 
 export interface ReportFlag {
@@ -327,6 +329,7 @@ export interface HackathonCard {
   flags: ReportFlag[];
   checks: CardCheck[];
   ai_opinion: AiOpinion | null;
+  who_built_what?: WhoBuiltWhatRow[] | null;
   has_gaps: boolean;
   notes: string[];
 }
@@ -380,4 +383,92 @@ export interface EventCompare {
   group_bests: { name: string; best_teams: BestTeam[] }[];
   copy_pairs: CopyPair[];
   notes: string[];
+}
+
+// ---------- Authorship proof ----------
+// ai/talnex_ai/checks/authorship/report.py. Code is "written by GitHub account X", never by a person;
+// "could not trace" never counts against anyone.
+
+export interface AuthorshipFile {
+  path: string;
+  start: number;
+  end: number;
+  /** GitHub, at the exact lines of the traced commit. */
+  url: string;
+}
+
+export interface AuthorshipAccount {
+  /** A GitHub login, or "unlinked" for commits whose email is tied to no account. */
+  account: string;
+  line_share: number;
+  lines: number;
+  commits: number;
+  days_spanned: number;
+  first_pushed_at: string | null;
+  last_pushed_at: string | null;
+  date_source: "push" | "commit";
+}
+
+export interface Authorship {
+  status: "traced" | "not_traced";
+  reason: string | null;
+  repo: string | null;
+  commit_sha: string | null;
+  files: AuthorshipFile[];
+  accounts: AuthorshipAccount[];
+  summary: string | null;
+  /** Recruiter only: the share written by the candidate's own account; 0 means none of it. */
+  candidate_share: number | null;
+}
+
+/** Hackathon card: each account against the features it wrote most of. No percentages, no ranking. */
+export interface WhoBuiltWhatRow {
+  account: string;
+  features: string[];
+}
+
+// ---------- "Ask about this feature" (voice walkthrough) ----------
+// Answered by ai/talnex_ai/reports/walkthrough; the API swaps screenshot keys for view_url.
+
+export type WalkthroughSubject = "project" | "candidate_project";
+export type WalkthroughStatus = "queued" | "answering" | "done" | "failed";
+
+export type ProofRef =
+  | { kind: "code"; path: string; start: number; end: number; commit_sha: string | null; url: string; snippet?: string }
+  | { kind: "screenshot"; view_url?: string | null }
+  | { kind: "step"; step_id: string }
+  | { kind: "review"; note: string }
+  | { kind: "authorship"; claim_id: string };
+
+export interface WalkthroughSentence {
+  text: string;
+  proof: ProofRef[];
+}
+
+export interface WalkthroughMissing {
+  item: string;
+  status: "not_found_in_code" | "code_not_readable";
+  proof: ProofRef[];
+}
+
+export interface WalkthroughAnswer {
+  claim_id: string | null;
+  claim_text: string | null;
+  choices: { claim_id: string; text: string }[];
+  flow: WalkthroughSentence[];
+  seen: WalkthroughSentence[];
+  missing: WalkthroughMissing[];
+  not_found: boolean;
+  spoken: string;
+  label: string;
+}
+
+export interface Walkthrough {
+  id: string;
+  status: WalkthroughStatus;
+  question: string | null;
+  answer: WalkthroughAnswer | null;
+  error: string | null;
+  created_at: string;
+  answered_at: string | null;
 }

@@ -1926,6 +1926,149 @@ a.meta:hover {
   font-weight: 700;
 }
 
+/* ---------- Authorship and "Ask about this project" ---------- */
+
+/* Long feature lists in a table wrap instead of stretching it. */
+.table td.table__wrap-text {
+  min-width: 16rem;
+  white-space: normal;
+}
+
+.authorship {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-3);
+  border-left: var(--line-thick) solid var(--color-border-strong);
+  font-size: var(--text-sm);
+}
+
+/* Could not trace: neutral like "could not test", never a warning colour. */
+.authorship--untraced {
+  color: var(--color-text-muted);
+}
+
+.authorship__summary {
+  color: var(--color-text);
+}
+
+.authorship__files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.authorship__file {
+  color: var(--color-primary-hover);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.walkthrough {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--line) dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.walkthrough__title {
+  font-size: var(--text-base);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.walkthrough__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.walkthrough__recording {
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.walkthrough__answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+}
+
+.walkthrough__question {
+  font-weight: 700;
+}
+
+.walkthrough__claim {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.walkthrough__heading {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+.walkthrough__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.walkthrough__refs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.walkthrough__ref {
+  padding: 0 var(--space-2);
+  border: var(--line) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+a.walkthrough__ref {
+  color: var(--color-primary-hover);
+}
+
+.walkthrough__history > summary {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.walkthrough__history ul {
+  margin-top: var(--space-2);
+}
+
+.walkthrough__earlier {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* The made-up example on the landing page. */
 .example-card {
   margin: 0;

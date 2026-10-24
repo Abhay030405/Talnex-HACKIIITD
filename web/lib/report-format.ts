@@ -81,6 +81,11 @@ const FLAG_TYPES: Record<string, string> = {
   sponsor_tools: "Sponsor tools",
   sponsor_files: "Sponsor tools",
   authorship: "Who wrote the code",
+  feature_one_drop: "Feature arrived in one drop",
+  one_drop: "Feature arrived in one drop",
+  feature_before_event: "Feature built before the event",
+  claimed_by_other_account: "Claimed feature written by another account",
+  reformatting_hides_authorship: "Reformatting hides who wrote it",
 };
 
 /** A flag type the website does not know yet still reads as words. */

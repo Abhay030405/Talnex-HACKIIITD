@@ -1,5 +1,7 @@
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
+import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
+import { WhoBuiltWhat } from "@/components/proof/WhoBuiltWhat";
 import { ProjectScore } from "@/components/scores/ProjectScore";
 import { BADGE_CLASS } from "@/lib/format";
 import { groupKindLabel } from "@/lib/hackathon-format";
@@ -140,8 +142,12 @@ export function HackathonCardView({ card }: { card: HackathonCard }) {
               ))}
             </div>
           )}
+
+          {card.features.length > 0 && <WalkthroughBox subject="project" subjectId={card.project_id} />}
         </div>
       </section>
+
+      <WhoBuiltWhat rows={card.who_built_what} />
 
       {card.ai_opinion && <OpinionBox opinion={card.ai_opinion} />}
 

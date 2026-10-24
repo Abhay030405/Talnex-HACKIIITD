@@ -1,3 +1,4 @@
+import { AuthorshipLine } from "@/components/proof/AuthorshipLine";
 import { ProofViewer } from "@/components/proof/ProofViewer";
 import { FeatureScore } from "@/components/scores/FeatureScore";
 import { BADGE_CLASS } from "@/lib/format";
@@ -47,6 +48,7 @@ export function ClaimRow({ feature }: { feature: ReportFeature }) {
         </div>
       )}
 
+      <AuthorshipLine authorship={feature.authorship} />
       <ProofViewer steps={feature.proof} />
     </article>
   );

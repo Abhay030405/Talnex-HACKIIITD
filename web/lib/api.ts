@@ -120,3 +120,14 @@ function errorMessage(data: unknown, status: number): string {
   if (status >= 500) return `The TalNex server had a problem (error ${status}). Try again.`;
   return `The request was refused (error ${status}).`;
 }
+
+/**
+ * For the website's own server routes: turns a failed API call into a JSON answer the browser can show. Next's own
+ * redirects still go on, and the browser only ever gets plain words, never internal details.
+ */
+export async function apiErrorResponse(error: unknown): Promise<Response> {
+  const { unstable_rethrow } = await import("next/navigation");
+  unstable_rethrow(error);
+  if (error instanceof ApiError) return Response.json({ error: error.message }, { status: error.status });
+  return Response.json({ error: "Something went wrong. Please try again." }, { status: 502 });
+}
