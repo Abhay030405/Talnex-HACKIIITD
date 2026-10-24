@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Archivo } from "next/font/google";
 
 import { auth } from "@/auth";
+import { INTRO_GATE, IntroSplash } from "@/components/ui/IntroSplash";
 import { Nav } from "@/components/ui/Nav";
 import { Shell } from "@/components/ui/Shell";
 import { SiteFooter } from "@/components/ui/SiteFooter";
@@ -28,8 +29,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = (await auth())?.user;
 
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${archivo.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable} ${archivo.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: INTRO_GATE }} />
+      </head>
       <body>
+        <IntroSplash />
         {user?.role ? (
           <Shell role={user.role} name={user.name || user.email || "You"}>
             {children}

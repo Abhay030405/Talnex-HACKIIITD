@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ArrowIcon } from "@/components/ui/Icons";
+import { Magnetic } from "@/components/ui/Magnetic";
 
 type Variant = "primary" | "secondary" | "ghost";
 type Size = "md" | "lg";
@@ -31,8 +32,13 @@ function Inner({ children, arrow }: Pick<Common, "children" | "arrow">) {
   );
 }
 
-/** A link styled as a button. Mono, uppercase, almost square, as the design system sets it. */
-export function ButtonLink({ href, ...props }: Common & { href: string }) {
+/** A link styled as a button. `magnetic` makes it lean toward the pointer, for the main call to action. */
+export function ButtonLink({ href, magnetic = false, ...props }: Common & { href: string; magnetic?: boolean }) {
+  const link = <PlainLink href={href} {...props} />;
+  return magnetic ? <Magnetic>{link}</Magnetic> : link;
+}
+
+function PlainLink({ href, ...props }: Common & { href: string }) {
   const external = /^https?:\/\//.test(href);
   if (href.startsWith("#") || external) {
     return (

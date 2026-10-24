@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { auth, signOut } from "@/auth";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
@@ -19,6 +21,9 @@ export async function Nav() {
           <a className="site-nav__link" href="/#how">
             How it works
           </a>
+          <Link className="site-nav__link" href="/about">
+            About
+          </Link>
           {signedIn ? (
             <form action={leave}>
               <Button variant="ghost">Sign out</Button>
