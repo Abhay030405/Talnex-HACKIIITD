@@ -188,6 +188,22 @@ def seen_address(url: str, start_url: str, seen_text: str) -> bool:
     return wanted in (path_of(start_url), "/") or wanted in seen_text or url in seen_text
 
 
+# Words that can sit beside a risky word on a real control: "Proceed to checkout", "Pay ₹499 securely".
+_CONTROL_FILLER = re.compile(
+    r"\b(?:now|proceed|continue|go|to|the|your|my|this|order|securely|safely|here|page|today|and|with)\b|"
+    r"[₹$€£]?\s?\d[\d,.]*|[^\w]+", re.IGNORECASE)
+
+
+def _only_mentions(text: str, risky: str) -> bool:
+    """Is the risky word just part of a longer name or title, like a demo incident called "Code Defect — Checkout
+    500s"? Only for plain text being clicked: a button or link with a risky word is always refused. Text that
+    starts with the risky word, or is nothing but it plus filler ("Proceed to checkout"), still counts as a control."""
+    if text.strip().lower().startswith(risky.lower()):
+        return False
+    rest = _CONTROL_FILLER.sub(" ", text.replace(risky, " ", 1)).strip()
+    return bool(rest)
+
+
 def unsafe_reason(action: Action, *, site_host: str, uploads_root: Path) -> Optional[str]:
     """Why this action must not be done, or None if it's fine."""
     if isinstance(action, Navigate) and not same_site(action.url, site_host):
@@ -197,6 +213,8 @@ def unsafe_reason(action: Action, *, site_host: str, uploads_root: Path) -> Opti
     # typed into a box: a todo called "TalNex test: buy milk" is harmless.
     if isinstance(action, (Click, Fill, Select, Upload)):
         risky = forbidden_action(action.target.name)
+        if risky and isinstance(action, Click) and action.target.kind == "text" and _only_mentions(action.target.name, risky):
+            risky = None
         if risky:
             return f'it involves "{risky}", which is never allowed (no paying, deleting or messaging people)'
     if isinstance(action, Fill) and _CARD_NUMBER.search(action.value):

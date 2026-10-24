@@ -8,6 +8,7 @@ import type {
   FlagLevel,
   ProjectStatus,
   ProofStep,
+  ReportFeature,
   ReportFlag,
   Verdict,
 } from "@/lib/types";
@@ -66,6 +67,45 @@ export function flagLevelInfo(level: FlagLevel): { text: string; tone: Tone } {
 /** Strongest flags first; flags of the same strength keep their order. Does not change the input. */
 export function sortFlags(flags: ReportFlag[]): ReportFlag[] {
   return [...flags].sort((a, b) => (LEVEL_ORDER[a.level] ?? 3) - (LEVEL_ORDER[b.level] ?? 3));
+}
+
+export interface FlagGroup {
+  type: string;
+  level: FlagLevel;
+  reasons: string[];
+}
+
+/** Flags of one kind folded into one line, so "Feature arrived in one drop" shows once with every feature it covers,
+ * not once per feature. The group takes its strongest level; groups come strongest first. */
+export function groupFlags(flags: ReportFlag[]): FlagGroup[] {
+  const groups = new Map<string, FlagGroup>();
+  for (const flag of sortFlags(flags)) {
+    const group = groups.get(flag.type);
+    if (group) group.reasons.push(flag.reason);
+    else groups.set(flag.type, { type: flag.type, level: flag.level, reasons: [flag.reason] });
+  }
+  return [...groups.values()];
+}
+
+const SUMMARY_ORDER: [Verdict, string][] = [
+  ["works", "works"],
+  ["partly_works", "partly works"],
+  ["broken", "broken"],
+  ["reviewed_from_code", "reviewed from code"],
+  ["could_not_test", "could not test"],
+];
+
+/** One line on how a project's claims came out: "4 works · 1 broken · 2 could not test". */
+export function verdictSummary(features: ReportFeature[]): string {
+  const counts = new Map<string, number>();
+  for (const f of features) counts.set(f.verdict ?? "could_not_test", (counts.get(f.verdict ?? "could_not_test") ?? 0) + 1);
+  return SUMMARY_ORDER.filter(([v]) => counts.get(v)).map(([v, words]) => `${counts.get(v)} ${words}`).join(" · ");
+}
+
+/** Claims that were tested, and those that could not be, each keeping its order. */
+export function splitTested(features: ReportFeature[]): { tested: ReportFeature[]; untested: ReportFeature[] } {
+  const untested = (f: ReportFeature) => !f.verdict || f.verdict === "could_not_test";
+  return { tested: features.filter((f) => !untested(f)), untested: features.filter(untested) };
 }
 
 const FLAG_TYPES: Record<string, string> = {
