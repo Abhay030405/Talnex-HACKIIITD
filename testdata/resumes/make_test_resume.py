@@ -12,6 +12,7 @@ import shutil
 from pathlib import Path
 
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
 
 HERE = Path(__file__).resolve().parent
@@ -24,7 +25,8 @@ CONTACT = "Email: asha.verma@talnex.test | GitHub: github.com/talnex-fixture"
 PROJECTS = [
     ("TinyTools", "https://talnex-honest.vercel.app", "https://github.com/talnex-fixture/tinytools", [
         "Added guest sign-in so people can start using the tools without creating an account.",
-        "Built a currency converter between dollars, euros and rupees with clear messages for bad input.",
+        "Built a currency converter between US dollars, euros, pounds and Indian rupees that shows a clear message for an empty, "
+        "non-numeric or negative amount.",
         "Added a todo list that is still there after a page reload.",
         "Improved conversion speed by 40% by caching the exchange rates.",
     ]),
@@ -37,7 +39,7 @@ PROJECTS = [
 ]
 
 SKILLS = "Skills: JavaScript, TypeScript, React, Python, SQL, Git"
-CODING = "Coding: Codeforces: talnex_fixture_cf | LeetCode: talnex_fixture_lc"
+CODING = "Coding: Codeforces: talnex_fixture_cf | LeetCode: talnex_fixture_lc | CodeChef: talnex_fixture_cc"
 EDUCATION = "Education: B.Tech in Computer Science, Example Institute of Technology, 2022 - 2026"
 
 
@@ -64,7 +66,10 @@ def build(path: Path) -> None:
         parts = [name] + ([f"Live: {live}"] if live else []) + [f"Code: {repo}"]
         line(" | ".join(parts), "Helvetica-Bold", 10)
         for bullet in bullets:
-            line(f"- {bullet}", gap=14)
+            first, *rest = simpleSplit(bullet, "Helvetica", 10, width - 2 * left - 10)
+            line(f"- {first}", gap=14)
+            for more in rest:
+                line(f"  {more}", gap=14)
         y -= 6
 
     line(SKILLS)
