@@ -286,6 +286,8 @@ export interface CandidateReport {
   coding_signals: CodingSignal[];
   flags: ReportFlag[];
   notes: string[];
+  /** True while some projects are still being checked: results so far. */
+  partial?: boolean;
   /** The role the candidate was checked for, with each must-have skill and the working features that show it. */
   role?: { title: string; skills: { skill: string; proven_by: string[] }[] } | null;
   /** Questions to ask the candidate, each tied to its proof. Missing on reports made before the kit existed. */
