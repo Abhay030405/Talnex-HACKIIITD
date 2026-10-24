@@ -2199,6 +2199,22 @@ a.meta:hover {
   margin-top: var(--space-2);
 }
 
+/* Where a fresh fact in an answer came from (GitHub, the live site, a coding profile). */
+.chat__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tn-space-1);
+  margin-top: var(--space-2);
+}
+
+.chat__source {
+  padding: var(--tn-space-1) var(--tn-space-2);
+  border: var(--tn-line-w) solid var(--tn-line-strong);
+  border-radius: var(--tn-radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
 .chat__shots {
   display: flex;
   flex-wrap: wrap;
