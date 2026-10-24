@@ -109,6 +109,8 @@ def test_a_readme_claim_that_repeats_a_bullet_in_other_words_is_dropped():
     assert repeats("Upload a photo and CaptionIt writes a caption describing it.",
                    "Upload a photo and the app writes a caption describing it.")
     assert not repeats("Add a todo to the list", "Delete a todo from the list")
+    assert repeats("Delete a note.", "Delete notes.") and repeats("Edit an existing note.", "Edit existing notes.")
+    assert not repeats("Add books to your shelf", "Delete books from your shelf")
     assert not repeats("Search your notes as you type", "Pin a note so it moves to the top")
 
 

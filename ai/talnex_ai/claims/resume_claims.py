@@ -17,7 +17,7 @@ SAME_CLAIM_SHARE = 0.6   # a README claim sharing this much of its meaning words
 
 
 def _meaning(text: str) -> set[str]:
-    return {_stem(w) for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _STOP}
+    return {_stem(w).rstrip("e") for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _STOP}  # "note" = "notes"
 
 
 def repeats(text: str, other: str) -> bool:
