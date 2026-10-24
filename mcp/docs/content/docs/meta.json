@@ -1,4 +1,4 @@
 {
   "title": "TalNex MCP",
-  "pages": ["index", "quick-start", "connect", "configuration", "tools", "live-events", "safety", "architecture", "system-design", "api-reference"]
+  "pages": ["index", "quick-start", "connect", "configuration", "tools", "live-events", "safety", "architecture", "orchestration", "system-design", "api-reference"]
 }

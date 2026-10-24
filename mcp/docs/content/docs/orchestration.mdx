@@ -1,0 +1,61 @@
+---
+title: How TalNex orchestrates
+description: Every stage of a recruiter check, from the resume to the proof report, and how Go and Python hand work to each other through the job queue.
+full: true
+---
+
+<OrchestrationFlow />
+
+## Reading the diagram
+
+- **One queue, two languages.** Go and Python never call each other. They only share the Postgres `jobs` table. The
+  stage order is data (the `pipeline_stages` table): when a stage finishes, the database adds every stage whose
+  predecessors are now all done, in the same step that saves the result. A stage with several arrows in waits for the
+  last one.
+- **Candidate first.** The resume is read once (`resume_read`), then the recruiter confirms what was found. A role with
+  `auto_confirm` on starts the checks at once; otherwise the check waits for the confirm page. Both run the same Go
+  code, `StartChecks`, which starts one project pipeline per project and the coding-profile checks once.
+- **Three tracks per project.** After `precheck`, the live-site track, the repository sandbox track and the GitHub
+  history track run side by side. `track_reconcile` makes the live site and the repository agree on a claim both
+  tried (or the claim becomes "could not confirm"), then `feature_score` scores each feature out of 10.
+- **The report.** The last project's `project_summary` starts the candidate's report. `candidate_report` waits up to
+  8 minutes for the coding checks, builds the report, and `resume_cleanup` deletes the resume. Only results stay.
+
+## Every stage
+
+| Stage | Runs in | Uses | Starts after |
+|---|---|---|---|
+| `resume_read` | Python | model | the resume upload |
+| `auto_confirm` | Go | | `resume_read` |
+| `precheck` | Python | TinyFish Fetch | the confirm (`StartChecks`) |
+| `claims` | Python | model | `precheck` |
+| `test_plan` | Python | model | `claims` |
+| `live_test` | Python | model, TinyFish browser | `test_plan` |
+| `proof_check` | Python | | `live_test` |
+| `sandbox_run` | Python | sandboxd, model | `precheck` |
+| `route_discovery` | Python | sandboxd, model | `sandbox_run` and `claims` |
+| `sandbox_plan` → `sandbox_test` → `repo_tests` → `code_review` → `sandbox_end` | Python | sandboxd, model | one after another |
+| `github_check` | Go | GitHub API | `precheck` |
+| `originality` | Python | model, TinyFish Search | `github_check` and `claims` |
+| `code_locate` | Python | model, TinyFish Fetch | `route_discovery` and `github_check` |
+| `github_history` | Go | GitHub API | `code_locate` |
+| `authorship_read` | Python | model | `github_history` |
+| `track_reconcile` | Python | | `proof_check` and `sandbox_end` |
+| `feature_score` | Python | model | `track_reconcile` |
+| `project_summary` | Python | | `feature_score`, `originality` and `authorship_read` |
+| `codeforces`, `github_profile` | Go | Codeforces API, GitHub API | the confirm, side by side |
+| `leetcode`, `leetcode_replay`, `codechef` | Python | TinyFish Fetch, public APIs | the confirm, side by side |
+| `candidate_report` | Python | | the last `project_summary` (waits for the coding checks) |
+| `resume_cleanup` | Go | | `candidate_report` |
+
+A project with no repository makes every sandbox stage end as "skipped", so nothing waits on it. Questions asked
+later (`report_answer`, `custom_test`, `walkthrough_answer`) are single jobs the Go API adds on demand; they never
+start another stage and never change a score.
+
+## Inside `live_test`
+
+Each claim gets a plan from the test planner, then the runner drives a real TinyFish browser one action at a time and
+saves a screenshot at every step. A separate model call, which sees only the screenshots and the expected result,
+checks the outcome. If a try failed, the [never-blame ladder](/docs/safety) runs before the word "broken" is used: the
+page must load, it must still fail after about a minute, a second try built a different way must also fail, and a
+second independent check must agree. Anything less is "could not test", which is left out of the score.
