@@ -18,7 +18,8 @@ Python worker --pg_notify('live', json)--> Postgres --LISTEN live--> Go API --Se
 |---|---|---|
 | Event sender in the Python worker, hooks in the worker loop, test loop, runner, ladder and live_test stage | Arnav | built (`ai/talnex_ai/live/`) |
 | Terminal viewer for debugging: `python -m talnex_ai.live.watch [--subject <id>]` | Arnav | built |
-| `live_events` table + cleanup, and the streaming endpoint | Ayush | to do |
+| `live_events` table (migration 26) + 7-day cleanup, and the streaming endpoint `GET /v1/live/{kind}/{id}` | Arnav | built (`backend/internal/live/`, `backend/internal/http/live.go`) |
+| Local demo: mission control at `GET /v1/dev/live/view`, fed by `GET /v1/dev/live` (only with `ENABLE_DEV_ENDPOINTS=true`) | Arnav | built |
 | Mission control page | Devesh | to do |
 
 ## The event
@@ -67,9 +68,9 @@ Channel: `live`. Each message is one JSON object, at most 7,500 bytes (long text
 
 `reason` is the short reason the agent states for each move (part of its answer), not hidden model reasoning.
 
-## For Ayush: the streaming endpoint and the table
+## The streaming endpoint and the table (built)
 
-**Endpoint** (suggested): `GET /v1/live/{subject_kind}/{subject_id}`, `Content-Type: text/event-stream`.
+**Endpoint:** `GET /v1/live/{subject_kind}/{subject_id}` (`project`, `candidate_project`, `candidate` or `event`), `Content-Type: text/event-stream`.
 - Check the owner, like every other endpoint.
 - One dedicated connection per API process runs `LISTEN live` and fans events out to the open streams for their `subject.id` (don't open a Postgres connection per viewer).
 - Send each event as `event: <kind>` + `data: <json>`; a comment line (`: ping`) every 15 s keeps proxies from closing the stream.
@@ -77,7 +78,7 @@ Channel: `live`. Each message is one JSON object, at most 7,500 bytes (long text
 - On connect, first send the recent events from `live_events` (replay), then switch to live.
 - For a whole event (mission control), stream every subject whose project belongs to that event.
 
-**Migration** (suggested; Python starts saving into it automatically within a minute of it existing, no restart needed):
+**Migration** (`000026_live_events`; Python starts saving into it automatically within a minute of it existing, no restart needed):
 
 ```sql
 CREATE TABLE live_events (
