@@ -126,6 +126,7 @@ def execute_plan(
     clock: Callable[[], float] = time.monotonic,
     job_id: Optional[str] = None,
     on_event: Optional[Callable[..., None]] = None,
+    judge: bool = True,
 ) -> ExecResult:
     site_host = urlparse(site_url if "//" in site_url else "https://" + site_url).hostname or ""
     started = clock()
@@ -297,6 +298,8 @@ def execute_plan(
             history.append(label)
             send_picture = last_error is not None
 
+    if not judge:  # a guided tour only shows the feature; it never judges it (architecture section 32)
+        return finish("works", "", None)
     # The final judgement against the plan's expected result.
     snapshot = trim(driver.snapshot(), cfg.snapshot_chars)
     check = human_check(snapshot, plan.expected_result)
