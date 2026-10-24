@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Iterator, Optional, Protocol
 
 from talnex_ai.testing.runner.actions import Action, Click, Fill, Navigate, Press, Scroll, Select, Target, Upload, Wait
+from talnex_ai.testing.runner.devtools import DevtoolsWatch
 
 log = logging.getLogger("talnex.runner")
 
@@ -41,6 +42,18 @@ class PlaywrightDriver:
     def __init__(self, page) -> None:
         self.page = page
         self.last_box: Optional[dict] = None  # where the last action touched the page, for the live view
+        self.watch = DevtoolsWatch()
+        # Handlers only read event properties: a browser call inside a handler could stall the page.
+        page.on("response", lambda r: self.watch.response(id(r.request), r.request.method, r.url, r.status,
+                                                           r.request.resource_type))
+        page.on("requestfinished", lambda q: self.watch.finished(id(q), (q.timing or {}).get("responseEnd")))
+        page.on("requestfailed", lambda q: self.watch.failed_request(q.method, q.url, q.failure or ""))
+        page.on("console", lambda m: self.watch.console_message(m.type, m.text))
+        page.on("pageerror", lambda e: self.watch.page_error(str(e)))
+
+    def devtools(self) -> Optional[dict]:
+        """What the developer tools saw since the last call (API calls and timings, errors, console), or None."""
+        return self.watch.drain()
 
     def url(self) -> str:
         return self.page.url

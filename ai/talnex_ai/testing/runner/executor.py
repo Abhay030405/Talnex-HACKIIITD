@@ -147,8 +147,9 @@ def execute_plan(
         except Exception as err:
             log.warning("could not take a screenshot: %s", err)
             shot = b""
+        seen = driver.devtools() if hasattr(driver, "devtools") else None
         records.append(StepRecord(step_number=number, kind="screen", action=action, expected=expected,
-                                  observed=observed, proof_key=save_proof(number, shot) if shot else None))
+                                  observed=observed, proof_key=save_proof(number, shot) if shot else None, devtools=seen))
         tell("step.record", number=number, label=action, expected=expected, observed=observed,
              proof_key=records[-1].proof_key, box=box, url=driver.url())
 

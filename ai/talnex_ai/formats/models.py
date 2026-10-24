@@ -69,6 +69,8 @@ class StepRecord(_Shape):
     observed: Optional[str] = None
     proof_key: Optional[str] = None  # storage key of the screenshot, the request/response, or the command output
     duration_ms: Optional[int] = Field(default=None, ge=0)
+    # What the browser's developer tools saw during the step (runner/devtools.py); None when nothing was watched.
+    devtools: Optional[dict] = None
 
 
 class Result(_Shape):
