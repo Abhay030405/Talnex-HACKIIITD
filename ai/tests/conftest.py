@@ -32,3 +32,27 @@ def pool(db_pool):
 @pytest.fixture
 def target_id():
     return str(uuid.uuid4())
+
+
+@pytest.fixture
+def target(target_id):
+    """The same random job target, under the shorter name some tests use."""
+    return target_id
+
+
+@pytest.fixture
+def base_env():
+    """A complete, valid set of settings (no real keys)."""
+    return {
+        "DATABASE_URL": "postgres://u:p@h:5432/d",
+        "S3_ENDPOINT": "http://s3:9000",
+        "S3_REGION": "auto",
+        "S3_BUCKET": "talnex",
+        "S3_ACCESS_KEY": "a",
+        "S3_SECRET_KEY": "b",
+        "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+        "TINYFISH_AGENT_BASE_URL": "https://agent.tinyfish.ai",
+        "TINYFISH_BROWSER_BASE_URL": "https://api.browser.tinyfish.ai",
+        "TINYFISH_FETCH_BASE_URL": "https://api.fetch.tinyfish.ai",
+        "AGENTMAIL_BASE_URL": "https://api.agentmail.to",
+    }
