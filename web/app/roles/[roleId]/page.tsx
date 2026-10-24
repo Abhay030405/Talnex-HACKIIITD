@@ -37,9 +37,14 @@ export default async function RolePage({ params }: { params: Promise<{ roleId: s
         lead={`${roleLabel(role.role_level)} role · ${candidates.length} ${candidates.length === 1 ? "resume" : "resumes"}`}
         back={{ href: "/recruiter", label: "All candidates" }}
         actions={
-          <Link href={`/roles/${role.id}/settings`} className="button button--ghost">
-            Settings and weights
-          </Link>
+          <div className="row">
+            <Link href={`/roles/${role.id}/live`} className="button button--primary">
+              Watch all live
+            </Link>
+            <Link href={`/roles/${role.id}/settings`} className="button button--ghost">
+              Settings and weights
+            </Link>
+          </div>
         }
       />
       <AutoRefresh active={running} />

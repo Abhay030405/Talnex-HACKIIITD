@@ -93,7 +93,7 @@ class Emitter:
             payload = encode(event)
             with self.pool.connection() as conn:
                 conn.execute("SELECT pg_notify(%s, %s)", (CHANNEL, payload))
-                if _has_table(self.pool):
+                if not kind.startswith("screen.") and _has_table(self.pool):  # screen frames: live only
                     conn.execute(
                         """INSERT INTO live_events (subject_kind, subject_id, job_id, kind, payload)
                            VALUES (%s, %s::uuid, %s::uuid, %s, %s::jsonb)""",

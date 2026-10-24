@@ -21,8 +21,9 @@ from talnex_ai.llm.structured import ChatClient, StructuredError
 from talnex_ai.safety.site_rules import RunLimits, ensure_can_run, next_try_number
 from talnex_ai.settings import RunnerSettings
 from talnex_ai.storage import Store
-from talnex_ai.storage.keys import screen_key
+from talnex_ai.storage.keys import screen_key, live_screen_key
 from talnex_ai.testing.runner import driver as driver_module
+from talnex_ai.testing.runner import screencast
 from talnex_ai.testing.runner import store
 from talnex_ai.testing.runner.executor import ExecConfig, ExecResult, MailboxLike, Outcome, SmsBoxLike, execute_plan
 from talnex_ai.tinyfish.budget import BudgetExceeded
@@ -104,6 +105,13 @@ def run_plan(
             log.warning("could not save screenshot %s: %s", key, err)
             return None
 
+    live_key = live_screen_key(subject_id, run_id)
+
+    def publish_screen(jpeg: bytes) -> None:
+        """One live-view frame: the newest picture overwrites the last, and the view is told to fetch it."""
+        store_files.put_bytes(live_key, jpeg, "image/jpeg")
+        tell("screen.frame", proof_key=live_key)
+
     config = ExecConfig(runner_cfg.max_actions, runner_cfg.max_actions_per_step, runner_cfg.max_seconds,
                         runner_cfg.snapshot_chars, runner_cfg.seconds_per_step)
     try:
@@ -115,17 +123,25 @@ def run_plan(
             with tinyfish.open_session(site_url, job_id=job_id) as session:
                 account = session.account
                 with connect(session.cdp_url) as driver:
-                    reach = getattr(driver, "reach", None)
-                    if reach is not None and attempt < REACH_ATTEMPTS and not reach(site_url):
-                        log.info("the browser could not connect (try %d of %d); starting a fresh one",
-                                 attempt, REACH_ATTEMPTS)
-                        reached = False
-                    else:
-                        result = execute_plan(
-                            client, driver, plan, claim_text=claim.text, site_url=site_url, cfg=config,
-                            uploads_root=uploads_root, save_proof=save_proof, way_in=way_in, mailbox=mailbox,
-                            smsbox=smsbox, on_hidden_text=on_hidden_text, job_id=job_id,
-                            on_event=(lambda kind, **data: tell(kind, **data)) if on_event else None)
+                    live = None
+                    if on_event is not None:
+                        live = screencast.start(driver, publish_screen, fps=runner_cfg.screen_fps,
+                                                quality=runner_cfg.screen_quality, width=runner_cfg.screen_width)
+                    try:
+                        reach = getattr(driver, "reach", None)
+                        if reach is not None and attempt < REACH_ATTEMPTS and not reach(site_url):
+                            log.info("the browser could not connect (try %d of %d); starting a fresh one",
+                                     attempt, REACH_ATTEMPTS)
+                            reached = False
+                        else:
+                            result = execute_plan(
+                                client, driver, plan, claim_text=claim.text, site_url=site_url, cfg=config,
+                                uploads_root=uploads_root, save_proof=save_proof, way_in=way_in, mailbox=mailbox,
+                                smsbox=smsbox, on_hidden_text=on_hidden_text, job_id=job_id,
+                                on_event=(lambda kind, **data: tell(kind, **data)) if on_event else None)
+                    finally:
+                        if live is not None:
+                            live.stop()
             # The session's cost is only known once it has closed, so it's counted here, for every attempt.
             cost += session.cost_usd or 0.0
             if reached:

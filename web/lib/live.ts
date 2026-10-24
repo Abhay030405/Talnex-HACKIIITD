@@ -21,6 +21,7 @@ export const EVENT_KINDS = [
   "reason",
   "step.record",
   "step.result",
+  "screen.frame",
   "run.outcome",
   "run.finished",
   "check.started",
@@ -71,6 +72,8 @@ export interface LiveSubject {
   claims: Record<string, LiveClaim>;
   claimOrder: string[];
   shot: { url: string; box?: Box } | null;
+  /** The remote browser right now (a live frame), when the run sends them. Live only, never replayed. */
+  screen: string | null;
   label: string;
   reason: string;
   url: string;
@@ -155,6 +158,7 @@ function newSubject(id: string, kind: string): LiveSubject {
     claims: {},
     claimOrder: [],
     shot: null,
+    screen: null,
     label: "",
     reason: "",
     url: "",
@@ -253,6 +257,10 @@ export function reduceLive(state: LiveState, kind: string, ev: LiveEvent): LiveS
       };
       line = { label: "step", text: text(d.label), tone: "plain" };
       break;
+    }
+    case "screen.frame": {
+      const url = safeUrl(d.proof_url);
+      return url ? { ...state, subjects: { ...state.subjects, [s.id]: { ...s, screen: url } } } : state;
     }
     case "step.result":
       line = { label: "result", text: `step ${num(d.step)} of ${num(d.steps)}: ${text(d.result)}`, tone: "plain" };
