@@ -77,6 +77,14 @@ func (s *server) updateRole(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "role not found")
 		return
 	}
+	// The owner first: a stranger learns nothing about the role, not even from a bad body.
+	if _, err := s.candidates.GetRole(r.Context(), who.UserID, id); errors.Is(err, candidates.ErrRoleNotFound) {
+		writeError(w, http.StatusNotFound, "role not found")
+		return
+	} else if err != nil {
+		s.fail(w, "read role", err)
+		return
+	}
 	var in candidates.NewRole
 	if !decode(w, r, &in) {
 		return
