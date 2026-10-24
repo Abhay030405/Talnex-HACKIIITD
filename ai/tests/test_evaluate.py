@@ -97,3 +97,39 @@ class TestTheRealExpectedFile:
         texts = [c["text"] for c in data["claims"] + data["controls"]]
         assert len(texts) == len(set(texts))
         assert all(1 <= c.get("importance", 2) <= 3 for c in data["claims"] + data["controls"])
+
+
+class TestEveryPlantedApp:
+    def test_every_expected_file_is_well_formed(self):
+        files = sorted((REPO_ROOT / "eval" / "expected").glob("*.json"))
+        assert {f.stem for f in files} >= {"honest", "fake_claim", "partly_works", "copier_trickster", "shelfmate"}
+        allowed = {"works", "partly_works", "broken"}
+        for f in files:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            assert data["app"] == f.stem and data["url"].startswith("https://") and data["claims"]
+            items = data["claims"] + data.get("controls", [])
+            for c in items:
+                want = c["expected"] if isinstance(c["expected"], list) else [c["expected"]]
+                assert set(want) <= allowed and 1 <= c.get("importance", 2) <= 3, (f.stem, c["text"])
+            assert len({c["text"] for c in items}) == len(items)
+
+    def test_a_claim_can_accept_more_than_one_right_answer(self):
+        expected = {"app": "shelf", "claims": [{"text": "Export CSV", "expected": ["broken", "partly_works"]}], "controls": [],
+                    "expected_flags": 0, "criteria": {"verdict_agreement_runs": 1}}
+        runs = []
+        for i, v in enumerate(("broken", "partly_works", "works"), 1):
+            r = RunData(index=i, talnex=50.0)
+            r.claims["Export CSV"] = ClaimRun(v, "medium", 0.0)
+            runs.append(r)
+        a = analyse(expected, runs)
+        assert a["pairs"] == {"correct": 2, "wrong": 1, "unconfirmed": 0, "total": 3}
+        assert a["claims"][0]["expected"] == "broken or partly_works" and a["claims"][0]["wrong_runs"] == 1
+
+    def test_the_summary_lists_each_app_and_every_wrong_verdict(self):
+        from talnex_ai.worker.evaluate import render_summary
+
+        good = analyse(EXPECTED, [run(1)])
+        bad = analyse({**EXPECTED, "app": "other"}, [run(1, add="broken")])
+        text = render_summary([good, bad], "2026-10-24 12:00 UTC")
+        assert "**Gate: FAIL**" in text and "| demo | PASS |" in text and "| other | FAIL |" in text
+        assert "other: Add a todo (expected works, got broken" in text

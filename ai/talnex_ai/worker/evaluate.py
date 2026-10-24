@@ -1,12 +1,14 @@
 """Check TalNex against a planted app whose right answers we know (AGENTS.md section 9).
 
     python -m talnex_ai.worker.evaluate --expected eval/expected/honest.json --runs 3
+    python -m talnex_ai.worker.evaluate --all --runs 1      (every planted app side by side: the gate before a merge)
 
 It runs the whole live-testing pipeline several times on the app (a Python worker must be running), then compares
 the verdicts with the expected ones and writes the saved runs to eval/runs/<app>/ and a report to eval/report/<app>.md.
 
 The rules it checks (architecture section 27):
-  * correctness: each claim gets the expected verdict ("could not test" is reported separately, it is never a wrong answer)
+  * correctness: each claim gets the expected verdict ("could not test" is reported separately, it is never a wrong answer).
+    An expected verdict can be a list when more than one answer is right, for example ["broken", "partly_works"]
   * steadiness: the same verdict for each claim in at least 2 of 3 runs, and the TalNex score moves by at most 10 points
   * no red flags that should not be there
 """
@@ -17,6 +19,7 @@ import json
 import math
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -61,12 +64,21 @@ def _required_agreement(runs: int, wanted: int) -> int:
     return min(wanted, runs)
 
 
+def _right(verdict: Optional[str], want: Any) -> bool:
+    """Whether a verdict is one of the expected answers (one verdict, or a list of acceptable ones)."""
+    return verdict in want if isinstance(want, list) else verdict == want
+
+
+def _label(want: Any) -> str:
+    return " or ".join(want) if isinstance(want, list) else str(want)
+
+
 def analyse(expected: dict[str, Any], runs: list[RunData]) -> dict[str, Any]:
     """Compare runs with the expected answers. Pure: no network, no database."""
     criteria = expected.get("criteria", {})
     need = _required_agreement(len(runs), int(criteria.get("verdict_agreement_runs", 2)))
     max_spread = float(criteria.get("talnex_score_spread_max", 10))
-    wanted: dict[str, str] = {c["text"]: c["expected"] for c in expected["claims"] + expected.get("controls", [])}
+    wanted: dict[str, Any] = {c["text"]: c["expected"] for c in expected["claims"] + expected.get("controls", [])}
     control_texts = {c["text"] for c in expected.get("controls", [])}
 
     claims_out = []
@@ -75,18 +87,20 @@ def analyse(expected: dict[str, Any], runs: list[RunData]) -> dict[str, Any]:
         verdicts = [r.claims[text].verdict if text in r.claims else None for r in runs]
         counted = Counter(v for v in verdicts if v is not None)
         majority, agree = (counted.most_common(1)[0] if counted else (None, 0))
+        claim_wrong = 0
         for v in verdicts:
-            if v == want:
+            if _right(v, want):
                 correct += 1
             elif v in (None, "could_not_test"):
                 unconfirmed += 1
             else:
                 wrong += 1
+                claim_wrong += 1
         scores = [r.claims[text].feature_score for r in runs if text in r.claims and r.claims[text].feature_score is not None]
         claims_out.append({
-            "claim": text, "control": text in control_texts, "expected": want, "verdicts": verdicts,
+            "claim": text, "control": text in control_texts, "expected": _label(want), "verdicts": verdicts,
             "majority": majority, "agreeing_runs": agree, "steady": agree >= need,
-            "majority_is_expected": majority == want,
+            "majority_is_expected": _right(majority, want), "wrong_runs": claim_wrong,
             "feature_scores": scores, "score_spread": round(max(scores) - min(scores), 1) if len(scores) > 1 else 0.0,
         })
 
@@ -178,24 +192,42 @@ def run_once(pool, expected: dict[str, Any], index: int, project: bool, timeout:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--expected", required=True, help="the expected-answers file, for example eval/expected/honest.json")
+    parser.add_argument("--expected", help="the expected-answers file, for example eval/expected/honest.json")
+    parser.add_argument("--all", action="store_true", help="every file in eval/expected that tests a live site, side by side")
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--project", action="store_true", help="test as a hackathon project instead of a resume project")
     parser.add_argument("--timeout", type=int, default=1500, help="seconds to wait for each run")
     parser.add_argument("--note", default="", help="a line added to the report (for example what was different about this run)")
     args = parser.parse_args(argv)
+    if bool(args.all) == bool(args.expected):
+        parser.error("give either --expected <file> or --all")
 
-    expected_path = Path(args.expected)
-    expected = json.loads((expected_path if expected_path.is_absolute() else REPO_ROOT / expected_path).read_text(encoding="utf-8"))
-    pool = open_pool(settings_module.load().database_url)
+    if args.all:
+        files = [f for f in sorted((REPO_ROOT / "eval" / "expected").glob("*.json"))
+                 if json.loads(f.read_text(encoding="utf-8")).get("url")]  # repo-only apps need the sandbox track
+    else:
+        path = Path(args.expected)
+        files = [path if path.is_absolute() else REPO_ROOT / path]
+    apps = [json.loads(f.read_text(encoding="utf-8")) for f in files]
+    pool = open_pool(settings_module.load().database_url, max_size=4 + len(apps))
+    with ThreadPoolExecutor(max_workers=len(apps)) as threads:
+        results = list(threads.map(lambda e: evaluate_app(pool, e, args.runs, args.project, args.timeout, args.note), apps))
+    if len(results) > 1:
+        write_summary(results, args.note)
+    return 0 if all(a["passed"] for a in results) else 1
 
+
+def evaluate_app(pool, expected: dict[str, Any], runs_wanted: int, project: bool, timeout: int, note: str) -> dict[str, Any]:
+    """Run one app the asked number of times, save the runs and the report, and return the analysis."""
+    app = expected["app"]
     runs: list[RunData] = []
-    for i in range(1, args.runs + 1):
-        print(f"run {i} of {args.runs} ...", flush=True)
-        data = run_once(pool, expected, i, args.project, args.timeout)
+    for i in range(1, runs_wanted + 1):
+        print(f"[{app}] run {i} of {runs_wanted} ...", flush=True)
+        data = run_once(pool, expected, i, project, timeout)
         runs.append(data)
         shown = ", ".join(f"{(c.verdict or 'none')}" for c in data.claims.values())
-        print(f"  finished={data.finished} {data.seconds:.0f}s ${data.cost_usd:.4f} talnex={data.talnex} verdicts: {shown}", flush=True)
+        print(f"[{app}]  finished={data.finished} {data.seconds:.0f}s ${data.cost_usd:.4f} talnex={data.talnex} verdicts: {shown}",
+              flush=True)
 
     analysis = analyse(expected, runs)
     when = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -206,14 +238,38 @@ def main(argv=None) -> int:
         json.dumps({"when": when, "runs": [asdict(r) for r in runs], "analysis": analysis}, indent=2), encoding="utf-8")
     report_dir = REPO_ROOT / "eval" / "report"
     report_dir.mkdir(parents=True, exist_ok=True)
-    (report_dir / f"{expected['app']}.md").write_text(render_report(analysis, when, args.note), encoding="utf-8")
+    (report_dir / f"{expected['app']}.md").write_text(render_report(analysis, when, note), encoding="utf-8")
 
-    print(f"\n{'PASS' if analysis['passed'] else 'FAIL'}: accuracy {analysis['accuracy']}%, wrong {analysis['pairs']['wrong']}, "
+    print(f"\n[{app}] {'PASS' if analysis['passed'] else 'FAIL'}: accuracy {analysis['accuracy']}%, wrong {analysis['pairs']['wrong']}, "
           f"unconfirmed {analysis['pairs']['unconfirmed']}, talnex spread {analysis['talnex_spread']}")
     for name, ok in analysis["checks"].items():
-        print(f"  {'PASS' if ok else 'FAIL'}: {name}")
-    print(f"report: eval/report/{expected['app']}.md")
-    return 0 if analysis["passed"] else 1
+        print(f"[{app}]   {'PASS' if ok else 'FAIL'}: {name}")
+    print(f"[{app}] report: eval/report/{expected['app']}.md", flush=True)
+    return analysis
+
+
+def render_summary(results: list[dict[str, Any]], when: str, note: str = "") -> str:
+    """One table for every app: the gate's answer at a glance."""
+    passed = all(a["passed"] for a in results)
+    lines = ["# Evaluation: every planted app", "", f"Run on {when}.{(' ' + note) if note else ''}", "",
+             f"**Gate: {'PASS' if passed else 'FAIL'}**", "",
+             "| App | Result | Right | Wrong | Could not test | Seconds per run | Cost per run (USD) |",
+             "|---|---|---|---|---|---|---|"]
+    for a in results:
+        p = a["pairs"]
+        lines.append(f"| {a['app']} | {'PASS' if a['passed'] else 'FAIL'} | {p['correct']} of {p['total']} | {p['wrong']} | "
+                     f"{p['unconfirmed']} | {a['seconds_per_run']} | {a['cost_per_run']} |")
+    wrong = [(a["app"], c) for a in results for c in a["claims"] if c.get("wrong_runs")]
+    if wrong:
+        lines += ["", "## Wrong verdicts", ""] + [f"- {app}: {c['claim']} (expected {c['expected']}, got {', '.join(str(v) for v in c['verdicts'])})"
+                                                for app, c in wrong]
+    return "\n".join(lines) + "\n"
+
+
+def write_summary(results: list[dict[str, Any]], note: str = "") -> None:
+    when = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    (REPO_ROOT / "eval" / "report" / "summary.md").write_text(render_summary(results, when, note), encoding="utf-8")
+    print("\n" + render_summary(results, when, note), flush=True)
 
 
 if __name__ == "__main__":
