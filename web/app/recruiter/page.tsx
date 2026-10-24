@@ -7,13 +7,14 @@ import { StatTile } from "@/components/ui/StatTile";
 import { BADGE_CLASS, candidateStatus, countByStage, formatDate } from "@/lib/format";
 import { load } from "@/lib/load";
 import { requireRole } from "@/lib/session";
-import { roleLabel, type CandidateSummary } from "@/lib/types";
+import { roleLabel, type CandidateSummary, type JobRole } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Candidates" };
 
 export default async function RecruiterWorkspace() {
   const session = await requireRole("recruiter");
   const { data, problem } = await load<CandidateSummary[]>("/v1/candidates", "your candidates");
+  const roles = (await load<JobRole[]>("/v1/roles", "your roles")).data ?? [];
   const candidates = data ?? [];
   const counts = countByStage(candidates);
   const name = session.user.name || session.user.email || "there";
@@ -24,10 +25,15 @@ export default async function RecruiterWorkspace() {
         title="Candidates"
         lead={`Welcome back, ${name}. Every check shows its proof.`}
         actions={
-          <Link href="/new/recruiter" className="button button--primary">
-            <PlusIcon size={16} />
-            New check
-          </Link>
+          <div className="row">
+            <Link href="/new/role" className="button button--primary">
+              <PlusIcon size={16} />
+              New role (one or many resumes)
+            </Link>
+            <Link href="/new/recruiter" className="button button--ghost">
+              Quick check (one resume)
+            </Link>
+          </div>
         }
       />
 
@@ -48,6 +54,30 @@ export default async function RecruiterWorkspace() {
             <StatTile label="Finished" value={counts.finished} hint="Proof report ready" />
             <StatTile label="Failed" value={counts.failed} hint="Could not finish" />
           </div>
+
+          {roles.length > 0 && (
+            <section className="panel" aria-labelledby="all-roles">
+              <div className="panel__head">
+                <h2 className="panel__title" id="all-roles">
+                  Roles
+                </h2>
+                <span className="meta">{roles.length} total</span>
+              </div>
+              <ul className="report-list">
+                {roles.map((role) => (
+                  <li key={role.id}>
+                    <Link href={`/roles/${role.id}`} className="table__link">
+                      {role.title}
+                    </Link>{" "}
+                    <span className="meta">
+                      {roleLabel(role.role_level)} · {role.candidate_count}{" "}
+                      {role.candidate_count === 1 ? "resume" : "resumes"} · {formatDate(role.created_at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="panel" aria-labelledby="all-candidates">
             <div className="panel__head">

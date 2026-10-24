@@ -94,9 +94,37 @@ export interface CandidateSummary {
   id: string;
   label: string;
   role_level: RoleLevel;
+  /** Set when the candidate was uploaded under a role (a job opening). */
+  role_id?: string;
   coding_handles: Record<string, string>;
   status: string;
   created_at: string;
+}
+
+/** Checks a role can switch on or off (backend/internal/candidates/roles.go). Empty means every check. */
+export const ROLE_CHECKS = [
+  { value: "live_test", label: "Live test", hint: "Use each live project like a real person" },
+  { value: "code_review", label: "Code review and authorship", hint: "Read the code and who wrote it" },
+  { value: "coding_profiles", label: "Coding profiles", hint: "Codeforces, LeetCode (with replay pastes), CodeChef" },
+  { value: "linkedin", label: "LinkedIn", hint: "Check the LinkedIn profile exists and whose it is" },
+] as const;
+export type RoleCheck = (typeof ROLE_CHECKS)[number]["value"];
+
+/** A job opening: what the recruiter is hiring for, shared by every resume uploaded to it. */
+export interface JobRole {
+  id: string;
+  title: string;
+  job_description: string;
+  person_wanted: string;
+  skills: string[];
+  role_level: RoleLevel;
+  criteria: { name: string; description: string; weight: number }[] | null;
+  checks: Partial<Record<RoleCheck, boolean>>;
+  auto_confirm: boolean;
+  candidate_count: number;
+  created_at: string;
+  /** Only when one role is read. */
+  candidates?: CandidateSummary[];
 }
 
 /** One project as the resume reader found it, for the recruiter to confirm or fix. */
