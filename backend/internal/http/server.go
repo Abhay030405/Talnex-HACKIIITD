@@ -109,6 +109,7 @@ func NewHandler(o Options) http.Handler {
 		// Local demos only: mission control for everything the worker is doing, with no sign-in.
 		root.HandleFunc("GET /v1/dev/live", s.getDevLive)
 		root.HandleFunc("GET /v1/dev/live/view", s.getDevLiveView)
+		root.HandleFunc("GET /v1/dev/live/names", s.getDevLiveNames)
 	}
 	root.Handle("/", auth.Middleware(o.Pool, o.AuthSecret)(private))
 
