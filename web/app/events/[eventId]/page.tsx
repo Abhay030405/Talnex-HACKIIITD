@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/forms/SubmitButton";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { BADGE_CLASS, EVENT_STATE_BADGE, formatDate } from "@/lib/format";
+import { BADGE_CLASS, EVENT_STATE_BADGE, formatCost, formatDate, formatDuration } from "@/lib/format";
 import { anyRunning, flagCountText, linksGiven, projectStatus, runAllText } from "@/lib/hackathon-format";
 import { getEventOverview } from "@/lib/project-card";
 import { formatCoverage, formatScore } from "@/lib/report-format";
@@ -36,6 +36,10 @@ export default async function EventPage({
   const path = `/events/${encodeURIComponent(event.id)}`;
   const criteria = event.criteria ?? [];
   const hasResults = projects.some((p) => p.report_ready);
+  // Time and cost of every team's latest check, for the line under the teams table.
+  const checked = projects.filter((p) => p.run_seconds != null && p.run_cost_usd != null);
+  const totalSeconds = checked.reduce((sum, p) => sum + (p.run_seconds ?? 0), 0);
+  const totalCost = checked.reduce((sum, p) => sum + (p.run_cost_usd ?? 0), 0);
 
   return (
     <div className="stack">
@@ -120,6 +124,11 @@ export default async function EventPage({
                       </td>
                       <td>
                         <span className={BADGE_CLASS[status.tone]}>{status.text}</span>
+                        {p.run_seconds != null && p.run_cost_usd != null && (
+                          <span className="table__sub">
+                            {formatDuration(p.run_seconds)} · {formatCost(p.run_cost_usd)}
+                          </span>
+                        )}
                       </td>
                       <td>{p.talnex_score10 === null ? "–" : `${formatScore(p.talnex_score10)}/10`}</td>
                       <td>{p.coverage === null ? "–" : formatCoverage(p.coverage)}</td>
@@ -139,6 +148,12 @@ export default async function EventPage({
               </tbody>
             </table>
           </div>
+        )}
+        {checked.length > 0 && (
+          <p className="panel__foot note">
+            Checked so far: {checked.length} team{checked.length === 1 ? "" : "s"} · {formatDuration(totalSeconds)} of checking
+            in all · {formatCost(totalCost)}.
+          </p>
         )}
         <p className="panel__foot note">
           Teams are listed by name, not by score. TalNex does not rank teams or pick a winner.

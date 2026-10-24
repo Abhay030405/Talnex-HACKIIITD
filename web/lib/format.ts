@@ -67,3 +67,27 @@ export const EVENT_STATE_BADGE: Record<EventState, Badge> = {
   upcoming: { text: "Upcoming", tone: "warning" },
   ended: { text: "Ended", tone: "neutral" },
 };
+
+/** A check's length the way a person says it: "42 s", "4 min 41 s", "1 h 3 min". */
+export function formatDuration(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} s`;
+  if (s < 3600) {
+    const rest = s % 60;
+    return `${Math.floor(s / 60)} min${rest ? ` ${rest} s` : ""}`;
+  }
+  const minutes = Math.floor((s % 3600) / 60);
+  return `${Math.floor(s / 3600)} h${minutes ? ` ${minutes} min` : ""}`;
+}
+
+/** Dollars: cents for normal amounts, four places for tiny ones so a $0.0026 browser session isn't shown as $0.00. */
+export function formatCost(usd: number): string {
+  if (usd > 0 && usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
+/** One line for a check's time and cost, with model and browser apart. */
+export function runLine(run: { seconds: number; finished: boolean; cost_usd: number; model_usd: number; browser_usd: number }): string {
+  const time = `${run.finished ? "Checked in" : "Running for"} ${formatDuration(run.seconds)}`;
+  return `${time} · ${formatCost(run.cost_usd)} (model ${formatCost(run.model_usd)} · browser ${formatCost(run.browser_usd)})`;
+}

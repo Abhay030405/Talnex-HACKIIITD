@@ -3,7 +3,7 @@ import { ClaimRow } from "@/components/proof/ClaimRow";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { WhoBuiltWhat } from "@/components/proof/WhoBuiltWhat";
 import { ProjectScore } from "@/components/scores/ProjectScore";
-import { BADGE_CLASS } from "@/lib/format";
+import { BADGE_CLASS, runLine } from "@/lib/format";
 import { checkRows, groupKindLabel } from "@/lib/hackathon-format";
 import { formatCoverage, formatScore } from "@/lib/report-format";
 import type { AiOpinion, HackathonCard, OpinionPart } from "@/lib/types";
@@ -87,6 +87,7 @@ export function HackathonCardView({ card }: { card: HackathonCard }) {
                 </a>
               )}
             </div>
+            {card.run && <p className="meta">{runLine(card.run)}</p>}
           </div>
           <ProjectScore talnex={card.talnex} />
         </div>

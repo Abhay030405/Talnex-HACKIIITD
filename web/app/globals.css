@@ -1426,6 +1426,15 @@ a.meta:hover {
   inset: 0;
 }
 
+/* A small second line under a cell's main value (a check's time and cost under its status). */
+.table__sub {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
 .table__end {
   width: 1%;
   text-align: right;

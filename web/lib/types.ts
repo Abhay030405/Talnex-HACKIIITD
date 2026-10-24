@@ -253,6 +253,7 @@ export interface CandidateReport {
   role_level: RoleLevel;
   has_gaps: boolean;
   time_saved: { manual_minutes_estimate: number; talnex_minutes: number; saved_minutes: number };
+  run?: RunUsage | null;
   projects: ReportProject[];
   coding_signals: CodingSignal[];
   flags: ReportFlag[];
@@ -300,6 +301,17 @@ export interface AiOpinion {
   models: string[];
 }
 
+/** How long a check took and what it cost, from the jobs and the usage log. Model and browser costs are apart. */
+export interface RunUsage {
+  seconds: number;
+  finished: boolean;
+  cost_usd: number;
+  model_usd: number;
+  browser_usd: number;
+  model_calls: number;
+  browser_sessions: number;
+}
+
 export interface CardCheck {
   stage: string;
   status: string;
@@ -328,6 +340,7 @@ export interface HackathonCard {
   features: ReportFeature[];
   flags: ReportFlag[];
   checks: CardCheck[];
+  run?: RunUsage | null;
   ai_opinion: AiOpinion | null;
   who_built_what?: WhoBuiltWhatRow[] | null;
   has_gaps: boolean;
@@ -348,6 +361,9 @@ export interface OverviewProject {
   /** How many flags of each level: info, review, strong. */
   flags: Partial<Record<FlagLevel, number>>;
   report_ready: boolean;
+  /** The latest check: seconds from first job to last (so far while it runs), and its cost. Null if never checked. */
+  run_seconds?: number | null;
+  run_cost_usd?: number | null;
 }
 
 export interface EventOverview {
