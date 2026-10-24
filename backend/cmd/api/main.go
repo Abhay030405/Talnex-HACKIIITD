@@ -12,9 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/cleanup"
 	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/config"
 	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/db"
 	apihttp "github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/http"
+	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/live"
 	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/storage/r2"
 )
 
@@ -53,6 +55,26 @@ func run(log *slog.Logger) error {
 		return err
 	}
 
+	// The live view: one listening connection for the whole process, and an hourly clean-up of old saved events.
+	hub := live.NewHub(pool, log)
+	go hub.Run(ctx)
+	go func() {
+		tick := time.NewTicker(time.Hour)
+		defer tick.Stop()
+		for {
+			if n, err := cleanup.PurgeOldLiveEvents(ctx, pool, cleanup.LiveEventsKeepFor); err != nil {
+				log.Warn("live events clean-up", "err", err)
+			} else if n > 0 {
+				log.Info("live events clean-up", "deleted", n)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+			}
+		}
+	}()
+
 	handler := apihttp.NewHandler(apihttp.Options{
 		Pool:               pool,
 		AuthSecret:         cfg.API.AuthSecret,
@@ -64,6 +86,7 @@ func run(log *slog.Logger) error {
 		ProofLinks:         store,
 		FileRemover:        store,
 		Walkthrough:        apihttp.WalkthroughLimits(cfg.API.Walkthrough),
+		Live:               hub,
 		Ready: func(ctx context.Context) error {
 			if err := pool.Ping(ctx); err != nil {
 				return fmt.Errorf("database: %w", err)

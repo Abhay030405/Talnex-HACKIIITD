@@ -12,6 +12,7 @@ import (
 	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/candidates"
 	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/events"
 	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/jobs"
+	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/live"
 	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/projects"
 )
 
@@ -33,6 +34,8 @@ type Options struct {
 	Ready func(ctx context.Context) error
 	// Walkthrough limits the voice walkthrough questions (recording size, questions per day).
 	Walkthrough WalkthroughLimits
+	// Live passes the worker's live events to viewers (docs/live_events.md). Nil turns the live view off.
+	Live *live.Hub
 }
 
 type server struct {
@@ -90,6 +93,8 @@ func NewHandler(o Options) http.Handler {
 	private.HandleFunc("GET /v1/candidate-projects/{id}/walkthroughs", auth.RequireRole(auth.RoleRecruiter, s.listCandidateProjectWalkthroughs))
 	// Either kind of account; only the person who asked sees the answer.
 	private.HandleFunc("GET /v1/walkthroughs/{id}", s.getWalkthrough)
+	// Live view: what TalNex is doing right now on a project, a resume project, a candidate or a whole event.
+	private.HandleFunc("GET /v1/live/{kind}/{id}", s.getLive)
 	if o.EnableDevEndpoints {
 		private.HandleFunc("POST /v1/dev/selftest", s.startSelfTest)
 		private.HandleFunc("GET /v1/dev/selftest/{target}", s.selfTestStatus)
@@ -100,6 +105,11 @@ func NewHandler(o Options) http.Handler {
 	root.Handle("/readyz", public)
 	// Gateway route: the phone has no user, so it skips sign-in and is checked by its gateway key instead.
 	root.HandleFunc("POST /v1/sms/incoming", s.incomingSMS)
+	if o.EnableDevEndpoints {
+		// Local demos only: mission control for everything the worker is doing, with no sign-in.
+		root.HandleFunc("GET /v1/dev/live", s.getDevLive)
+		root.HandleFunc("GET /v1/dev/live/view", s.getDevLiveView)
+	}
 	root.Handle("/", auth.Middleware(o.Pool, o.AuthSecret)(private))
 
 	return recoverer(o.Log)(logger(o.Log)(cors(o.WebOrigin)(root)))

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalNex Live</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0a; --panel: #111; --line: #262626; --line-strong: #3a3a3a;
+  --fg: #ededed; --muted: #8f8f8f; --faint: #5c5c5c;
+  --works: #3fb950; --broken: #f85149; --maybe: #d29922; --run: #e5e5e5;
+  --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; }
+.app { height: 100%; display: grid; grid-template-rows: auto auto 1fr; }
+header { display: flex; align-items: center; gap: 18px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 700; letter-spacing: -0.02em; font-size: 16px; }
+.conn { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.conn i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); display: inline-block; }
+.conn.on i { background: var(--works); }
+.meters { margin-left: auto; display: flex; gap: 22px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.meters b { color: var(--fg); font-weight: 500; margin-left: 6px; }
+select { background: var(--panel); color: var(--fg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 12px; }
+.stages { display: flex; gap: 6px; padding: 10px 18px; border-bottom: 1px solid var(--line); overflow-x: auto; min-height: 44px; }
+.stage { font-family: var(--mono); font-size: 11px; padding: 4px 9px; border-radius: 5px; border: 1px solid var(--line); color: var(--faint); white-space: nowrap; }
+.stage.running { color: var(--run); border-color: var(--run); }
+.stage.done { color: var(--muted); border-color: var(--line-strong); }
+.stage.skipped { color: var(--faint); border-style: dashed; }
+.stage.failed { color: var(--broken); border-color: var(--broken); }
+.stage.retrying { color: var(--maybe); border-color: var(--maybe); }
+main { display: grid; grid-template-columns: 280px minmax(0, 1fr) 360px; min-height: 0; }
+.col { border-right: 1px solid var(--line); min-height: 0; overflow-y: auto; }
+.col:last-child { border-right: 0; }
+.col h2 { font-size: 11px; font-family: var(--mono); color: var(--faint); font-weight: 500; letter-spacing: 0.06em; margin: 0; padding: 14px 16px 8px; position: sticky; top: 0; background: var(--bg); }
+.claim { padding: 10px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.claim .t { line-height: 1.35; }
+.claim .s { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.claim.testing .s { color: var(--run); }
+.claim.works .s, .claim.partly_works .s { color: var(--works); }
+.claim.broken .s { color: var(--broken); }
+.claim.could_not_test .s, .claim.reviewed_from_code .s { color: var(--maybe); }
+.claim .r { color: var(--muted); font-size: 12px; }
+.browser { padding: 16px; display: grid; gap: 12px; align-content: start; }
+.shot { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); min-height: 240px; display: grid; place-items: center; }
+.shot img { display: block; width: 100%; height: auto; }
+.shot .empty { color: var(--faint); font-family: var(--mono); font-size: 12px; padding: 40px; text-align: center; }
+.ring { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border: 2px solid var(--maybe); border-radius: 50%; pointer-events: none; }
+.caption { display: grid; gap: 6px; }
+.caption .label { font-size: 15px; }
+.caption .why { color: var(--muted); font-style: italic; }
+.caption .url { font-family: var(--mono); font-size: 11px; color: var(--faint); overflow-wrap: anywhere; }
+.log { font-family: var(--mono); font-size: 12px; }
+.line { padding: 6px 16px; border-bottom: 1px solid #181818; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; }
+.line .at { color: var(--faint); }
+.line .msg { overflow-wrap: anywhere; color: var(--muted); }
+.line .k { color: var(--fg); margin-right: 6px; }
+.line.reason .msg { font-style: italic; }
+.line.verdict-works .k, .line.verdict-partly_works .k { color: var(--works); }
+.line.verdict-broken .k { color: var(--broken); }
+.line.verdict-could_not_test .k { color: var(--maybe); }
+.line.failed .k { color: var(--broken); }
+@media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } .col { border-right: 0; border-bottom: 1px solid var(--line); max-height: 60vh; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">TalNex Live</div>
+    <div class="conn" id="conn"><i></i><span>connecting</span></div>
+    <label class="conn">watching <select id="subject"><option value="">everything</option></select></label>
+    <div class="meters">
+      <span>time<b id="m-time">0:00</b></span>
+      <span>actions<b id="m-actions">0</b></span>
+      <span>browser cost<b id="m-cost">$0.0000</b></span>
+      <span>verdicts<b id="m-verdicts">0</b></span>
+    </div>
+  </header>
+  <div class="stages" id="stages"></div>
+  <main>
+    <section class="col"><h2>CLAIMS</h2><div id="claims"></div></section>
+    <section class="col browser">
+      <div class="shot" id="shot"><div class="empty">The agent's screen appears here as soon as it takes its first step.</div></div>
+      <div class="caption">
+        <div class="label" id="label"></div>
+        <div class="why" id="why"></div>
+        <div class="url" id="url"></div>
+      </div>
+    </section>
+    <section class="col"><h2>WHAT IT IS DOING</h2><div class="log" id="log"></div></section>
+  </main>
+</div>
+<script>
+(() => {
+  // Everything from the stream is text from the outside world: it is only ever set with textContent.
+  const $ = (id) => document.getElementById(id);
+  const state = { subjects: new Map(), stages: new Map(), claims: new Map(), actions: 0, cost: 0, verdicts: 0, first: null, last: null };
+  const VERDICT = { works: "works", partly_works: "partly works", broken: "broken", could_not_test: "could not test", reviewed_from_code: "reviewed from code" };
+  let watching = "";
+
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const clock = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toTimeString().slice(0, 8); };
+  const mine = (ev) => !watching || ev.subject?.id === watching;
+
+  function noteSubject(ev) {
+    const s = ev.subject; if (!s?.id || state.subjects.has(s.id)) return;
+    state.subjects.set(s.id, s.kind);
+    const o = el("option", null, `${s.kind} ${s.id.slice(0, 8)}`); o.value = s.id; $("subject").append(o);
+  }
+
+  function log(ev, kind, text, cls) {
+    const line = el("div", "line " + (cls || ""));
+    line.append(el("span", "at", clock(ev.at)));
+    const msg = el("span", "msg"); msg.append(el("span", "k", kind)); msg.append(document.createTextNode(text || ""));
+    line.append(msg);
+    const box = $("log"); box.prepend(line);
+    while (box.childElementCount > 400) box.lastElementChild.remove();
+  }
+
+  function drawStages() {
+    const box = $("stages"); box.replaceChildren();
+    for (const [key, st] of state.stages) {
+      const [subject, name] = key.split("|");
+      if (watching && subject !== watching) continue;
+      box.append(el("span", "stage " + st, name));
+    }
+  }
+
+  function drawClaims() {
+    const box = $("claims"); box.replaceChildren();
+    for (const c of state.claims.values()) {
+      if (watching && c.subject !== watching) continue;
+      const card = el("div", "claim " + c.status);
+      card.append(el("div", "t", c.text || "claim"));
+      card.append(el("div", "s", c.status === "testing" ? "testing…" : (VERDICT[c.status] || c.status) + (c.confidence ? ` · ${c.confidence}` : "")));
+      if (c.reason) card.append(el("div", "r", c.reason));
+      box.append(card);
+    }
+  }
+
+  function showStep(d) {
+    if (d.proof_url) {
+      const img = new Image(); img.alt = d.label || "screenshot"; img.src = d.proof_url;
+      const shot = $("shot");
+      img.onload = () => {
+        shot.replaceChildren(img);
+        if (d.box && img.naturalWidth) {
+          const r = el("div", "ring");
+          r.style.left = ((d.box.x + d.box.w / 2) / img.naturalWidth * 100) + "%";
+          r.style.top = ((d.box.y + d.box.h / 2) / img.naturalHeight * 100) + "%";
+          shot.append(r);
+        }
+      };
+    }
+    $("label").textContent = d.label || "";
+    $("url").textContent = d.url || "";
+  }
+
+  function claim(ev) {
+    const id = ev.claim_id; if (!id) return null;
+    if (!state.claims.has(id)) state.claims.set(id, { subject: ev.subject?.id, text: "", status: "queued" });
+    return state.claims.get(id);
+  }
+
+  function handle(kind, ev) {
+    noteSubject(ev);
+    const d = ev.data || {};
+    if (ev.at) { state.first = state.first || ev.at; state.last = ev.at; }
+    const key = `${ev.subject?.id}|${ev.stage}`;
+    switch (kind) {
+      case "stage.started": state.stages.set(key, "running"); drawStages(); if (mine(ev)) log(ev, ev.stage, " started"); break;
+      case "stage.finished": state.stages.set(key, d.skipped ? "skipped" : "done"); drawStages();
+        if (mine(ev)) log(ev, ev.stage, d.skipped ? ` skipped: ${d.reason || ""}` : ` done in ${d.seconds ?? "?"} s`); break;
+      case "stage.failed": state.stages.set(key, d.status === "retrying" ? "retrying" : "failed"); drawStages();
+        if (mine(ev)) log(ev, ev.stage, ` ${d.status}: ${d.error || ""}`, "failed"); break;
+      case "claims.queued":
+        for (const c of d.claims || []) state.claims.set(c.id, { subject: ev.subject?.id, text: c.text, status: "queued" });
+        drawClaims(); if (mine(ev)) log(ev, "claims", ` ${d.total} to test`); break;
+      case "claim.started": { const c = claim(ev); if (c) { c.text = d.text || c.text; c.status = "testing"; drawClaims(); }
+        if (mine(ev)) log(ev, "testing", ` ${d.text || ""}`); break; }
+      case "run.started": if (mine(ev)) log(ev, "browser", ` try ${d.try_number ?? 1}, ${d.test_type || "normal"} test`); break;
+      case "reason": if (mine(ev)) { $("why").textContent = d.text ? `“${d.text}”` : ""; log(ev, "why", ` ${d.text || ""}`, "reason"); } break;
+      case "step.record": state.actions += 1; if (mine(ev)) { showStep(d); log(ev, "step", ` ${d.label || ""}`); } break;
+      case "step.result": if (mine(ev)) log(ev, "result", ` step ${d.step}/${d.steps}: ${d.result}`); break;
+      case "ladder": if (mine(ev)) log(ev, "ladder", ` ${d.line || ""}`); break;
+      case "run.finished": state.cost += Number(d.cost_usd || 0); if (mine(ev)) log(ev, "browser", ` closed: ${d.outcome || ""}`); break;
+      case "check.started": if (mine(ev)) log(ev, "check", ` a separate AI looks at ${d.images} screenshots`); break;
+      case "check": if (mine(ev)) log(ev, "check", ` ${d.outcome}: ${d.seen || ""}`); break;
+      case "verdict": { state.verdicts += 1; const c = claim(ev);
+        if (c) { c.status = d.verdict; c.confidence = d.confidence; c.reason = d.reason; drawClaims(); }
+        if (mine(ev)) log(ev, VERDICT[d.verdict] || d.verdict, ` ${d.reason || ""}`, "verdict-" + d.verdict); break; }
+      default: if (mine(ev)) log(ev, kind, "");
+    }
+    meters();
+  }
+
+  function meters() {
+    $("m-actions").textContent = state.actions;
+    $("m-cost").textContent = "$" + state.cost.toFixed(4);
+    $("m-verdicts").textContent = state.verdicts;
+    if (state.first && state.last) {
+      const s = Math.max(0, Math.round((new Date(state.last) - new Date(state.first)) / 1000));
+      $("m-time").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    }
+  }
+
+  $("subject").addEventListener("change", (e) => { watching = e.target.value; drawStages(); drawClaims(); $("log").replaceChildren(); });
+
+  const KINDS = ["stage.started", "stage.finished", "stage.failed", "claims.queued", "claim.started", "ladder", "run.started", "reason",
+                 "step.record", "step.result", "run.outcome", "run.finished", "check.started", "check", "verdict"];
+  const source = new EventSource("/v1/dev/live");
+  const conn = (on, text) => { $("conn").classList.toggle("on", on); $("conn").querySelector("span").textContent = text; };
+  source.onopen = () => conn(true, "live");
+  source.onerror = () => conn(false, "reconnecting");
+  for (const k of KINDS) source.addEventListener(k, (m) => { try { handle(k, JSON.parse(m.data)); } catch (_) {} });
+  source.addEventListener("replay.start", () => {
+    Object.assign(state, { stages: new Map(), claims: new Map(), actions: 0, cost: 0, verdicts: 0, first: null, last: null });
+    $("log").replaceChildren(); drawStages(); drawClaims(); meters();
+  });
+  source.addEventListener("replay.done", () => conn(true, "live"));
+})();
+</script>
+</body>
+</html>

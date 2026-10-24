@@ -93,6 +93,7 @@ var ownerRoutes = []struct {
 	{"POST", "/v1/candidate-projects/{cproj}/walkthroughs", "recruiter", true},
 	{"GET", "/v1/candidate-projects/{cproj}/walkthroughs", "recruiter", true},
 	{"GET", "/v1/walkthroughs/{walk}", "", true},
+	{"GET", "/v1/live/{kind}/{event}", "", true},
 }
 
 func TestEveryPrivateRouteChecksTheOwner(t *testing.T) {
@@ -166,7 +167,7 @@ func TestEveryPrivateRouteChecksTheOwner(t *testing.T) {
 	roleCall(t, srv.URL, "GET", "/v1/me", orgStranger, "organizer", nil)
 	roleCall(t, srv.URL, "GET", "/v1/me", recStranger, "recruiter", nil)
 
-	fill := strings.NewReplacer("{event}", eventID, "{project}", projectID, "{cand}", candID, "{cproj}", cprojID, "{walk}", walk.ID)
+	fill := strings.NewReplacer("{event}", eventID, "{project}", projectID, "{cand}", candID, "{cproj}", cprojID, "{walk}", walk.ID, "{kind}", "event")
 	for _, r := range ownerRoutes {
 		path := fill.Replace(r.path)
 		name := r.method + " " + r.path
