@@ -1,3 +1,4 @@
+import type { JobRole } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect, unstable_rethrow } from "next/navigation";
@@ -50,6 +51,14 @@ export default async function CandidatePage({
   if (candidate.status === "awaiting_confirmation") redirect(`${path}/confirm`);
 
   const report = await getCandidateReport(candidateId);
+  let criteria: { name: string; weight: number }[] = [];
+  if (candidate.role_id) {
+    try {
+      criteria = (await apiFetch<JobRole>(`/v1/roles/${encodeURIComponent(candidate.role_id)}`)).criteria ?? [];
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+  }
   // A check running again keeps its old report on screen, so progress shows whenever something is still running.
   let progress: CandidateProgress | null = null;
   if (!report || !isFinishedStatus(candidate.status)) {
@@ -107,7 +116,7 @@ export default async function CandidatePage({
       {progress && (!report || !isFinishedStatus(status)) && <ProgressPanel progress={progress} />}
 
       {report ? (
-        <CandidateReportView report={report} />
+        <CandidateReportView report={report} criteria={criteria} />
       ) : (
         <section className="panel" aria-labelledby="report-title">
           <div className="panel__head">

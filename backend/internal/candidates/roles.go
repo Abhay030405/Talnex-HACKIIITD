@@ -272,3 +272,41 @@ func (s *Store) CheckChosen(ctx context.Context, candidateID, check string) (boo
 	on, set := checks[check]
 	return len(checks) == 0 || !set || on, nil
 }
+
+// UpdateRole replaces a role's brief, criteria and checks. Results stay; weights apply to every candidate at once.
+func (s *Store) UpdateRole(ctx context.Context, ownerID, id string, n NewRole) (Role, error) {
+	checks, err := json.Marshal(n.Checks)
+	if err != nil {
+		return Role{}, err
+	}
+	auto := n.AutoConfirm == nil || *n.AutoConfirm
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Role{}, err
+	}
+	defer tx.Rollback(ctx)
+	tag, err := tx.Exec(ctx, `
+		UPDATE roles SET title = $3, job_description = $4, person_wanted = $5, skills = $6, role_level = $7,
+		       checks = $8::jsonb, auto_confirm = $9, updated_at = now()
+		 WHERE id = $1::uuid AND owner_id = $2::uuid`,
+		id, ownerID, n.Title, n.JobDescription, n.PersonWanted, n.Skills, n.RoleLevel, checks, auto)
+	if err != nil {
+		return Role{}, fmt.Errorf("update role: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return Role{}, ErrRoleNotFound
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM criteria WHERE role_id = $1::uuid`, id); err != nil {
+		return Role{}, err
+	}
+	for _, c := range n.Criteria {
+		if _, err := tx.Exec(ctx, `INSERT INTO criteria (role_id, name, description, weight) VALUES ($1::uuid, $2, NULLIF($3, ''), $4)`,
+			id, c.Name, c.Description, c.Weight); err != nil {
+			return Role{}, fmt.Errorf("save criterion: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Role{}, err
+	}
+	return s.GetRole(ctx, ownerID, id)
+}

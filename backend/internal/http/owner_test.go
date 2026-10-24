@@ -82,6 +82,7 @@ var ownerRoutes = []struct {
 	{"POST", "/v1/roles", "recruiter", false},
 	{"GET", "/v1/roles", "recruiter", false},
 	{"GET", "/v1/roles/{role}", "recruiter", true},
+	{"PUT", "/v1/roles/{role}", "recruiter", true},
 	{"POST", "/v1/candidates", "recruiter", false},
 	{"GET", "/v1/candidates", "recruiter", false},
 	{"GET", "/v1/candidates/{cand}", "recruiter", true},

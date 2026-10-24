@@ -6,11 +6,15 @@ import { PlusIcon } from "@/components/ui/Icons";
 import { MAX_CRITERIA } from "@/lib/event-form";
 
 let nextKey = 0;
-const newRow = () => ({ key: nextKey++ });
+type Row = { key: number; name?: string; description?: string; weight?: number };
+const newRow = (from: Omit<Row, "key"> = {}): Row => ({ key: nextKey++, ...from });
+
+/** Feature groups TalNex scores in; a criterion with one of these names weighs those features. */
+const GROUPS = ["Core", "Logic", "UI", "Access", "Reliability", "Edge cases", "Setup"];
 
 /** The scoring criteria of a fixed-problem event: a name, an optional description and a weight for each. */
-export function CriteriaEditor() {
-  const [rows, setRows] = useState(() => [newRow(), newRow(), newRow()]);
+export function CriteriaEditor({ initial = [] }: { initial?: { name: string; description: string; weight: number }[] }) {
+  const [rows, setRows] = useState(() => (initial.length ? initial.map((c) => newRow(c)) : [newRow(), newRow(), newRow()]));
 
   return (
     <fieldset className="field fieldset">
@@ -19,24 +23,33 @@ export function CriteriaEditor() {
         The groups each project is scored in. Weights are shown as you give them; the total is labelled as weighted.
       </span>
 
+      <datalist id="criteria-groups">
+        {GROUPS.map((g) => (
+          <option key={g} value={g} />
+        ))}
+      </datalist>
       <div className="criteria">
         {rows.map((row, index) => (
           <div className="criteria__row" key={row.key}>
             <input
               className="input"
               name="criterion_name"
+              list="criteria-groups"
+              defaultValue={row.name}
               aria-label={`Criterion ${index + 1} name`}
               placeholder={index === 0 ? "Core flow works" : "Criterion name"}
             />
             <input
               className="input"
               name="criterion_description"
+              defaultValue={row.description}
               aria-label={`Criterion ${index + 1} description`}
               placeholder="What it means (optional)"
             />
             <input
               className="input"
               name="criterion_weight"
+              defaultValue={row.weight}
               type="number"
               min="0.1"
               step="0.1"

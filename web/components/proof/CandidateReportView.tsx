@@ -6,10 +6,18 @@ import { ProjectCard } from "@/components/proof/ProjectCard";
 import { StatTile } from "@/components/ui/StatTile";
 import { BADGE_CLASS, formatCost, formatDate, formatDuration } from "@/lib/format";
 import { SITE_NAMES, evidenceFacts, reportSummary, signalWeightInfo } from "@/lib/report-format";
+import { weightedScore } from "@/lib/role-score";
 import type { CandidateReport } from "@/lib/types";
 
 /** The whole recruiter proof report. There is no overall candidate score and no ranking: a human decides. */
-export function CandidateReportView({ report }: { report: CandidateReport }) {
+export function CandidateReportView({
+  report,
+  criteria = [],
+}: {
+  report: CandidateReport;
+  criteria?: { name: string; weight: number }[];
+}) {
+  const weighted = criteria.length > 0 ? weightedScore(report, criteria) : null;
   const summary = reportSummary(report);
   const saved = report.time_saved;
 
@@ -43,6 +51,27 @@ export function CandidateReportView({ report }: { report: CandidateReport }) {
         <p className="notice" role="status">
           Some parts could not be tested. They are shown with the reason and do not count against the candidate.
         </p>
+      )}
+
+      {weighted && (
+        <section className="panel" aria-labelledby="weighted-title">
+          <div className="panel__head">
+            <h2 className="panel__title" id="weighted-title">
+              Weighted score for this role: {weighted.score === null ? "not scored yet" : `${weighted.score} / 10`}
+            </h2>
+          </div>
+          <div className="panel__body stack">
+            <p className="note">Uses the role&apos;s weights as they are now. Change them in the role settings; nothing is re-tested.</p>
+            <ul className="report-list">
+              {weighted.parts.map((p) => (
+                <li key={p.name}>
+                  <strong>{p.name}</strong> (weight {p.weight}):{" "}
+                  {p.average === null ? "no scored features in this group, left out" : `${p.average.toFixed(1)} / 10 from ${p.features} features`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       )}
 
       {report.role && report.role.skills.length > 0 && (
