@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { SubmitButton } from "@/components/forms/SubmitButton";
@@ -45,11 +46,19 @@ export default async function ProjectPage({
         title={project.team_name}
         back={{ href: `/events/${encodeURIComponent(eventId)}`, label: "Back to the event" }}
         actions={
-          !status.running && (
-            <form action={runProjectAction.bind(null, eventId, projectId)}>
-              <SubmitButton pendingText="Starting…">{card ? "Check again" : "Check this project"}</SubmitButton>
-            </form>
-          )
+          <>
+            <Link
+              href={`/events/${encodeURIComponent(eventId)}/projects/${encodeURIComponent(projectId)}/live`}
+              className="button button--ghost"
+            >
+              Watch live
+            </Link>
+            {!status.running && (
+              <form action={runProjectAction.bind(null, eventId, projectId)}>
+                <SubmitButton pendingText="Starting…">{card ? "Check again" : "Check this project"}</SubmitButton>
+              </form>
+            )}
+          </>
         }
       >
         <div className="row">
