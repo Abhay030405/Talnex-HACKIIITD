@@ -1296,6 +1296,14 @@ components:
           items: { $ref: '#/components/schemas/NewCriterion' }
           description: At least one for fixed_problem; none for open_theme.
           example: [{ name: Core features, description: The main tools work, weight: 3 }, { name: Ease of use, description: '', weight: 1 }]
+        brief:
+          type: string
+          maxLength: 20000
+          description: The problem statement or theme the judges give. It reaches the test prompts as data, never as instructions.
+        checks:
+          type: object
+          description: Which checks run for this event, each true or false. Empty runs the usual checks.
+          additionalProperties: { type: boolean }
 
     EventRunStarted:
       type: object
@@ -1334,6 +1342,9 @@ components:
         video_url: { type: string, example: '' }
         test_login_ref: { type: string, description: A TinyFish Vault name for a test login. Never a password. }
         team_github_handles: { type: array, items: { type: string }, maxItems: 10, description: GitHub account names. }
+        abstract:
+          type: string
+          description: The team's own short description of what they built. It reaches the test prompts as data, never as instructions.
 
     ProjectRunStarted:
       type: object
