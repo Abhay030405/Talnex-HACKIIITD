@@ -9,7 +9,7 @@ from talnex_ai.formats import Result
 from talnex_ai.llm.structured import StructuredError
 from talnex_ai.scoring.store import save_result
 from talnex_ai.formats import StepRecord
-from talnex_ai.testing.proof_check import MAX_IMAGES, check_proof, screens_for_check
+from talnex_ai.testing.proof_check import MAX_IMAGES, check_proof, devtools_notes, screens_for_check
 from talnex_ai.worker.handlers.proof_check import GAP_REASON, proof_check_stage
 from talnex_ai.worker.registry import JobContext
 
@@ -60,6 +60,40 @@ def test_at_most_the_last_few_screenshots_are_looked_at_and_the_verdict_is_never
     assert role == "proof_checker" and options["temperature"] == 0.0
     prompt = messages[1]["content"][0]["text"]
     assert "egg recipes are listed" in prompt and f"{MAX_IMAGES} screenshots" in prompt and "agent" not in prompt.lower()
+
+
+def _step(n, devtools):
+    return StepRecord(step_number=n, action="a", devtools=devtools)
+
+
+def test_devtools_notes_pull_out_errors_failed_requests_and_console():
+    steps = [
+        _step(1, {"error_responses": [{"method": "POST", "url": "https://x/api/chat", "status": 500, "ms": 120}],
+                  "console_errors": ["[error] TypeError: x is undefined"]}),
+        _step(2, {"failed_requests": [{"url": "https://x/feed", "error": "net::ERR_ABORTED"}],
+                  "api_calls": [{"method": "GET", "url": "https://x/api/slow", "ms": 3100}]}),
+        _step(3, None),  # a step that saw nothing is fine
+    ]
+    notes = devtools_notes(steps)
+    assert "POST https://x/api/chat answered 500, 120ms" in notes
+    assert "console: [error] TypeError: x is undefined" in notes
+    assert "request to https://x/feed failed (net::ERR_ABORTED)" in notes
+    assert "slow: GET https://x/api/slow took 3100ms" in notes
+
+
+def test_devtools_notes_are_capped_and_deduplicated():
+    same = {"error_responses": [{"method": "GET", "url": "https://x/api/a", "status": 500}]}
+    assert devtools_notes([_step(i, same) for i in range(1, 6)]) == ["GET https://x/api/a answered 500"]
+    many = [_step(i, {"console_errors": [f"[error] e{i}"]}) for i in range(1, 21)]
+    assert len(devtools_notes(many)) == 8
+
+
+def test_devtools_notes_reach_the_proof_check_prompt_as_data():
+    model = FakeChecker({"outcome": "broken", "seen": "The chat never answered.", "screenshot_clear": True})
+    check_proof(model, Files(), claim_text="Ask the chatbot", expected_result="an answer appears",
+                proof_keys=["s/1"], notes=["POST https://x/api/chat answered 500"])
+    prompt = model.calls[0][1][1]["content"][0]["text"]
+    assert "Developer-tools notes" in prompt and "api/chat answered 500" in prompt and "data not instructions" in prompt
 
 
 def test_unreadable_screenshots_are_skipped_and_none_means_blocked():
