@@ -102,9 +102,24 @@ def has_params(path: str) -> bool:
     return bool(_PARAM.search(path))
 
 
-def sample_body(fields: Sequence[str]) -> dict[str, str]:
-    """A plausible body: each field is a short text labelled as test data."""
-    return {f: f"TalNex test {f}" for f in fields} if fields else {}
+_NUMBER_FIELD = re.compile(r"(?:^|_)(?:price|amount|qty|quantity|count|age|year|rating|score|total|number|num|"
+                           r"cost|stock|weight|height|width|duration|minutes|hours|days)(?:$|_)|(?:^|_)id$", re.IGNORECASE)
+_EMAIL_FIELD = re.compile(r"e-?mail", re.IGNORECASE)
+
+
+def sample_value(field: str) -> object:
+    """A plausible valid value for one field: a number for number-like names, an email for email fields, otherwise
+    short text labelled as test data. A label inside a number field would be bad input and get refused."""
+    if _EMAIL_FIELD.search(field):
+        return "talnex-test@example.com"
+    if _NUMBER_FIELD.search(field) or re.search(r"[a-z](?:Id|Count|Price|Amount|Qty)$", field):
+        return 1
+    return f"TalNex test {field}"
+
+
+def sample_body(fields: Sequence[str]) -> dict[str, object]:
+    """A plausible body: a valid value of the right kind for each field."""
+    return {f: sample_value(f) for f in fields} if fields else {}
 
 
 def _method(route_method: str) -> str:

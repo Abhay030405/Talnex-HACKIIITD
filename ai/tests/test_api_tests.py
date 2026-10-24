@@ -577,3 +577,12 @@ class TestEdgeCasesUseARealRecord:
         routes = [Route("POST", "/api/books", "code", body_fields=["title"]), Route("POST", "/api/books/:id/rating", "code", body_fields=["stars"])]
         plan = derive(routes).plans["POST /api/books/:id/rating answers bad input without crashing"]
         assert plan.steps[0].path == "/api/books" and plan.steps[0].note.startswith("make a record")
+
+
+def test_sample_bodies_get_valid_values_of_the_right_kind():
+    from talnex_ai.sandbox.api_tests.plan import sample_body
+
+    body = sample_body(["title", "price", "quantity", "userId", "user_id", "email", "note"])
+    assert body["title"] == "TalNex test title" and body["note"] == "TalNex test note"
+    assert body["price"] == 1 and body["quantity"] == 1 and body["userId"] == 1 and body["user_id"] == 1
+    assert body["email"] == "talnex-test@example.com"
