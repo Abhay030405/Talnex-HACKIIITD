@@ -1359,6 +1359,12 @@ a.meta:hover {
 }
 
 /* Anchors everything inside the table, so nothing in a wide table can stretch the page on a phone. */
+/* The page for an address the site doesn't have. */
+.not-found__actions {
+  display: flex;
+  justify-content: center;
+}
+
 .table__wrap {
   position: relative;
   overflow-x: auto;
@@ -1370,7 +1376,7 @@ a.meta:hover {
 }
 
 .table th {
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   border-bottom: var(--line) solid var(--color-border);
   color: var(--color-text-faint);
   font-family: var(--font-mono);
@@ -1383,7 +1389,7 @@ a.meta:hover {
 }
 
 .table td {
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4) var(--space-4);
   border-bottom: var(--line) solid var(--color-border);
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -2189,7 +2195,8 @@ a.walkthrough__ref {
 
 .live__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--live-panel-min)), 1fr));
+  /* auto-fit: a single team uses the whole width, several share it */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--live-panel-min)), 1fr));
   gap: var(--space-4);
 }
 
@@ -2273,10 +2280,10 @@ a.walkthrough__ref {
 
 .live-stages {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   margin: 0;
   padding: var(--space-2) var(--space-4);
-  overflow-x: auto;
   list-style: none;
   border-bottom: var(--line) solid var(--color-border);
 }
@@ -2480,6 +2487,14 @@ a.walkthrough__ref {
 
 .live-log__text {
   overflow-wrap: anywhere;
+}
+
+/* Which claim a log line belongs to, matching the number in the claim list. */
+.live-log__claim,
+.live-claim__no {
+  margin-right: var(--space-2);
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
 }
 
 .live-log__line--plain .live-log__label {
