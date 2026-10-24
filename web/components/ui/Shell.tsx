@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { signOut } from "@/auth";
 import { LogoutIcon } from "@/components/ui/Icons";
+import { ShellFrame } from "@/components/ui/ShellFrame";
 import { ShellNav, type ShellNavItem } from "@/components/ui/ShellNav";
 import { ROLE_NAMES, homePath, type Role } from "@/lib/types";
 
@@ -24,7 +25,7 @@ export function Shell({ role, name, children }: { role: Role; name: string; chil
   }
 
   return (
-    <div className="shell">
+    <ShellFrame>
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -60,6 +61,6 @@ export function Shell({ role, name, children }: { role: Role; name: string; chil
           {children}
         </main>
       </div>
-    </div>
+    </ShellFrame>
   );
 }

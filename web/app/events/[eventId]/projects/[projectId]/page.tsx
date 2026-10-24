@@ -10,6 +10,7 @@ import { BADGE_CLASS } from "@/lib/format";
 import { projectStatus } from "@/lib/hackathon-format";
 import { getProject, getProjectCard } from "@/lib/project-card";
 import { requireRole } from "@/lib/session";
+import { tourPageUrl } from "@/lib/tour";
 
 import { runProjectAction } from "../../actions";
 
@@ -73,7 +74,7 @@ export default async function ProjectPage({
       )}
 
       {card ? (
-        <HackathonCardView card={card} />
+        <HackathonCardView card={card} tourHref={tourPageUrl("project", projectId, eventId)} />
       ) : (
         <section className="panel" aria-labelledby="pending-title">
           <div className="panel__head">

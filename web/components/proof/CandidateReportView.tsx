@@ -6,10 +6,11 @@ import { ProjectCard } from "@/components/proof/ProjectCard";
 import { StatTile } from "@/components/ui/StatTile";
 import { BADGE_CLASS, formatCost, formatDate, formatDuration } from "@/lib/format";
 import { SITE_NAMES, evidenceFacts, reportSummary, signalWeightInfo } from "@/lib/report-format";
+import { tourPageUrl } from "@/lib/tour";
 import type { CandidateReport } from "@/lib/types";
 
 /** The whole recruiter proof report. There is no overall candidate score and no ranking: a human decides. */
-export function CandidateReportView({ report }: { report: CandidateReport }) {
+export function CandidateReportView({ report, candidateId }: { report: CandidateReport; candidateId?: string }) {
   const summary = reportSummary(report);
   const saved = report.time_saved;
 
@@ -74,7 +75,11 @@ export function CandidateReportView({ report }: { report: CandidateReport }) {
       <InterviewKit questions={report.interview_kit ?? []} />
 
       {report.projects.map((project) => (
-        <ProjectCard key={project.id} project={project} />
+        <ProjectCard
+          key={project.id}
+          project={project}
+          tourHref={candidateId ? tourPageUrl("candidate_project", project.id, candidateId) : undefined}
+        />
       ))}
 
       {report.coding_signals.length > 0 && (

@@ -107,7 +107,7 @@ export default async function CandidatePage({
       {progress && (!report || !isFinishedStatus(status)) && <ProgressPanel progress={progress} />}
 
       {report ? (
-        <CandidateReportView report={report} />
+        <CandidateReportView report={report} candidateId={candidateId} />
       ) : (
         <section className="panel" aria-labelledby="report-title">
           <div className="panel__head">

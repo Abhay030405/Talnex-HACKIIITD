@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
@@ -7,7 +9,7 @@ import { projectStatusInfo } from "@/lib/report-format";
 import type { ReportProject } from "@/lib/types";
 
 /** One resume project: status, score with coverage, flags beside it, each claim with its proof, and code history. */
-export function ProjectCard({ project }: { project: ReportProject }) {
+export function ProjectCard({ project, tourHref }: { project: ReportProject; tourHref?: string }) {
   const status = projectStatusInfo(project.status);
   const originality = project.originality;
   const languages = Object.keys(originality?.languages ?? {});
@@ -80,6 +82,14 @@ export function ProjectCard({ project }: { project: ReportProject }) {
           </dl>
         )}
 
+        {project.features.length > 0 && tourHref && (
+          <div className="walkthrough__tour">
+            <Link className="button button--primary button--sm" href={tourHref}>
+              Walk me through it
+            </Link>
+            <span className="note">A chat beside the live site: the guide reads the code and shows how a feature was built.</span>
+          </div>
+          )}
         {project.features.length > 0 && <WalkthroughBox subject="candidate_project" subjectId={project.id} />}
       </div>
     </section>

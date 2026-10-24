@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
@@ -59,7 +61,7 @@ function OpinionBox({ opinion }: { opinion: AiOpinion }) {
 }
 
 /** One hackathon project's proof card: scores with coverage, flags beside them, each claim with proof, and notes. */
-export function HackathonCardView({ card }: { card: HackathonCard }) {
+export function HackathonCardView({ card, tourHref }: { card: HackathonCard; tourHref?: string }) {
   const weighted = card.weighted_total;
 
   return (
@@ -144,6 +146,14 @@ export function HackathonCardView({ card }: { card: HackathonCard }) {
             </div>
           )}
 
+          {card.features.length > 0 && tourHref && (
+            <div className="walkthrough__tour">
+            <Link className="button button--primary button--sm" href={tourHref}>
+              Walk me through it
+            </Link>
+            <span className="note">A chat beside the live site: the guide reads the code and shows how a feature was built.</span>
+          </div>
+          )}
           {card.features.length > 0 && <WalkthroughBox subject="project" subjectId={card.project_id} />}
         </div>
       </section>
