@@ -31,6 +31,32 @@ export function CandidateReportView({ report }: { report: CandidateReport }) {
         </p>
       )}
 
+      {report.role && report.role.skills.length > 0 && (
+        <section className="panel" aria-labelledby="fit-title">
+          <div className="panel__head">
+            <h2 className="panel__title" id="fit-title">
+              Fit to the role: {report.role.title}
+            </h2>
+          </div>
+          <div className="panel__body stack">
+            <p className="note">
+              Must-have skills shown by features that worked in testing. “Not seen” only means no tested feature showed it.
+            </p>
+            <ul className="report-list">
+              {report.role.skills.map((s) => (
+                <li key={s.skill}>
+                  <span className={s.proven_by.length ? "badge badge--success" : "badge badge--neutral"}>
+                    {s.proven_by.length ? "Shown" : "Not seen"}
+                  </span>{" "}
+                  <strong>{s.skill}</strong>
+                  {s.proven_by.length > 0 && <span className="meta"> by {s.proven_by.join("; ")}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
       <InterviewKit questions={report.interview_kit ?? []} />
 
       {report.projects.map((project) => (

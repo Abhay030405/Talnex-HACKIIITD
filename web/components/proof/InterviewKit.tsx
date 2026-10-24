@@ -5,6 +5,7 @@ const KIND_LABEL: Record<InterviewQuestion["kind"], string> = {
   feature: "Tested feature",
   flag: "Flag",
   demo: "Ask for a demo",
+  skill: "Role skill",
 };
 
 /** Up to five questions for the interview, each with why it is worth asking. Things to talk about, not verdicts. */
