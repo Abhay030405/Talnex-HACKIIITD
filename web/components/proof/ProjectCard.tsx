@@ -1,3 +1,4 @@
+import { RerunButton } from "@/components/proof/RerunButton";
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
@@ -7,7 +8,7 @@ import { projectStatusInfo } from "@/lib/report-format";
 import type { ReportProject } from "@/lib/types";
 
 /** One resume project: status, score with coverage, flags beside it, each claim with its proof, and code history. */
-export function ProjectCard({ project }: { project: ReportProject }) {
+export function ProjectCard({ project, candidateId }: { project: ReportProject; candidateId?: string }) {
   const status = projectStatusInfo(project.status);
   const originality = project.originality;
   const languages = Object.keys(originality?.languages ?? {});
@@ -21,6 +22,11 @@ export function ProjectCard({ project }: { project: ReportProject }) {
           </h2>
           <div className="row">
             <span className={BADGE_CLASS[status.tone]}>{status.text}</span>
+            {candidateId && (
+              <RerunButton candidateId={candidateId} projectId={project.id}>
+                Re-test this project
+              </RerunButton>
+            )}
             {project.live_url && (
               <a className="meta" href={project.live_url} target="_blank" rel="noopener noreferrer">
                 Live site

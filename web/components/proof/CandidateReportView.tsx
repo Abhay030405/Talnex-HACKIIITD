@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import { FlagList } from "@/components/flags/FlagBadge";
 import { InterviewKit } from "@/components/proof/InterviewKit";
 import { ProjectCard } from "@/components/proof/ProjectCard";
+import { RerunButton } from "@/components/proof/RerunButton";
 import { StatTile } from "@/components/ui/StatTile";
 import { BADGE_CLASS, formatCost, formatDate, formatDuration } from "@/lib/format";
 import { SITE_NAMES, evidenceFacts, reportSummary, signalWeightInfo } from "@/lib/report-format";
@@ -103,7 +104,7 @@ export function CandidateReportView({
       <InterviewKit questions={report.interview_kit ?? []} />
 
       {report.projects.map((project) => (
-        <ProjectCard key={project.id} project={project} />
+        <ProjectCard key={project.id} project={project} candidateId={report.candidate_id} />
       ))}
 
       {report.coding_signals.length > 0 && (
@@ -112,6 +113,7 @@ export function CandidateReportView({
             <h2 className="panel__title" id="signals-title">
               Coding profile signals
             </h2>
+            <RerunButton candidateId={report.candidate_id}>Re-run coding checks</RerunButton>
           </div>
           <div className="panel__body stack">
             <p className="note">
