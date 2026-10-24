@@ -6,8 +6,8 @@ Run from the repository root (needs reportlab, from the ai dev extras):
 
 It writes testdata/resumes/demo_resume.pdf. What TalNex should find:
 - TinyTools: every claim works.
-- NoteBox: adding and searching work, pinning does nothing.
-- ShelfMate: accounts, books, status and ratings work; the CSV export and the reading goal do not.
+- NoteBox: adding, editing, deleting and searching work; pinning does nothing.
+- ShelfMate: books, filters and ratings work; the CSV export and the reading goal bar do not.
 - CaptionIt: the pages work, the AI caption never appears.
 Bullets are plain dashes so the text reads back without unknown glyphs.
 """
@@ -38,12 +38,12 @@ PROJECTS = [
         "Built a todo list where you can add, tick off and delete items, and it is still there after a page reload.",
     ]),
     ("ShelfMate - reading tracker", "https://talnex-shelfmate.vercel.app", REPO + "shelfmate", [
-        "Built email and password accounts with sign-up, sign-in and sign-out; each reader sees only their own shelf.",
-        "Add, edit, search and delete books, mark them Want to read, Reading or Finished, and rate finished books 1 to 5.",
+        "Add, edit, search and delete books, and filter the shelf by Want to read, Reading or Finished.",
+        "Rate finished books from 1 to 5 and see the average rating; the shelf is saved in the browser.",
         "Added a one-click Export CSV of the whole shelf and a yearly reading goal with a progress bar.",
     ]),
     ("NoteBox - quick notes", "https://talnex-partly-works.vercel.app", REPO + "partly-works", [
-        "Built a notes page where you add notes and search them as you type.",
+        "Built a notes page where you add notes with a title and text, edit or delete them, and search them as you type.",
         "Added pinning, so a pinned note moves to the top of the list with a Pinned label.",
     ]),
     ("CaptionIt - AI photo captions", "https://talnex-fake-claim.vercel.app", REPO + "fake-claim", [
