@@ -7,6 +7,7 @@ import { RerunButton } from "@/components/proof/RerunButton";
 import { StatTile } from "@/components/ui/StatTile";
 import { BADGE_CLASS, formatCost, formatDate, formatDuration } from "@/lib/format";
 import { SITE_NAMES, evidenceFacts, reportSummary, signalWeightInfo } from "@/lib/report-format";
+import { insightTone } from "@/lib/insights";
 import { pasteCard, replaySummary } from "@/lib/leetcode-format";
 import { weightedScore } from "@/lib/role-score";
 import type { CandidateReport } from "@/lib/types";
@@ -120,6 +121,19 @@ export function CandidateReportView({
             <p className="note">
               Hints to look at, not proof of anything. TalNex does not check that a profile is theirs.
             </p>
+            {(report.profile_insights ?? []).length > 0 && (
+              <ul className="insights">
+                {(report.profile_insights ?? []).map((insight) => {
+                  const tone = insightTone(insight.evidence?.tone);
+                  return (
+                    <li className="insights__item" key={`${insight.site}-${insight.signal}`}>
+                      <span className={BADGE_CLASS[tone.badge]}>{tone.text}</span>
+                      <span>{String(insight.evidence?.summary ?? "")}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             {report.coding_signals.map((signal, i) => {
               const weight = signalWeightInfo(signal.weight);
               const summary = replaySummary(signal);

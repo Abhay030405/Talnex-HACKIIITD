@@ -26,6 +26,7 @@ query talnexProfile($username: String!) {
 """.strip()
 
 MAX_REMOVED = 20
+RECENT_RATINGS = 6
 
 
 def _solved(user: Mapping[str, Any]) -> dict[str, int]:
@@ -70,5 +71,10 @@ def facts_from_payload(payload: Mapping[str, Any]) -> Optional[dict[str, Any]]:
         facts["global_ranking"] = rank.get("globalRanking")
     history = data.get("userContestRankingHistory")
     removed = removed_contests(history if isinstance(history, list) else [])
+    rated = [c for c in (history if isinstance(history, list) else []) if c.get("attended") and isinstance(c.get("rating"), (int, float))]
+    facts["recent_ratings"] = [round(c["rating"]) for c in rated[-RECENT_RATINGS:]]   # oldest first, for a trend
+    last = (rated[-1].get("contest") or {}).get("startTime") if rated else None
+    if isinstance(last, int):
+        facts["last_contest_at"] = last
     facts["removed_contests"] = removed
     return {k: v for k, v in facts.items() if v is not None or k == "removed_contests"}

@@ -62,6 +62,11 @@ type GithubProfileFacts struct {
 	ActiveMonths       int            `json:"active_months"`
 	LongestQuietMonths int            `json:"longest_quiet_months"`
 	OneDayRepos        int            `json:"one_day_repos"`
+	Stars              int            `json:"stars"`        // stars on all original repos together
+	MostStarred        string         `json:"most_starred"` // the original repo with the most stars
+	MostStarredStars   int            `json:"most_starred_stars"`
+	LastPush           time.Time      `json:"last_push"`              // the newest push to any original repo
+	ExternalPRs        *int           `json:"external_prs,omitempty"` // pull requests on others' repos; nil if not read
 	Repos              []RepoPattern  `json:"repos"`
 }
 
@@ -80,6 +85,13 @@ func SummarizeGithubProfile(u github.User, repos []github.Repo, commits map[stri
 			continue
 		}
 		f.Originals++
+		f.Stars += r.Stars
+		if r.Stars > f.MostStarredStars {
+			f.MostStarred, f.MostStarredStars = r.FullName, r.Stars
+		}
+		if r.PushedAt.After(f.LastPush) {
+			f.LastPush = r.PushedAt
+		}
 		if r.Language != "" {
 			f.Languages[r.Language]++
 		}
@@ -171,6 +183,9 @@ func GithubProfile(pool *pgxpool.Pool, gh *github.Client, now func() time.Time) 
 			commits[r.FullName] = cs
 		}
 		facts := SummarizeGithubProfile(u, repos, commits, t)
+		if n, err := gh.ExternalPRs(ctx, account); err == nil { // a hint only: a failed search just leaves it out
+			facts.ExternalPRs = &n
+		}
 		if err := saveGithubProfile(ctx, pool, job.TargetID, facts); err != nil {
 			return nil, err
 		}
