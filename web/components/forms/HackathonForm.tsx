@@ -54,6 +54,32 @@ export function HackathonForm() {
 
       {mode === "fixed_problem" && <CriteriaEditor />}
 
+      <Field
+        label="Problem statement or brief (optional)"
+        htmlFor="brief"
+        hint="Paste the theme or problem statement. TalNex tests every project with it in mind."
+      >
+        <textarea className="input textarea" id="brief" name="brief" rows={5} maxLength={20000} aria-describedby="brief-hint" />
+      </Field>
+
+      <fieldset className="field fieldset">
+        <legend className="field__label">Checks to run</legend>
+        <span className="field__hint">Leave both ticked for the full check.</span>
+        <input type="hidden" name="checks_shown" value="1" />
+        <div className="choice-grid">
+          <label className="choice">
+            <input className="choice__input" type="checkbox" name="checks" value="live_test" defaultChecked />
+            <span className="choice__title">Live test</span>
+            <span className="choice__text">Use each live project like a real person</span>
+          </label>
+          <label className="choice">
+            <input className="choice__input" type="checkbox" name="checks" value="code_review" defaultChecked />
+            <span className="choice__title">Code review and authorship</span>
+            <span className="choice__text">Read the code and who wrote it</span>
+          </label>
+        </div>
+      </fieldset>
+
       <div className="form-grid">
         <Field label="Starts on" htmlFor="starts_on" hint="Code pushed before this day is flagged, never subtracted.">
           <input

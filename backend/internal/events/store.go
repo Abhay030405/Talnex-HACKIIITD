@@ -2,6 +2,7 @@
 package events
 
 import (
+	"encoding/json"
 	"context"
 	"errors"
 	"fmt"
@@ -54,11 +55,17 @@ type NewEvent struct {
 	EndsAt       time.Time      `json:"ends_at"`
 	SponsorTools []string       `json:"sponsor_tools"`
 	Criteria     []NewCriterion `json:"criteria"`
+	// Brief is the problem statement or theme judges give; it reaches the test prompts as data.
+	Brief  string          `json:"brief"`
+	Checks map[string]bool `json:"checks"`
 }
 
 // Validate returns a plain-words problem with the input, or nil.
 func (n *NewEvent) Validate() error {
 	n.Name = strings.TrimSpace(n.Name)
+	if len([]rune(n.Brief)) > 20000 {
+		return errors.New("the brief is longer than 20000 characters")
+	}
 	if n.Name == "" {
 		return errors.New("name is required")
 	}
@@ -134,9 +141,10 @@ func (s *Store) Create(ctx context.Context, ownerID string, n NewEvent) (Event, 
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // a rollback after commit is a no-op
 	e, err := scan(tx.QueryRow(ctx, `
-		INSERT INTO events (owner_id, name, mode, role_level, starts_at, ends_at, sponsor_tools)
-		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7)
-		RETURNING `+columns, ownerID, n.Name, n.Mode, n.RoleLevel, n.StartsAt, n.EndsAt, n.SponsorTools))
+		INSERT INTO events (owner_id, name, mode, role_level, starts_at, ends_at, sponsor_tools, brief, checks)
+		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, coalesce($9::jsonb, '{}'))
+		RETURNING `+columns, ownerID, n.Name, n.Mode, n.RoleLevel, n.StartsAt, n.EndsAt, n.SponsorTools,
+		strings.TrimSpace(n.Brief), checksJSON(n.Checks)))
 	if err != nil {
 		return Event{}, fmt.Errorf("create event: %w", err)
 	}
@@ -210,4 +218,13 @@ func (s *Store) List(ctx context.Context, ownerID string) ([]Event, error) {
 		out = append(out, e)
 	}
 	return out, rows.Err()
+}
+
+// checksJSON stores the chosen checks; nil means every check.
+func checksJSON(c map[string]bool) []byte {
+	if len(c) == 0 {
+		return nil
+	}
+	b, _ := json.Marshal(c)
+	return b
 }
