@@ -70,6 +70,7 @@ export function sortFlags(flags: ReportFlag[]): ReportFlag[] {
 
 const FLAG_TYPES: Record<string, string> = {
   hidden_ai_instructions: "Hidden instructions aimed at an AI checker",
+  leaked_secret: "The live site leaks a secret or private data",
   required_item_missing: "Required item missing",
   code_before_event: "Code written before the event",
   event_dates: "Event dates",

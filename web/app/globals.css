@@ -2001,6 +2001,20 @@ a.meta:hover {
   margin-top: var(--space-2);
 }
 
+.chat__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.chat__shot {
+  width: calc(var(--space-9) * 1.5);
+  height: auto;
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
 .chat__starters {
   display: flex;
   flex-wrap: wrap;
@@ -2131,6 +2145,39 @@ a.meta:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* What the browser's developer tools saw during a step: API calls with latency, failures, console, masked leaks. */
+.network {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.network > summary {
+  width: fit-content;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.network__table {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.network__url {
+  word-break: break-all;
+}
+
+.network__bad {
+  color: var(--color-danger);
+}
+
+.network__console {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-warning);
 }
 
 /* A screenshot shows small and opens to full width on click. */

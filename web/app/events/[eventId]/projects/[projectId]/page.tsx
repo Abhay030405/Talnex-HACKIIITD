@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, unstable_rethrow } from "next/navigation";
 
 import { SubmitButton } from "@/components/forms/SubmitButton";
-import { AskTalnex, type Ask } from "@/components/proof/AskTalnex";
+import { AskTalnex, type Ask, type CustomTest } from "@/components/proof/AskTalnex";
 import { HackathonCardView } from "@/components/proof/HackathonCardView";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -46,12 +46,20 @@ export default async function ProjectPage({
       unstable_rethrow(error);
     }
   }
+  let customTests: CustomTest[] = [];
+  if (card) {
+    try {
+      customTests = await apiFetch<CustomTest[]>(`/v1/projects/${encodeURIComponent(projectId)}/custom-tests`);
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+  }
   const status = projectStatus(project.status);
   const message = run ? RUN_MESSAGES[run] : undefined;
 
   return (
     <div className="stack">
-      <AutoRefresh active={status.running || asks.some((a) => a.status !== "done" && a.status !== "failed")} />
+      <AutoRefresh active={status.running || [...asks, ...customTests].some((a) => a.status !== "done" && a.status !== "failed")} />
 
       <PageHeader
         title={project.team_name}
@@ -87,7 +95,11 @@ export default async function ProjectPage({
         <>
           <AskTalnex
             asks={asks}
+            customTests={customTests}
             project={{
+              id: projectId,
+              name: project.team_name,
+              liveHref: `/events/${encodeURIComponent(eventId)}/projects/${encodeURIComponent(projectId)}/live`,
               ask: askProjectAction.bind(null, eventId, projectId),
               rerun: runProjectAction.bind(null, eventId, projectId),
               criteriaHref: `/events/${encodeURIComponent(eventId)}#criteria`,

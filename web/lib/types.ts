@@ -189,7 +189,20 @@ export type ProjectStatus = "tested" | "could_not_test" | "no_live_link";
 /** screen: a screenshot. http: a saved request and answer (backend test). command: a saved command's output. */
 export type ProofKind = "screen" | "http" | "command";
 
+/** What the browser's developer tools saw during one step (ai/talnex_ai/testing/runner/devtools.py). */
+export interface DevtoolsRecord {
+  api_calls?: { method: string; url: string; status: number; ms?: number }[];
+  error_responses?: { method: string; url: string; status: number; ms?: number }[];
+  failed_requests?: { method: string; url: string; error: string }[];
+  console_errors?: string[];
+  page_errors?: string[];
+  slow_api_calls?: number;
+  /** Secrets or private data the site showed, masked: never the secret itself. */
+  leaks?: { type: string; level: string; masked: string; where: string }[];
+}
+
 export interface ProofStep {
+  devtools?: DevtoolsRecord | null;
   step: number;
   action: string;
   observed: string | null;
