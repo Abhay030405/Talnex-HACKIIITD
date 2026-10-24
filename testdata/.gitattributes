@@ -1,0 +1,4 @@
+# Test files are stored byte for byte: a line-ending change breaks a PDF or an image
+*.pdf binary
+*.jpg binary
+*.png binary
