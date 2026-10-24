@@ -10,6 +10,9 @@ MINIMAL = {
     "S3_ACCESS_KEY": "access",
     "S3_SECRET_KEY": "secret",
     "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1/",
+    "TINYFISH_AGENT_BASE_URL": "https://agent.tinyfish.test",
+    "TINYFISH_BROWSER_BASE_URL": "https://browser.tinyfish.test",
+    "TINYFISH_FETCH_BASE_URL": "https://fetch.tinyfish.test",
 }
 
 

@@ -84,12 +84,36 @@ class LimitSettings:
 
 
 @dataclass(frozen=True)
+class TinyFishKey:
+    label: str  # a short name used in logs and the usage log, never the key itself
+    key: str
+
+
+@dataclass(frozen=True)
+class TinyFishSettings:
+    """TinyFish: one or more API keys (each account has its own credit), addresses, prices and the spending limit."""
+
+    keys: tuple[TinyFishKey, ...]
+    agent_base_url: str
+    browser_base_url: str
+    fetch_base_url: str
+    session_timeout_seconds: int
+    parallel_runs: int
+    budget_usd: float           # credit we may use per key
+    reserve_usd: float          # kept back per key: paid calls stop before touching it
+    agent_step_usd: float
+    browser_minute_usd: float
+    search_base_url: str = ""   # empty means web search is off, and checks that need it say so
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
     worker: WorkerSettings
     llm: LLMSettings
     limits: LimitSettings
+    tinyfish: TinyFishSettings
 
 
 class _Env:
@@ -153,6 +177,25 @@ class _Env:
             raise SettingsError("Bad settings, see .env.example:\n  - " + "\n  - ".join(self.problems))
 
 
+def parse_tinyfish_keys(pool: str, single: str = "") -> tuple[TinyFishKey, ...]:
+    """Read TINYFISH_API_KEYS: a comma-separated list of `label=key` or bare `key` entries (bare ones are
+    labelled k1, k2, ...). Falls back to TINYFISH_API_KEY. No key at all is allowed: only calls that
+    actually need TinyFish will fail."""
+    keys = []
+    for number, entry in enumerate((e.strip() for e in pool.split(",") if e.strip()), start=1):
+        label, sep, key = entry.partition("=")
+        label, key = (label.strip(), key.strip()) if sep else (f"k{number}", entry)
+        if not label or not key or not all(c.isalnum() or c == "-" for c in label):
+            raise SettingsError(f"TINYFISH_API_KEYS entry {number} needs a label of letters, digits or dashes, and a key")
+        keys.append(TinyFishKey(label, key))
+    if not keys and single.strip():
+        keys.append(TinyFishKey("main", single.strip()))
+    labels = [k.label for k in keys]
+    if len(set(labels)) != len(labels):
+        raise SettingsError("TINYFISH_API_KEYS uses the same label twice")
+    return tuple(keys)
+
+
 def load(source: Optional[Mapping[str, str]] = None) -> Settings:
     """Build Settings from the environment (or from `source`, which tests use)."""
     env = _Env(os.environ if source is None else source)
@@ -195,7 +238,25 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         sleeping_host_wait_seconds=env.whole("SLEEPING_HOST_WAIT_SECONDS", 60),
         extra_tests_per_claim=env.whole("EXTRA_TESTS_PER_CLAIM", 1),
     )
+    try:
+        tinyfish_keys = parse_tinyfish_keys(env.optional("TINYFISH_API_KEYS"), env.optional("TINYFISH_API_KEY"))
+    except SettingsError as err:
+        env.problems.append(str(err))
+        tinyfish_keys = ()
+    tinyfish = TinyFishSettings(
+        keys=tinyfish_keys,
+        agent_base_url=env.url("TINYFISH_AGENT_BASE_URL"),
+        browser_base_url=env.url("TINYFISH_BROWSER_BASE_URL"),
+        fetch_base_url=env.url("TINYFISH_FETCH_BASE_URL"),
+        session_timeout_seconds=env.whole("TINYFISH_SESSION_TIMEOUT_SECONDS", 300),
+        parallel_runs=env.whole("TINYFISH_PARALLEL_RUNS", 5),
+        budget_usd=env.decimal("TINYFISH_BUDGET_USD", 10.0, 0.0, 100_000.0),
+        reserve_usd=env.decimal("TINYFISH_BUDGET_RESERVE_USD", 2.0, 0.0, 100_000.0),
+        agent_step_usd=env.decimal("TINYFISH_AGENT_STEP_USD", 0.016, 0.0, 10.0),
+        browser_minute_usd=env.decimal("TINYFISH_BROWSER_MINUTE_USD", 0.002, 0.0, 10.0),
+        search_base_url=env.url("TINYFISH_SEARCH_BASE_URL", required=False),
+    )
     database_url = env.required("DATABASE_URL")
 
     env.stop_if_bad()
-    return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits)
+    return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish)
