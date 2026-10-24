@@ -152,6 +152,8 @@ type Signals struct {
 	SolvedProblems int    `json:"solved_problems"`
 	// RecentActivity is the date (UTC, YYYY-MM-DD) of the newest submission, or empty when there is none.
 	RecentActivity string `json:"recent_activity"`
+	// RecentRatings is the rating after each of the last few rated contests, oldest first (for a rating trend).
+	RecentRatings []int `json:"recent_ratings"`
 	// AllSkipped lists contests where every contest submission was Skipped (architecture section 18).
 	AllSkipped []SkippedContest `json:"all_skipped_contests"`
 	// PartlySkipped lists single problems that were Skipped in a contest that was not skipped as a whole.
@@ -180,6 +182,9 @@ func (c *Client) Fetch(ctx context.Context, handle string) (Signals, error) {
 }
 
 // Summarise turns the raw answers into the kept facts. A problem counts once, however many accepted tries it has.
+// recentRatings is how many of the latest rated contests are kept for the rating trend.
+const recentRatings = 6
+
 func Summarise(user User, ratings []RatingChange, subs []Submission) Signals {
 	solved := map[string]bool{}
 	var newest int64
@@ -193,7 +198,10 @@ func Summarise(user User, ratings []RatingChange, subs []Submission) Signals {
 	}
 	out := Signals{
 		Handle: user.Handle, Rating: user.Rating, MaxRating: user.MaxRating, Rank: user.Rank, MaxRank: user.MaxRank,
-		Contests: len(ratings), SolvedProblems: len(solved),
+		Contests: len(ratings), SolvedProblems: len(solved), RecentRatings: []int{},
+	}
+	for _, r := range ratings[max(0, len(ratings)-recentRatings):] {
+		out.RecentRatings = append(out.RecentRatings, r.NewRating)
 	}
 	if newest > 0 {
 		out.RecentActivity = time.Unix(newest, 0).UTC().Format("2006-01-02")

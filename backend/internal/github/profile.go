@@ -58,3 +58,13 @@ func (c *Client) AuthorCommits(ctx context.Context, owner, name, author string, 
 	}
 	return out, nil
 }
+
+// ExternalPRs counts the pull requests the account opened on repositories it does not own (one search request).
+func (c *Client) ExternalPRs(ctx context.Context, login string) (int, error) {
+	var out struct {
+		TotalCount int `json:"total_count"`
+	}
+	q := url.QueryEscape("type:pr author:" + login + " -user:" + login)
+	err := c.get(ctx, "/search/issues?per_page=1&q="+q, &out)
+	return out.TotalCount, err
+}
