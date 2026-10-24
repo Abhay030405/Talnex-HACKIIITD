@@ -1814,6 +1814,47 @@ a.meta:hover {
   font-size: var(--text-sm);
 }
 
+/* The new-role form: long text boxes, a one-line checkbox, and the live list of resumes being sent. */
+.textarea {
+  min-height: calc(var(--text-base) * 6);
+  resize: vertical;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+
+.check-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.upload-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.upload-list__item {
+  font-size: var(--text-sm);
+}
+
+.upload-list__item--done {
+  color: var(--color-success);
+}
+
+.upload-list__item--failed {
+  color: var(--color-danger);
+}
+
+.upload-list__item--uploading {
+  color: var(--color-warning);
+}
+
 /* The interview kit: numbered questions, each with why it is worth asking. */
 .interview-kit {
   display: flex;
