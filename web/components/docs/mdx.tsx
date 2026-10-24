@@ -14,7 +14,7 @@ import { SystemOverview } from '@/components/docs/diagrams/system-overview';
 import { NeverBlameLadder } from '@/components/docs/diagrams/never-blame';
 import { OrchestrationFlow } from '@/components/docs/diagrams/orchestration-flow';
 import { RequestFlow } from '@/components/docs/diagrams/request-flow';
-import { TestToken } from '@/components/docs/test-token';
+import { SessionToken, TestToken } from '@/components/docs/test-token';
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
@@ -35,6 +35,7 @@ export function getMDXComponents(components?: MDXComponents) {
     LeetcodeFlow,
     OrchestrationFlow,
     TestToken,
+    SessionToken,
     ...components,
   } satisfies MDXComponents;
 }

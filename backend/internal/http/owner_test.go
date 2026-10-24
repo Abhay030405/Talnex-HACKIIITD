@@ -68,6 +68,7 @@ var ownerRoutes = []struct {
 	scoped             bool
 }{
 	{"GET", "/v1/me", "", false},
+	{"POST", "/v1/auth/register", "", false},
 	{"POST", "/v1/events", "organizer", false},
 	{"GET", "/v1/events", "organizer", false},
 	{"GET", "/v1/events/{event}", "organizer", true},
