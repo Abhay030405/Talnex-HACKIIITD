@@ -1,0 +1,56 @@
+---
+title: Architecture
+description: How a request travels from your assistant to a live site and back, and the stages of a check.
+---
+
+## The request flow
+
+<RequestFlow />
+
+1. **The assistant** picks a tool and calls it over stdio (JSON-RPC). It starts the server itself; nothing listens on
+   a port.
+2. **The MCP server** (`mcp/`) checks the input and the account's role, signs a two-minute token like the website
+   does, and calls the **Go API**. It never touches the database, file storage or the AI services directly.
+3. **The Go API** checks the owner, saves what was asked in **Postgres** and queues the first job.
+4. **Python workers** take jobs from the queue. For a live test, the TinyFish agent opens **the team's live site** and
+   uses it like a person, saving a screenshot at every step. Each stage saves its results and queues the next stage
+   in the same database step.
+5. Results and **live events** go back to Postgres. The API serves them: JSON for cards and reports, and a
+   Server-Sent Events stream for watching live. The MCP server folds that stream into a digest.
+
+## The check pipeline
+
+<CheckPipeline />
+
+| Stage | What happens |
+|---|---|
+| Precheck | A free Fetch check: do the live link, the repository and the video open? |
+| Claims | Testable claims from the demo video, the organizer's criteria, or the resume |
+| Test plan | Steps and the expected result for each claim |
+| Live test | The agent signs in if needed and runs every plan, a screenshot per step |
+| Proof check | An independent second check confirms each result; the [never-blame ladder](/docs/safety) runs before "broken" |
+| Scoring | A score out of 10 per feature, group scores and the TalNex score; red flags beside it |
+| Proof card | What works, what does not, how sure, and why, with the proof |
+
+Other stages run beside these (repository checks, code-before-event checks, tutorial copy, the repository sandbox).
+`watch_live` shows every stage as it starts and finishes.
+
+## Inside the server
+
+| File | Job |
+|---|---|
+| `src/settings.ts` | The one place settings are read; a missing one stops the server with its name |
+| `src/api.ts` | Signs the token and calls the API; turns every failure into plain words |
+| `src/tools.ts` | The 19 tools: input checks, role, the confirm gates and estimates |
+| `src/live.ts` | Reads the SSE stream (chunk-safe, reconnecting, capped at 120 s) and folds events into the digest |
+| `src/server.ts` | Registers the tools with the MCP SDK; refuses the other role; errors become tool errors |
+| `src/index.ts` | The stdio entry point; logs go to stderr |
+
+## How it is tested
+
+- **182 unit tests** against a fake API (`npm test`, coverage with `npm run coverage`). Every tool is tested four ways
+  through a real MCP client: the happy path, bad input, API errors (404, 500, 503), and the wrong account. The confirm
+  gates, the token's byte-for-byte match with the website, and live watching (chunk splits, replay then live, the time
+  cap, reconnecting, a recorded real run) are tested too.
+- **An end-to-end check** (`npm run e2e`) starts the built server over stdio with the MCP SDK client and runs an
+  organizer and a recruiter flow against the local stack, **never with `confirm: true`**.
