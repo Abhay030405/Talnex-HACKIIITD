@@ -17,11 +17,18 @@ export interface Ask {
   };
 }
 
-const STARTERS = [
+const CANDIDATE_STARTERS = [
   "Summarise this candidate's strengths and gaps",
   "Why did the broken features fail?",
   "What should I ask in the interview?",
   "How well do they fit the role?",
+];
+
+const PROJECT_STARTERS = [
+  "Summarise what works and what does not",
+  "Why did the broken features fail?",
+  "How well does it meet the brief?",
+  "Which criteria are weakest?",
 ];
 
 /**
@@ -31,17 +38,28 @@ const STARTERS = [
 export function AskTalnex({
   candidateId,
   asks,
-  projects,
+  projects = [],
   roleId,
+  project,
 }: {
-  candidateId: string;
+  candidateId?: string;
   asks: Ask[];
-  projects: { id: string; name: string }[];
+  projects?: { id: string; name: string }[];
   roleId?: string;
+  /** Hackathon mode: ask about one team's project; re-run and weight changes use the event's own actions. */
+  project?: {
+    ask: (previous: { error?: string }, form: FormData) => Promise<{ error?: string }>;
+    rerun: () => Promise<void>;
+    criteriaHref: string;
+  };
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const [state, action, sending] = useActionState(askAction.bind(null, candidateId), {} as { error?: string });
+  const [state, action, sending] = useActionState(
+    project ? project.ask : askAction.bind(null, candidateId ?? ""),
+    {} as { error?: string },
+  );
+  const STARTERS = project ? PROJECT_STARTERS : CANDIDATE_STARTERS;
   const end = useRef<HTMLDivElement>(null);
   const thread = [...asks].reverse(); // oldest first, like any chat
   const thinking = asks.some((a) => a.status !== "done" && a.status !== "failed");
@@ -63,7 +81,7 @@ export function AskTalnex({
         {open ? "Close chat" : "Ask TalNex"}
       </button>
       {open && (
-        <aside className="chat" aria-label="Ask TalNex about this candidate">
+        <aside className="chat" aria-label={project ? "Ask TalNex about this project" : "Ask TalNex about this candidate"}>
           <header className="chat__head">
             <strong>Ask TalNex</strong>
             <span className="meta">Answers come from this report&apos;s proof only</span>
@@ -71,34 +89,42 @@ export function AskTalnex({
           <div className="chat__thread" aria-live="polite">
             {thread.length === 0 && (
               <div className="chat__bubble chat__bubble--ai">
-                Ask me anything about this candidate&apos;s report: why a feature failed, what to ask in the interview, how
-                they fit the role. I can also re-test a project or re-run the coding checks when you ask.
+                {project
+                  ? "Ask me anything about this team's proof card: why a feature failed, how it meets the brief, which criteria are weakest. I can also re-check the project when you ask."
+                  : "Ask me anything about this candidate's report: why a feature failed, what to ask in the interview, how they fit the role. I can also re-test a project or re-run the coding checks when you ask."}
               </div>
             )}
             {thread.map((a) => {
               const act = a.result?.action;
-              const project = act?.type === "rerun_project" ? projects.find((p) => p.name === act.project) : undefined;
+              const target = act?.type === "rerun_project" ? projects.find((p) => p.name === act.project) : undefined;
               const done = a.status === "done";
               return (
                 <div className="chat__pair" key={a.id}>
                   <div className="chat__bubble chat__bubble--me">{a.question}</div>
                   <div className={`chat__bubble chat__bubble--ai${done ? "" : " chat__bubble--waiting"}`}>
                     {done ? a.result?.answer : a.status === "failed" ? "I could not answer that one. Try asking again." : "TalNex is thinking…"}
-                    {project && (
+                    {target && candidateId && (
                       <div className="chat__action">
-                        <RerunButton candidateId={candidateId} projectId={project.id}>
-                          Re-test {project.name}
+                        <RerunButton candidateId={candidateId} projectId={target.id}>
+                          Re-test {target.name}
                         </RerunButton>
                       </div>
                     )}
-                    {act?.type === "rerun_coding" && (
+                    {project && act?.type === "rerun_project" && (
+                      <form className="chat__action" action={project.rerun}>
+                        <button type="submit" className="button button--ghost button--sm">
+                          Check this project again
+                        </button>
+                      </form>
+                    )}
+                    {candidateId && act?.type === "rerun_coding" && (
                       <div className="chat__action">
                         <RerunButton candidateId={candidateId}>Re-run coding checks</RerunButton>
                       </div>
                     )}
-                    {act?.type === "change_weight" && roleId && (
+                    {act?.type === "change_weight" && (roleId || project) && (
                       <div className="chat__action">
-                        <Link className="button button--ghost button--sm" href={`/roles/${roleId}/settings`}>
+                        <Link className="button button--ghost button--sm" href={project ? project.criteriaHref : `/roles/${roleId}/settings`}>
                           Set {act.criterion} to weight {act.weight}
                         </Link>
                       </div>
