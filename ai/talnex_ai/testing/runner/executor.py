@@ -58,6 +58,7 @@ class ExecConfig:
     max_actions_per_step: int = 6
     max_seconds: int = 240
     snapshot_chars: int = 6000
+    seconds_per_step: int = 60  # the run's limit grows with the plan: max(max_seconds, steps x seconds_per_step)
 
 
 @dataclass
@@ -163,6 +164,7 @@ def execute_plan(
 ) -> ExecResult:
     site_host = urlparse(site_url if "//" in site_url else "https://" + site_url).hostname or ""
     started = clock()
+    time_limit = max(cfg.max_seconds, cfg.seconds_per_step * len(plan.steps))  # longer plans get more time
     messages_since = datetime.now(timezone.utc) - CLOCK_SLACK
     records: list[StepRecord] = []
     history: list[str] = []
@@ -219,8 +221,8 @@ def execute_plan(
         acted_in_step = False
 
         while True:
-            if clock() - started > cfg.max_seconds:
-                record("Stopped: out of time", None, f"the run passed its {cfg.max_seconds}s limit")
+            if clock() - started > time_limit:
+                record("Stopped: out of time", None, f"the run passed its {time_limit}s limit")
                 return finish("blocked", "the test ran out of time", "ran out of time")
             if used["actions"] >= cfg.max_actions:
                 record("Stopped: too many actions", None, f"the run passed {cfg.max_actions} actions")
@@ -324,7 +326,7 @@ def execute_plan(
             lambda text: _final_parts(text, claim_text, len(plan.checks)), job_id=job_id,
         )
         record("Final check", plan.expected_result, observed)
-        outcome = outcome_from_parts(marks)
+        outcome = outcome_from_parts(marks, [c.promise for c in plan.checks])
         done = finish(outcome, observed, INCOMPLETE if outcome == "blocked" else None)
         done.parts = marks
         return done
