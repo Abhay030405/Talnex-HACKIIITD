@@ -1,6 +1,6 @@
 // Plain words for the organizer's pages. No ranking: lists are by team name, and "best" is always "up to three teams".
 import type { Badge } from "@/lib/format";
-import type { FlagLevel, OverviewProject } from "@/lib/types";
+import type { CardCheck, FlagLevel, OverviewProject } from "@/lib/types";
 
 // Every status a hackathon project can carry (ai/talnex_ai/worker/subjects.py PROJECT_STATUSES, plus failed).
 const PROJECT_STATUS: Record<string, Badge & { running: boolean }> = {
@@ -57,4 +57,40 @@ export function runAllText(started: number, skipped: number): string {
   if (started) parts.push(`${started} project${started === 1 ? "" : "s"} started`);
   if (skipped) parts.push(`${skipped} already checked or being checked`);
   return `${parts.join(", ")}.`;
+}
+
+/** One line of "checks that did not run". `stages` lists the checks folded into it, when several share one cause. */
+export interface CheckRow {
+  status: string;
+  label: string;
+  reason: string;
+  stages?: string[];
+}
+
+// The checks that read or run a team's repository. Without a repository they all skip for the same reason.
+const REPOSITORY_STAGES = /^(sandbox_|route_discovery|repo_|code_review|code_locate|authorship_|track_reconcile|tutorial_copy|github_)/;
+
+/** The card's skipped and failed checks as a short list: a check that failed always gets its own line, and when the
+ * team gave no repository, the repository checks become one line instead of a dozen. */
+export function checkRows(checks: CardCheck[], hasRepo: boolean): CheckRow[] {
+  const rows: CheckRow[] = [];
+  const folded: string[] = [];
+  for (const check of checks) {
+    const label = check.stage.replace(/_/g, " ");
+    const base = check.stage.split(":")[0].trim();
+    if (!hasRepo && check.status !== "failed" && REPOSITORY_STAGES.test(base)) {
+      folded.push(label);
+      continue;
+    }
+    rows.push({ status: check.status, label, reason: check.reason ?? "" });
+  }
+  if (folded.length > 0) {
+    rows.unshift({
+      status: "skipped",
+      label: "Repository checks",
+      reason: "No repository link was given, so the code was not read or run.",
+      stages: folded,
+    });
+  }
+  return rows;
 }
