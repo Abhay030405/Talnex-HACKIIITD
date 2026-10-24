@@ -12,7 +12,7 @@ ENV = {
     "S3_ACCESS_KEY": "a", "S3_SECRET_KEY": "s", "OPENROUTER_BASE_URL": "https://openrouter.test/api/v1",
     "OPENROUTER_API_KEY": "sk-test", "MODEL_TEST_PLANNER": "vendor/planner", "OPENROUTER_MAX_RETRIES": "2",
     "TINYFISH_AGENT_BASE_URL": "https://agent.tf.test", "TINYFISH_BROWSER_BASE_URL": "https://browser.tf.test",
-    "TINYFISH_FETCH_BASE_URL": "https://fetch.tf.test",
+    "TINYFISH_FETCH_BASE_URL": "https://fetch.tf.test", "AGENTMAIL_BASE_URL": "https://mail.test",
 }
 
 

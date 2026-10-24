@@ -13,6 +13,7 @@ MINIMAL = {
     "TINYFISH_AGENT_BASE_URL": "https://agent.tinyfish.test",
     "TINYFISH_BROWSER_BASE_URL": "https://browser.tinyfish.test",
     "TINYFISH_FETCH_BASE_URL": "https://fetch.tinyfish.test",
+    "AGENTMAIL_BASE_URL": "https://mail.test/",
 }
 
 
