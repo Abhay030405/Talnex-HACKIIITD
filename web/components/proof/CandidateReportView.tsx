@@ -32,7 +32,14 @@ export function CandidateReportView({ report }: { report: CandidateReport }) {
         )}
       </div>
 
-      {report.has_gaps && (
+      {report.partial && (
+        <p className="notice" role="status">
+          Results so far: {summary.projectsTested} of {summary.projectsTotal} projects checked. The rest appear here as
+          they finish, then the final report.
+        </p>
+      )}
+
+      {report.has_gaps && !report.partial && (
         <p className="notice" role="status">
           Some parts could not be tested. They are shown with the reason and do not count against the candidate.
         </p>
