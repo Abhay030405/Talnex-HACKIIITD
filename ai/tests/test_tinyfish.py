@@ -19,6 +19,7 @@ def tf_settings(keys="main=key-1", **overrides):
         "S3_ACCESS_KEY": "a", "S3_SECRET_KEY": "s", "OPENROUTER_BASE_URL": "https://or.test",
         "TINYFISH_AGENT_BASE_URL": "https://agent.tf.test", "TINYFISH_BROWSER_BASE_URL": BROWSER,
         "TINYFISH_FETCH_BASE_URL": FETCH, "TINYFISH_SEARCH_BASE_URL": SEARCH, "TINYFISH_API_KEYS": keys,
+        "AGENTMAIL_BASE_URL": "https://mail.test",
         "TINYFISH_BUDGET_USD": "1", "TINYFISH_BUDGET_RESERVE_USD": "0.5",
     }
     return settings.load(dict(env, **overrides)).tinyfish

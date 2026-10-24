@@ -107,6 +107,30 @@ class TinyFishSettings:
 
 
 @dataclass(frozen=True)
+class RunnerSettings:
+    """Caps on one browser test run, so a confused model can't wander off or keep a session billing."""
+
+    max_actions: int
+    max_actions_per_step: int
+    max_seconds: int
+    snapshot_chars: int
+    uploads_dir: str  # the only folder the agent may upload test files from (known-answer photos, the test resume)
+
+
+@dataclass(frozen=True)
+class EmailSettings:
+    """The one AgentMail inbox used for every sign-up on tested sites (login ladder, step 3).
+    `login_secret` makes the throwaway sign-up passwords; without it, email sign-up is off."""
+
+    api_key: str
+    base_url: str
+    inbox: str
+    wait_seconds: int
+    poll_seconds: int
+    login_secret: str
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
@@ -114,6 +138,8 @@ class Settings:
     llm: LLMSettings
     limits: LimitSettings
     tinyfish: TinyFishSettings
+    runner: RunnerSettings
+    email: EmailSettings
 
 
 class _Env:
@@ -256,7 +282,23 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         browser_minute_usd=env.decimal("TINYFISH_BROWSER_MINUTE_USD", 0.002, 0.0, 10.0),
         search_base_url=env.url("TINYFISH_SEARCH_BASE_URL", required=False),
     )
+    runner = RunnerSettings(
+        max_actions=env.whole("RUNNER_MAX_ACTIONS", 40),
+        max_actions_per_step=env.whole("RUNNER_MAX_ACTIONS_PER_STEP", 6),
+        max_seconds=env.whole("RUNNER_MAX_SECONDS", 240),
+        snapshot_chars=env.whole("RUNNER_SNAPSHOT_CHARS", 6000),
+        uploads_dir=env.optional("TEST_FILES_DIR", "testdata"),
+    )
+    email = EmailSettings(
+        api_key=env.optional("AGENTMAIL_API_KEY"),
+        base_url=env.url("AGENTMAIL_BASE_URL"),
+        inbox=env.optional("AGENTMAIL_INBOX"),
+        wait_seconds=env.whole("AGENTMAIL_WAIT_SECONDS", 90),
+        poll_seconds=env.whole("AGENTMAIL_POLL_SECONDS", 3),
+        login_secret=env.optional("EMAIL_LOGIN_SECRET"),
+    )
     database_url = env.required("DATABASE_URL")
 
     env.stop_if_bad()
-    return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish)
+    return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
+                    runner=runner, email=email)

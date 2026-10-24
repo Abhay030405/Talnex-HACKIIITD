@@ -1,0 +1,136 @@
+"""The never-blame ladder (architecture section 11).
+
+A claim is only ever marked BROKEN when all of these hold:
+  1. the page really loaded (a free Fetch check),
+  2. it's still failing after waiting about a minute (free hosting often sleeps),
+  3. a second try, built a different way, also fails,
+  4. an independent check of the screenshots agrees it failed.
+Anything else that goes wrong is "could not test" (left out of scores), never a mark against the team.
+
+This module is a plain state machine. Everything it needs (Fetch, the runner, the planner, the proof
+checker, sleeping) is passed in, so every branch can be tested with fakes and no money is spent.
+"""
+from __future__ import annotations
+
+import logging
+import time
+from dataclasses import dataclass, field
+from typing import Callable, Optional
+
+from talnex_ai.formats import Result, TestPlan
+from talnex_ai.safety.site_rules import LimitReached
+from talnex_ai.scoring.claim_points import Decision, Evidence, decide
+from talnex_ai.testing.proof_check import ProofCheck
+from talnex_ai.testing.runner.runner import RunRecord
+from talnex_ai.tinyfish.client import FetchResult
+
+log = logging.getLogger("talnex.ladder")
+
+
+@dataclass
+class LadderDeps:
+    fetch: Callable[[str], FetchResult]                   # is the page alive? (free)
+    run: Callable[[TestPlan], RunRecord]                  # one try; raises LimitReached when out of tries
+    alternate: Callable[[TestPlan, RunRecord], TestPlan]  # the same test built a different way
+    check: Callable[[RunRecord, TestPlan], ProofCheck]    # the independent look at the screenshots
+    sleep: Callable[[float], None] = time.sleep
+    wait_seconds: int = 60
+
+
+@dataclass
+class LadderResult:
+    decision: Decision
+    evidence: Optional[Evidence]
+    runs: list[RunRecord] = field(default_factory=list)
+    checks: list[ProofCheck] = field(default_factory=list)
+    trace: list[str] = field(default_factory=list)  # the ladder, step by step, in plain words
+    proof_keys: list[str] = field(default_factory=list)
+    second_check_agreed: Optional[bool] = None
+
+
+def _keys(*runs: RunRecord) -> list[str]:
+    return [s.proof_key for r in runs for s in r.steps if s.proof_key]
+
+
+def judge_claim(plan: TestPlan, site_url: str, deps: LadderDeps) -> LadderResult:
+    trace: list[str] = []
+    runs: list[RunRecord] = []
+    checks: list[ProofCheck] = []
+
+    def could_not_test(reason: str) -> LadderResult:
+        trace.append(f"Stopped: {reason}")
+        return LadderResult(Decision("could_not_test", "low", reason), None, runs, checks, trace, _keys(*runs[-1:]))
+
+    def judged(evidence: Evidence, deciding: list[RunRecord], check: ProofCheck, note: str = "") -> LadderResult:
+        decision = decide(evidence)
+        if note and decision.verdict != "could_not_test":
+            decision = Decision(decision.verdict, decision.confidence, f"{note}; {decision.reason}")
+        trace.append(f"Result: {decision.verdict} ({decision.confidence}): {decision.reason}")
+        return LadderResult(decision, evidence, runs, checks, trace, _keys(*deciding), check.outcome == evidence.agent)
+
+    def checked(run: RunRecord, run_plan: TestPlan, label: str) -> ProofCheck:
+        check = deps.check(run, run_plan)
+        checks.append(check)
+        trace.append(f"{label}: {check.outcome}")
+        return check
+
+    # 1. Did the page load at all?
+    page = deps.fetch(site_url)
+    if not page.ok:
+        return could_not_test(f"the page did not load ({page.error_code or 'no answer'}), so nothing could be tried")
+    trace.append("Step 1: the page loads")
+
+    try:
+        first = deps.run(plan)
+    except LimitReached as err:
+        return could_not_test(f"a run limit was reached ({err})")
+    runs.append(first)
+    trace.append(f"Try 1: {first.outcome}")
+    if first.outcome == "blocked":
+        return could_not_test(first.stop_reason or first.observed or "the test was blocked")
+    if first.outcome in ("works", "partly_works"):
+        check = checked(first, plan, "Independent check")
+        return judged(Evidence(first.outcome, check.outcome, tries=1, screenshot_clear=check.screenshot_clear),
+                      [first], check)
+
+    # The first try failed. Climb the ladder before blaming anyone.
+    # 2. Wait in case the site was asleep, then make sure it's awake.
+    trace.append(f"Step 2: waiting {deps.wait_seconds}s in case the site was asleep")
+    deps.sleep(deps.wait_seconds)
+    page = deps.fetch(site_url)
+    if not page.ok:
+        return could_not_test(f"the page stopped loading when we looked again ({page.error_code or 'no answer'})")
+
+    # 3. A second try, built a different way.
+    try:
+        second_plan = deps.alternate(plan, first)
+        second = deps.run(second_plan)
+    except LimitReached as err:
+        return could_not_test(f"a run limit was reached before a second try ({err})")
+    except Exception as err:  # couldn't even prepare a second try: never a reason to blame the site
+        log.warning("second try could not be prepared: %s", err)
+        return could_not_test("a second, different try could not be prepared")
+    runs.append(second)
+    trace.append(f"Try 2 (a different way): {second.outcome}")
+    if second.outcome == "blocked":
+        return could_not_test(second.stop_reason or second.observed or "the second try was blocked")
+    if second.outcome in ("works", "partly_works"):
+        check = checked(second, second_plan, "Independent check")
+        return judged(Evidence(second.outcome, check.outcome, tries=2, repeat_agrees=False,
+                               screenshot_clear=check.screenshot_clear),
+                      [second], check, note="it failed once but worked on a retry, so it is not broken")
+
+    # 4. Both tries failed: the independent check must agree before the word "broken" is used.
+    check = checked(second, second_plan, "Step 4: independent check of the screenshots")
+    return judged(Evidence("broken", check.outcome, tries=2, repeat_agrees=True,
+                           screenshot_clear=check.screenshot_clear, ladder_cleared=True),
+                  [first, second], check)
+
+
+def to_result(claim_id: str, ladder: LadderResult) -> Result:
+    """The saved result for a claim, with the reason and the proof."""
+    d = ladder.decision
+    seen = ladder.checks[-1].seen if ladder.checks else ""
+    reason = f"{d.reason}. The independent check saw: {seen}" if seen else d.reason
+    return Result(claim_id=claim_id, verdict=d.verdict, confidence=d.confidence, reason=reason[:1000],
+                  proof_keys=ladder.proof_keys, second_check_agreed=ladder.second_check_agreed if ladder.checks else None)
