@@ -238,6 +238,8 @@ class Settings:
     authorship: AuthorshipSettings = field(default_factory=AuthorshipSettings)
     walkthrough: WalkthroughSettings = field(default_factory=WalkthroughSettings)
     leetcode_replay: LeetCodeReplaySettings = field(default_factory=LeetCodeReplaySettings)
+    # The candidate report waits this long for the coding profile checks before it is built without them
+    report_coding_wait_seconds: int = 480
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
     leetcode_graphql_url: str = ""
     # A Chrome-over-CDP endpoint used as a backup browser when TinyFish is unavailable. Hosted Browserless /stealth also
@@ -468,7 +470,8 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
-                    walkthrough=walkthrough, leetcode_replay=leetcode_replay, leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                    walkthrough=walkthrough, leetcode_replay=leetcode_replay,
+                    report_coding_wait_seconds=env.whole("REPORT_CODING_WAIT_SECONDS", 480), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
                     browserless_cdp_url=env.url("BROWSERLESS_CDP_URL", required=False),
                     browserless_token=env.optional("BROWSERLESS_TOKEN"),
                     browserless_bql_url=env.url("BROWSERLESS_BQL_URL", required=False),
