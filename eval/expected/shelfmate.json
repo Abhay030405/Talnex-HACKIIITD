@@ -1,0 +1,74 @@
+{
+  "app": "shelfmate",
+  "description": "ShelfMate: a reading tracker where seven features work; the CSV export and the reading goal's progress bar do not do what they promise.",
+  "url": "https://talnex-shelfmate.vercel.app",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "Create an account with an email and a password",
+      "group": "Access",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Sign in and sign out",
+      "group": "Access",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Add a book with a title and an author",
+      "group": "Core",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "See your books and search them by title or author",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Edit a book's details or delete it",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Mark a book as Want to read, Reading or Finished and its badge changes",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Rate finished books from 1 to 5 and see the average rating",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Export the shelf as a CSV file",
+      "group": "Core",
+      "importance": 1,
+      "expected": [
+        "broken",
+        "partly_works"
+      ]
+    },
+    {
+      "text": "Set a yearly reading goal and a progress bar shows how many books are finished",
+      "group": "Core",
+      "importance": 1,
+      "expected": [
+        "broken",
+        "partly_works"
+      ]
+    }
+  ],
+  "controls": [],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}
