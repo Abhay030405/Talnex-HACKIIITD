@@ -522,8 +522,9 @@ Recruiter mode only. These give evidence, never a verdict.
 
 **Codeforces** (official API, Go):
 - Practice submissions are removed first.
-- A single "Skipped" submission is ignored, since that is normal when someone resubmits.
+- For the all-skipped check, a single "Skipped" submission is ignored, since that is normal when someone resubmits.
 - Strong signal: a contest where **all** the person's contest submissions are Skipped.
+- Every rated contest is also checked for single **Skipped problems** in a contest that was otherwise judged. Codeforces gives no reason for a Skip, so each one is a hint: weight Medium when no later resubmission of that problem explains it, Not suspicious when one does (only the last try of a problem is judged).
 
 **LeetCode** (TinyFish Agent + Browser, Python):
 1. Read the public contest history.

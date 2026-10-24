@@ -87,3 +87,36 @@ func TestNoRatedContestsMeansNothingToJudge(t *testing.T) {
 		t.Errorf("got %v", got)
 	}
 }
+
+func try(contest int, problem, verdict string, at int64) Submission {
+	s := sub(contest, "CONTESTANT", verdict)
+	s.Problem.Index, s.CreatedSec = problem, at
+	return s
+}
+
+func TestASingleSkippedProblemWithoutAResubmissionIsFound(t *testing.T) {
+	subs := []Submission{try(1, "A", "OK", 100), try(1, "B", "SKIPPED", 200), try(1, "C", "WRONG_ANSWER", 300)}
+	got := FindPartlySkipped([]RatingChange{rated(1, 30, 1200, 1210)}, subs, now)
+	if len(got) != 1 || got[0].Problem != "B" || got[0].Skipped != 1 || got[0].Resubmitted || got[0].ContestName == "" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestASkipFollowedByAResubmissionIsMarkedResubmitted(t *testing.T) {
+	subs := []Submission{try(1, "A", "SKIPPED", 100), try(1, "A", "OK", 200), try(1, "B", "SKIPPED", 300), try(1, "B", "OK", 50)}
+	got := FindPartlySkipped([]RatingChange{rated(1, 30, 1200, 1210)}, subs, now)
+	if len(got) != 2 || !got[0].Resubmitted || got[1].Resubmitted {
+		t.Fatalf("A was resubmitted after its skip, B was not (its OK came earlier): %+v", got)
+	}
+}
+
+func TestPartlySkippedLeavesWholeSkippedContestsPracticeAndRecentContestsAlone(t *testing.T) {
+	ratings := []RatingChange{rated(1, 30, 1200, 1210), rated(2, 30, 1210, 1220), rated(3, 1, 1220, 1230)}
+	practice := sub(2, "PRACTICE", "SKIPPED")
+	subs := []Submission{try(1, "A", "SKIPPED", 1), try(1, "B", "SKIPPED", 2), // the whole contest: FindAllSkipped's job
+		practice, try(2, "A", "OK", 3), // practice is not a contest entry
+		try(3, "A", "OK", 4), try(3, "B", "SKIPPED", 5)} // ended a day ago: not judged yet
+	if got := FindPartlySkipped(ratings, subs, now); len(got) != 0 {
+		t.Fatalf("got %+v", got)
+	}
+}

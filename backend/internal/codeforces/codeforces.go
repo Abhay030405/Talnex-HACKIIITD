@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -153,6 +154,8 @@ type Signals struct {
 	RecentActivity string `json:"recent_activity"`
 	// AllSkipped lists contests where every contest submission was Skipped (architecture section 18).
 	AllSkipped []SkippedContest `json:"all_skipped_contests"`
+	// PartlySkipped lists single problems that were Skipped in a contest that was not skipped as a whole.
+	PartlySkipped []SkippedProblem `json:"partly_skipped"`
 }
 
 // Fetch gathers the signals for one handle. ErrNotFound means the handle does not exist.
@@ -170,7 +173,9 @@ func (c *Client) Fetch(ctx context.Context, handle string) (Signals, error) {
 		return Signals{}, err
 	}
 	out := Summarise(user, ratings, subs)
-	out.AllSkipped = FindAllSkipped(ratings, subs, time.Now())
+	now := time.Now()
+	out.AllSkipped = FindAllSkipped(ratings, subs, now)
+	out.PartlySkipped = FindPartlySkipped(ratings, subs, now)
 	return out, nil
 }
 
@@ -259,6 +264,73 @@ func FindAllSkipped(ratings []RatingChange, subs []Submission, now time.Time) []
 			continue
 		}
 		out = append(out, SkippedContest{ContestID: c.ContestID, ContestName: c.ContestName, Submissions: t.all})
+	}
+	return out
+}
+
+// SkippedProblem is one problem whose contest submissions were Skipped while the rest of the contest was judged.
+// Codeforces gives no reason for a Skip. Resubmitted means a later submission of the same problem exists, which is the
+// usual innocent cause (only the last try is judged); without one, the skip has no innocent explanation in the data.
+type SkippedProblem struct {
+	ContestID   int    `json:"contest_id"`
+	ContestName string `json:"contest_name"`
+	Problem     string `json:"problem"`
+	Skipped     int    `json:"skipped"`
+	Resubmitted bool   `json:"resubmitted"`
+}
+
+// FindPartlySkipped looks at every rated contest and returns each problem with a Skipped contest submission, in a
+// contest that was not skipped as a whole (FindAllSkipped covers those). Only real contest entries count, and contests
+// that ended in the last few days are left alone until the site's own checks settle.
+func FindPartlySkipped(ratings []RatingChange, subs []Submission, now time.Time) []SkippedProblem {
+	rated := map[int]RatingChange{}
+	for _, r := range ratings {
+		if now.Sub(time.Unix(r.UpdateSec, 0)) >= settleTime {
+			rated[r.ContestID] = r
+		}
+	}
+	type key struct {
+		contest int
+		problem string
+	}
+	entries := map[int][]Submission{}
+	for _, s := range subs {
+		if _, ok := rated[s.ContestID]; ok && s.Author.ParticipantType == "CONTESTANT" {
+			entries[s.ContestID] = append(entries[s.ContestID], s)
+		}
+	}
+	var out []SkippedProblem
+	for _, r := range ratings {
+		ss, ok := entries[r.ContestID]
+		if !ok {
+			continue
+		}
+		skipped, judged := map[key][]int64{}, false
+		for _, s := range ss {
+			if s.Verdict == "SKIPPED" {
+				k := key{r.ContestID, s.Problem.Index}
+				skipped[k] = append(skipped[k], s.CreatedSec)
+			} else {
+				judged = true
+			}
+		}
+		if !judged || len(skipped) == 0 {
+			continue // nothing skipped, or the whole contest was (FindAllSkipped)
+		}
+		idx := make([]string, 0, len(skipped))
+		for k := range skipped {
+			idx = append(idx, k.problem)
+		}
+		sort.Strings(idx)
+		for _, p := range idx {
+			times := skipped[key{r.ContestID, p}]
+			last := slices.Max(times)
+			later := slices.ContainsFunc(ss, func(s Submission) bool {
+				return s.Problem.Index == p && s.Verdict != "SKIPPED" && s.CreatedSec > last
+			})
+			out = append(out, SkippedProblem{ContestID: r.ContestID, ContestName: r.ContestName, Problem: p,
+				Skipped: len(times), Resubmitted: later})
+		}
 	}
 	return out
 }

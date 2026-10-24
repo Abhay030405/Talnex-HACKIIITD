@@ -20,6 +20,10 @@ const profileSignal = "codeforces_profile"
 // skippedSignal is one row per contest where all contest submissions were Skipped (architecture section 18).
 const skippedSignal = "codeforces_all_skipped"
 
+// problemSkippedSignal is one row per problem Skipped in a contest that was otherwise judged. Weight "medium" when no
+// later resubmission explains it, "not_suspicious" when one does. Codeforces gives no reason, so it is a hint only.
+const problemSkippedSignal = "codeforces_problem_skipped"
+
 // Codeforces is the Codeforces part of the "coding profiles" stage (architecture sections 8 and 18). It reads the
 // public profile from the official API and keeps the facts (rating, rank, contests, solved problems, last activity)
 // as one row in coding_signals. The row is evidence only: weight "not_suspicious", never a verdict. A handle that does
@@ -53,7 +57,7 @@ func Codeforces(pool *pgxpool.Pool, cf *codeforces.Client) jobs.Handler {
 			return nil, err
 		}
 		return map[string]any{
-			"all_skipped_contests": len(sig.AllSkipped),
+			"all_skipped_contests": len(sig.AllSkipped), "partly_skipped_problems": len(sig.PartlySkipped),
 			"found":                true, "handle": sig.Handle, "rating": sig.Rating, "max_rating": sig.MaxRating, "rank": sig.Rank,
 			"contests": sig.Contests, "solved_problems": sig.SolvedProblems, "recent_activity": sig.RecentActivity,
 		}, nil
@@ -88,6 +92,22 @@ func saveProfile(ctx context.Context, pool *pgxpool.Pool, candidateID string, si
 		if _, err := tx.Exec(ctx, `INSERT INTO coding_signals (candidate_id, site, contest, signal, weight, evidence)
 			VALUES ($1::uuid, 'codeforces', $2, $3, 'strong', $4::jsonb)`, candidateID, c.ContestName, skippedSignal, string(ev)); err != nil {
 			return fmt.Errorf("save all-skipped signal: %w", err)
+		}
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM coding_signals WHERE candidate_id = $1::uuid AND site = 'codeforces' AND signal = $2`,
+		candidateID, problemSkippedSignal); err != nil {
+		return fmt.Errorf("clear old problem-skipped signals: %w", err)
+	}
+	for _, p := range sig.PartlySkipped {
+		weight := "medium"
+		if p.Resubmitted {
+			weight = "not_suspicious"
+		}
+		ev, _ := json.Marshal(p)
+		if _, err := tx.Exec(ctx, `INSERT INTO coding_signals (candidate_id, site, contest, problem, signal, weight, evidence)
+			VALUES ($1::uuid, 'codeforces', $2, $3, $4, $5, $6::jsonb)`, candidateID, p.ContestName, p.Problem, problemSkippedSignal,
+			weight, string(ev)); err != nil {
+			return fmt.Errorf("save problem-skipped signal: %w", err)
 		}
 	}
 	return tx.Commit(ctx)
