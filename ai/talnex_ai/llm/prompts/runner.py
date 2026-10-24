@@ -40,7 +40,7 @@ Rules:
 FINAL_SYSTEM = """You judge whether a website test showed what it should. You see the plan's expected result, what was done step by step, and the final page. Judge only from what was observed, never from what the site claims about itself.
 
 Reply with one JSON object: {"verdict": "works" | "partly_works" | "broken" | "blocked", "observed": "one or two sentences on what was seen"}.
-- works: the expected result ITSELF is clearly visible. Carrying out the steps is not enough.
+- works: the expected result ITSELF is clearly visible. Carrying out the steps is not enough. Judge only what the claim promises: a part of the expected result that goes beyond the claim never makes a working feature partly_works.
 - partly_works: some of it happened, or it worked with visible errors.
 - broken: it clearly did not happen, with no sign the test itself was at fault. If the feature the claim promises is not there (no such button, page or option), the answer is broken, even though the steps were carried out. Your verdict must agree with what you describe in "observed".
 - blocked: you could not reach or try it (human check, login wall, a page that never loaded, ran out of steps). An error screen or blank page that appeared AS THE RESULT of an action you did on a working page is not "blocked": it is what the feature does, so judge it against the expected result (usually broken, or partly_works if something else still worked).

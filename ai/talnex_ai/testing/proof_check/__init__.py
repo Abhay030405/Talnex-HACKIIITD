@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from talnex_ai.formats import FormatError, parse_model
 from talnex_ai.llm.prompts.proof_checker import SYSTEM, user
 from talnex_ai.llm.structured import ChatClient, ask_json
+from talnex_ai.testing.scope import unchanged_value
 
 log = logging.getLogger("talnex.proof")
 
@@ -48,12 +49,16 @@ class ProofCheck:
     images_used: int
 
 
-def _parse(text: str) -> _Answer:
+def _parse(text: str, claim_text: str = "") -> _Answer:
     answer = parse_model(_Answer, text)
     contradiction = _SAYS_FAILED.search(answer.seen)
     if answer.outcome == "works" and contradiction:
         raise FormatError(f'the outcome is works, but "seen" says "{contradiction.group(0)}". '
                           "Make the outcome agree with what the pictures show.")
+    start = unchanged_value(claim_text, answer.seen) if answer.outcome == "works" else None
+    if start:
+        raise FormatError(f'the outcome is works, but the value you describe ("{start}") is still at its starting point. '
+                          "Answer partly_works or broken, unless the pictures show it changing: then say how it changed.")
     return answer
 
 
@@ -99,6 +104,6 @@ def check_proof(
     if not pictures:
         return ProofCheck("blocked", "there were no screenshots to look at", False, 0)
 
-    answer = ask_json(client, "proof_checker", SYSTEM, user(claim_text, expected_result, len(pictures)), _parse,
+    answer = ask_json(client, "proof_checker", SYSTEM, user(claim_text, expected_result, len(pictures)), lambda text: _parse(text, claim_text),
                       job_id=job_id, images=pictures, temperature=0.0)
     return ProofCheck(answer.outcome, answer.seen, answer.screenshot_clear, len(pictures))
