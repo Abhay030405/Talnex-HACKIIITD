@@ -88,8 +88,8 @@ def _checks(conn, project_id: str) -> list[dict]:
         for part, value in result.items():  # a stage with several parts (originality): each part that was skipped
             if isinstance(value, dict) and value.get("skipped"):
                 out.append({"stage": f"{job_type}: {part}", "status": "skipped", "reason": str(value.get("reason") or "")})
-        for item in result.get("not_checked") or []:
-            out.append({"stage": job_type, "status": "not_built", "reason": f"{item}: not built yet"})
+        for item in result.get("not_checked") or []:  # older results: a part that did not run, reason unknown
+            out.append({"stage": job_type, "status": "skipped", "reason": f"{item}: not checked"})
     return out
 
 

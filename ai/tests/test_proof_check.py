@@ -8,7 +8,8 @@ from talnex_ai.db import jobs as queue
 from talnex_ai.formats import Result
 from talnex_ai.llm.structured import StructuredError
 from talnex_ai.scoring.store import save_result
-from talnex_ai.testing.proof_check import check_proof
+from talnex_ai.formats import StepRecord
+from talnex_ai.testing.proof_check import MAX_IMAGES, check_proof, screens_for_check
 from talnex_ai.worker.handlers.proof_check import GAP_REASON, proof_check_stage
 from talnex_ai.worker.registry import JobContext
 
@@ -48,16 +49,17 @@ def check(model, files, keys):
                        proof_keys=keys)
 
 
-def test_only_the_last_screenshots_are_looked_at_and_the_verdict_is_never_shown():
+def test_at_most_the_last_few_screenshots_are_looked_at_and_the_verdict_is_never_shown():
     model = FakeChecker({"outcome": "works", "seen": "Four egg recipes are listed.", "screenshot_clear": True})
     files = Files()
-    result = check(model, files, ["s/1", None, "s/2", "s/3", "s/4", "s/5"])
-    assert (result.outcome, result.images_used) == ("works", 4)
-    assert files.read == ["s/2", "s/3", "s/4", "s/5"]
+    keys = [f"s/{n}" for n in range(1, MAX_IMAGES + 3)]
+    result = check(model, files, [keys[0], None] + keys[1:])
+    assert (result.outcome, result.images_used) == ("works", MAX_IMAGES)
+    assert files.read == keys[-MAX_IMAGES:]
     role, messages, options = model.calls[0]
     assert role == "proof_checker" and options["temperature"] == 0.0
     prompt = messages[1]["content"][0]["text"]
-    assert "egg recipes are listed" in prompt and "4 screenshots" in prompt and "agent" not in prompt.lower()
+    assert "egg recipes are listed" in prompt and f"{MAX_IMAGES} screenshots" in prompt and "agent" not in prompt.lower()
 
 
 def test_unreadable_screenshots_are_skipped_and_none_means_blocked():
@@ -124,3 +126,20 @@ def test_the_stage_fills_gaps_honestly_and_only_once(pool, project_with_claims):
         status = conn.execute("SELECT status FROM projects WHERE id = %s", (project,)).fetchone()[0]
     assert rows == {search: "works:seen", share: f"could_not_test:{GAP_REASON}"}
     assert status == "checking"
+
+
+def step(n, expected, key=True):
+    return StepRecord(step_number=n, action=f"action {n}", expected=expected, proof_key=f"s/{n}" if key else None)
+
+
+def test_every_part_of_a_long_test_is_shown_one_screenshot_per_step():
+    """A converter test: EUR, then GBP, then INR, each step taking a few actions. The old rule (the last 4 actions)
+    showed only GBP and INR, and the converter was called partly working."""
+    steps = [step(1, "the site opens"),
+             step(2, "100 USD shows 92 EUR"), step(3, "100 USD shows 92 EUR"), step(4, "100 USD shows 92 EUR"),
+             step(5, "100 USD shows 79 GBP"), step(6, "100 USD shows 79 GBP"),
+             step(7, "100 USD shows 8300 INR"), step(8, "100 USD shows 8300 INR", key=False),
+             step(9, "the result is visible")]   # the final check
+    assert screens_for_check(steps) == ["s/1", "s/4", "s/6", "s/7", "s/9"]
+    assert screens_for_check(steps, max_images=2) == ["s/7", "s/9"]   # too many steps: the latest are kept
+    assert screens_for_check([]) == []

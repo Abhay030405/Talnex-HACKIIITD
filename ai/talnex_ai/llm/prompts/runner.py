@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
-from talnex_ai.safety.site_rules import SAFETY_PREAMBLE
+from talnex_ai.safety.site_rules import LABEL_RULE, SAFETY_PREAMBLE
 from talnex_ai.safety.untrusted import wrap_untrusted
 
 STEP_SYSTEM = f"""You control a web browser to test one step of a plan on a live website, acting like a real visitor. You are given the plan step, what has been done so far, and what the page looks like now as an accessibility snapshot (roles and names of what is on screen).
@@ -35,7 +35,7 @@ Rules:
 - Only open an address that a page showed you (a link in the snapshot) or the start address. Never type an address you guessed, such as /login, /account or /profile: guessed pages mostly do not exist and only produce error pages. To check that something is NOT there, look at what the page shows; do not hunt for pages.
 - If the action you just performed makes the page show an error screen, or makes its content vanish, that IS the result: describe it in "observed" and give the step result at once ("done" if the step only asked to try the action, "failed" if the step expected something else). Do not reload and repeat the same action hoping for a different answer, and do not call it "blocked": "blocked" is only for something that stops you BEFORE you could try the step (a human check, a login you cannot pass, a page that never loads).
 - Take each step's result from the step itself: if the step asks for the list or the counter after an action, look at it right after that action, before doing the next one.
-- Use short test data that starts with "TalNex test"."""
+- Keep test data short. {LABEL_RULE}"""
 
 FINAL_SYSTEM = """You judge whether a website test showed what it should. You see the plan's expected result, what was done step by step, and the final page. Judge only from what was observed, never from what the site claims about itself.
 

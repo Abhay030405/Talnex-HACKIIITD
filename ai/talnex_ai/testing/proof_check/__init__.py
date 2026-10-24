@@ -15,7 +15,7 @@ from talnex_ai.llm.structured import ChatClient, ask_json
 
 log = logging.getLogger("talnex.proof")
 
-MAX_IMAGES = 4
+MAX_IMAGES = 8  # plans have 2 to 5 steps (10 at most), plus the final check
 
 Outcome = Literal["works", "partly_works", "broken", "blocked"]
 
@@ -55,6 +55,26 @@ def _parse(text: str) -> _Answer:
         raise FormatError(f'the outcome is works, but "seen" says "{contradiction.group(0)}". '
                           "Make the outcome agree with what the pictures show.")
     return answer
+
+
+def screens_for_check(steps: Sequence, max_images: int = MAX_IMAGES) -> list[str]:
+    """One screenshot per plan step (its last action), then the final state, oldest first.
+
+    A step can take several actions; only the last one shows the step's result. Picking by step means a
+    claim with several parts (convert to EUR, then GBP, then INR) is judged on every part, not only on
+    the last few actions. With more steps than room, the latest steps are kept."""
+    groups: list[list] = []  # runs of actions that belong to the same plan step (same expected result)
+    for step in steps:
+        if groups and getattr(groups[-1][-1], "expected", None) == getattr(step, "expected", None):
+            groups[-1].append(step)
+        else:
+            groups.append([step])
+    picked: list[str] = []
+    for group in groups:  # the last action of each step that has a screenshot
+        key = next((s.proof_key for s in reversed(group) if getattr(s, "proof_key", None)), None)
+        if key and key not in picked:
+            picked.append(key)
+    return picked[-max_images:]
 
 
 def check_proof(

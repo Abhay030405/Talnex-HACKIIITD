@@ -2,7 +2,8 @@
 
 Waits for the Go stages `github_check`, `event_dates` and `sponsor_files`. It reads their saved facts, then reads a few
 code files with a free TinyFish Fetch to see whether each sponsor tool is really called. Flags sit beside the score and
-are never subtracted from it. The repository-vs-live-site check is not built yet and is named in the result.
+are never subtracted from it. The repository-vs-live-site comparison is not part of the hackathon pipeline yet; the
+result says so, with the reason.
 """
 from __future__ import annotations
 
@@ -40,7 +41,9 @@ def repo_checks(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     repo_facts = stage_result(ctx.pool, job, "github_check") or {}
     dates = stage_result(ctx.pool, job, "event_dates") or {}
     sponsors = stage_result(ctx.pool, job, "sponsor_files") or {}
-    result: dict[str, Any] = {"not_checked": ["repository matches the live site"]}
+    result: dict[str, Any] = {"repo_vs_live": {"skipped": True, "reason": (
+        "no repository link was given" if not info.repo_url else
+        "comparing the repository with the live site runs for resume projects only for now")}}
 
     added = []
     for f in date_flags(dates):
