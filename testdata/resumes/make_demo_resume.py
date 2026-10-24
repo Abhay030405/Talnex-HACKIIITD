@@ -1,5 +1,5 @@
-"""Builds the demo resume: a made-up fresher whose four projects are our planted apps, for showing the
-recruiter flow end to end.
+"""Builds the demo resume: Arnav Raj (on the TalNex team), whose four projects are our planted apps, for showing
+the recruiter flow end to end. The repos are on his GitHub, so the name and the GitHub account match.
 
 Run from the repository root (needs reportlab, from the ai dev extras):
     python testdata/resumes/make_demo_resume.py
@@ -22,9 +22,9 @@ from reportlab.pdfgen import canvas
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "demo_resume.pdf"
 
-NAME = "Riya Sharma"
-LABEL = "Demo candidate (fictional person, made for a TalNex demo)"
-CONTACT = "Email: riya.sharma@talnex.test | Phone: +91 00000 00000 | New Delhi, India"
+NAME = "Arnav Raj"
+LABEL = "Demo resume for TalNex: the projects below are TalNex test apps"
+CONTACT = "Email: arnav.demo@talnex.test | GitHub: github.com/arnavraj-7 | New Delhi, India"
 EDUCATION = "B.Tech in Computer Science and Engineering, Example Institute of Technology, 2022 - 2026 | CGPA 8.4"
 SUMMARY = ("Final-year student who builds small, useful web apps end to end: plain JavaScript front ends, "
            "Node.js serverless APIs and deployments on Vercel.")
@@ -56,7 +56,7 @@ SKILLS = "JavaScript, Node.js, HTML, CSS, REST APIs, Vercel serverless functions
 
 def build(path: Path) -> None:
     pdf = canvas.Canvas(str(path), pagesize=A4)
-    pdf.setTitle("Demo resume - Riya Sharma")
+    pdf.setTitle("Demo resume - Arnav Raj")
     pdf.setAuthor("TalNex demo data")
     width, height = A4
     left = 50
