@@ -1,26 +1,26 @@
 # Evaluation: honest
 
-Run on 2026-10-24 17:06 UTC. 1 runs.
+Run on 2026-10-24 17:34 UTC. 1 runs. email sign-up on (new EMAIL_LOGIN_SECRET)
 
-**Result: FAIL**
+**Result: PASS**
 
 ## Checks
 
 - PASS: every run finished
 - PASS: no wrong verdicts
 - PASS: every claim steady (same verdict in 1 of 1 runs)
-- FAIL: majority verdict is the expected one for every claim
+- PASS: majority verdict is the expected one for every claim
 - PASS: TalNex score spread within 10 points
 - PASS: no unexpected red flags
 
 ## Numbers
 
-- Verdicts matching the expected answer: 7 of 8 (87.5%)
+- Verdicts matching the expected answer: 8 of 8 (100.0%)
 - Wrong verdicts: 0
-- Could not test / no result (never a wrong answer): 1
-- TalNex score per run (out of 100): [100.0] (spread 0.0)
+- Could not test / no result (never a wrong answer): 0
+- TalNex score per run (out of 100): [89.0] (spread 0.0)
 - Red flags per run: [0]
-- Seconds per run: [442]
+- Seconds per run: [499]
 - Cost per run (US dollars): [0.0441]
 
 ## Claims
@@ -34,4 +34,4 @@ Run on 2026-10-24 17:06 UTC. 1 runs.
 | A todo can be added, marked as done and deleted, and the list shows ho… | works | works | yes | [10.0] |
 | Todos are still in the list after the page is reloaded | works | works | yes | [10.0] |
 | Submitting an empty todo shows a message and leaves the list unchanged | works | works | yes | [10.0] |
-| The todo list can be downloaded as a PDF file (control) | broken | could_not_test | yes | [] |
+| The todo list can be downloaded as a PDF file (control) | broken | broken | yes | [0.0] |

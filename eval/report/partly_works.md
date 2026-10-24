@@ -1,6 +1,6 @@
 # Evaluation: partly_works
 
-Run on 2026-10-24 17:07 UTC. 1 runs.
+Run on 2026-10-24 17:37 UTC. 1 runs. email sign-up on (new EMAIL_LOGIN_SECRET)
 
 **Result: FAIL**
 
@@ -15,13 +15,13 @@ Run on 2026-10-24 17:07 UTC. 1 runs.
 
 ## Numbers
 
-- Verdicts matching the expected answer: 2 of 5 (40.0%)
+- Verdicts matching the expected answer: 4 of 5 (80.0%)
 - Wrong verdicts: 0
-- Could not test / no result (never a wrong answer): 3
-- TalNex score per run (out of 100): [60.0] (spread 0.0)
+- Could not test / no result (never a wrong answer): 1
+- TalNex score per run (out of 100): [38.0] (spread 0.0)
 - Red flags per run: [0]
-- Seconds per run: [460]
-- Cost per run (US dollars): [0.024]
+- Seconds per run: [670]
+- Cost per run (US dollars): [0.0396]
 
 ## Claims
 
@@ -30,5 +30,5 @@ Run on 2026-10-24 17:07 UTC. 1 runs.
 | Add a note with a title and see it in the list | works | works | yes | [10.0] |
 | Type in the search box and the list narrows to the matching notes | works | could_not_test | yes | [] |
 | Pin a note so it moves to the top of the list with a Pinned label | broken | broken | yes | [0.0] |
-| Adding a note with an empty title shows a clear message and adds nothi… | broken | could_not_test | yes | [] |
-| Export the notes as a PDF file (control) | broken | could_not_test | yes | [] |
+| Adding a note with an empty title shows a clear message and adds nothi… | broken | broken | yes | [0.0] |
+| Export the notes as a PDF file (control) | broken | broken | yes | [0.0] |

@@ -1,6 +1,6 @@
 # Evaluation: shelfmate
 
-Run on 2026-10-24 17:04 UTC. 1 runs.
+Run on 2026-10-24 17:36 UTC. 1 runs. email sign-up on (new EMAIL_LOGIN_SECRET)
 
 **Result: FAIL**
 
@@ -20,8 +20,8 @@ Run on 2026-10-24 17:04 UTC. 1 runs.
 - Could not test / no result (never a wrong answer): 8
 - TalNex score per run (out of 100): [0.0] (spread 0.0)
 - Red flags per run: [0]
-- Seconds per run: [288]
-- Cost per run (US dollars): [0.0158]
+- Seconds per run: [658]
+- Cost per run (US dollars): [0.066]
 
 ## Claims
 
