@@ -81,3 +81,10 @@ def test_secrets_never_appear_in_errors():
     with pytest.raises(settings.SettingsError) as err:
         settings.load(dict(MINIMAL, S3_SECRET_KEY="", OPENROUTER_API_KEY="sk-very-secret", MAX_TRIES_PER_CLAIM="x"))
     assert "sk-very-secret" not in str(err.value)
+
+
+def test_model_free_steps_can_be_switched_off_and_on():
+    assert settings.load(MINIMAL).runner.model_free_steps is True
+    assert settings.load(dict(MINIMAL, RUNNER_MODEL_FREE_STEPS="0")).runner.model_free_steps is False
+    with pytest.raises(settings.SettingsError, match="RUNNER_MODEL_FREE_STEPS"):
+        settings.load(dict(MINIMAL, RUNNER_MODEL_FREE_STEPS="2"))

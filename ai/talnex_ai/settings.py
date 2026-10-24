@@ -375,7 +375,7 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         max_seconds=env.whole("RUNNER_MAX_SECONDS", 240),
         seconds_per_step=env.whole("RUNNER_SECONDS_PER_STEP", 60),
         snapshot_chars=env.whole("RUNNER_SNAPSHOT_CHARS", 6000),
-        model_free_steps=env.whole("RUNNER_MODEL_FREE_STEPS", 1) != 0,
+        model_free_steps=env.one_of("RUNNER_MODEL_FREE_STEPS", "1", ("0", "1")) == "1",
         uploads_dir=env.optional("TEST_FILES_DIR", "testdata"),
     )
     email = EmailSettings(
