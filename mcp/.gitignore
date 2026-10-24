@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+docs/node_modules/
+docs/.next/
+docs/.source/
+docs/out/
+docs/next-env.d.ts
