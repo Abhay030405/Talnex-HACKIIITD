@@ -1775,6 +1775,31 @@ a.meta:hover {
   color: var(--color-text-muted);
 }
 
+/* The proof and code behind a claim stay folded until asked for, so a report reads as a list of verdicts. */
+.claim__more > .stack {
+  margin-top: var(--space-3);
+}
+
+.claims-untested > .claims {
+  margin-top: var(--space-3);
+}
+
+.project-card__summary {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.flag__more > summary {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.flag__more > ul {
+  margin-top: var(--space-2);
+}
+
 .claim__review {
   display: flex;
   flex-direction: column;
