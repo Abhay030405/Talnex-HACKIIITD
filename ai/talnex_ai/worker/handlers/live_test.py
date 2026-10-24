@@ -102,7 +102,8 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
                          "Hidden text aimed at an AI checker was found on the live site", finding.as_flag_evidence())
 
         def run(p: TestPlan):
-            return run_plan(pool=sv.pool, store_files=sv.files, tinyfish=sv.tinyfish, client=sv.model, claim=claim,
+            return run_plan(pool=sv.pool, store_files=sv.files, tinyfish=getattr(sv, "browser", None) or sv.tinyfish,
+                            client=sv.model, claim=claim,
                             plan=p, site_url=info.live_url, subject_id=info.id, limits=limits, runner_cfg=cfg.runner,
                             uploads_root=sv.uploads_root, way_in=way_in.instructions, mailbox=mailbox, smsbox=smsbox,
                             job_id=job_id, connect=sv.connect, on_hidden_text=on_hidden_text, on_event=ev)
