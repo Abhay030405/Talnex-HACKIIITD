@@ -1,26 +1,25 @@
+import { AlertCircle, ArrowRight, BriefcaseBusiness, Trophy, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ArrowIcon, BackIcon, BriefcaseIcon, TrophyIcon } from "@/components/ui/Icons";
+import { AuthFrame } from "@/components/ui/AuthFrame";
 import { redirectIfSignedIn } from "@/lib/session";
 import { signInError } from "@/lib/signin";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-const DOORS = [
+const DOORS: { href: string; Icon: LucideIcon; title: string; text: string }[] = [
   {
     href: "/login/recruiter",
-    icon: <BriefcaseIcon />,
+    Icon: BriefcaseBusiness,
     title: "I am a recruiter",
-    text: "Turn a resume into a proof report: which projects really work and how they are built.",
-    go: "Recruiter sign-in",
+    text: "Turn a resume into a proof report: which projects really work.",
   },
   {
     href: "/login/organizer",
-    icon: <TrophyIcon />,
+    Icon: Trophy,
     title: "I run a hackathon",
-    text: "Check every submission before judging, with a score per feature and the proof behind it.",
-    go: "Organizer sign-in",
+    text: "Check every submission before judging, with proof behind each score.",
   },
 ];
 
@@ -29,38 +28,35 @@ export default async function LoginChooserPage({ searchParams }: { searchParams:
   const message = signInError((await searchParams).error);
 
   return (
-    <div className="login">
-      <Link href="/" className="back-link login__back">
-        <BackIcon />
-        Back to home
-      </Link>
-
-      <div className="login__doors stack">
-        <div className="page-header page-header--center">
-          <span className="login__tag">Secure access</span>
-          <h1 className="page-header__title">Who are you?</h1>
-          <p className="page-header__lead">Pick the way in that matches your work. Each has its own workspace.</p>
-        </div>
-
-        {message && (
-          <p className="form-error" role="alert">
-            {message}
-          </p>
-        )}
-
-        <div className="grid grid--2">
-          {DOORS.map((door) => (
-            <Link key={door.href} href={door.href} className="card card--soft card--link">
-              <div className="card__icon">{door.icon}</div>
-              <h2 className="card__title">{door.title}</h2>
-              <p className="card__text">{door.text}</p>
-              <span className="card__go">
-                {door.go} <ArrowIcon size={16} />
-              </span>
-            </Link>
-          ))}
-        </div>
+    <AuthFrame back={{ href: "/", label: "Back to home" }}>
+      <div className="auth__head">
+        <h1 className="auth__title">Who are you?</h1>
+        <p className="auth__lead">Pick the way in that matches your work. Each has its own workspace.</p>
       </div>
-    </div>
+
+      {message && (
+        <p className="auth__alert" role="alert">
+          <AlertCircle size={16} aria-hidden="true" />
+          {message}
+        </p>
+      )}
+
+      <div className="doors">
+        {DOORS.map((door) => (
+          <Link key={door.href} href={door.href} className="door">
+            <span className="door__icon">
+              <door.Icon size={20} strokeWidth={1.5} aria-hidden="true" />
+            </span>
+            <span className="door__text">
+              <span className="door__title">{door.title}</span>
+              <span className="door__sub">{door.text}</span>
+            </span>
+            <ArrowRight className="door__go" size={18} aria-hidden="true" />
+          </Link>
+        ))}
+      </div>
+
+      <p className="auth__fine">Each email belongs to one kind of account.</p>
+    </AuthFrame>
   );
 }
