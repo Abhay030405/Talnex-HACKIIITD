@@ -48,6 +48,17 @@ def test_risky_targets_card_numbers_and_outside_files_are_refused(tmp_path):
     assert why(Upload(type="upload", target=Target(kind="label", name="File"), file="known_answers/dog.jpg")) is None
 
 
+def test_a_risky_word_inside_a_title_is_not_a_control(tmp_path):
+    # Sentinel's demo lists an incident called "Code Defect — Checkout 500s": opening it pays nobody.
+    def why(kind, name, role=None):
+        return unsafe_reason(Click(type="click", target=Target(kind=kind, role=role, name=name)),
+                             site_host="demo.example.com", uploads_root=tmp_path)
+
+    assert why("text", "Code Defect — Checkout 500s") is None
+    for control in ("Checkout", "Proceed to checkout", "Pay ₹499 securely", "Delete my account", "Subscribe to our newsletter"):
+        assert "never allowed" in why("text", control), control
+    assert "never allowed" in why("role", "Code Defect — Checkout 500s", role="button")  # a button stays strict
+
 def test_guessed_addresses_and_captchas():
     assert seen_address("https://demo.example.com/", SITE, "")
     assert seen_address("https://demo.example.com/app.html", SITE, '- link "App" /app.html')

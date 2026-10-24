@@ -39,6 +39,11 @@ def test_a_claim_about_private_pages_may_check_them():
     assert extra_requirement(claim, "Signed out, the notes page is blocked") is None
 
 
+def test_a_claim_that_you_can_sign_out_may_check_you_are_signed_out():
+    # ShelfMate's account claim had its correct plan rejected twice for checking the signed-out state.
+    claim = "Create an account with email and password, sign in, and sign out."
+    assert extra_requirement(claim, "After signing out, the shelf is gone and the sign-in form is shown again") is None
+
 def test_speed_and_phone_layout_are_extra_too_unless_claimed():
     assert extra_requirement("Search recipes", "results appear within 2 seconds") == "speed"
     assert extra_requirement("Search is fast", "results appear within 2 seconds") is None
@@ -49,6 +54,11 @@ def test_a_clean_plan_passes_and_the_access_type_no_longer_demands_private_pages
     assert check_plans([plan("The About page opens and explains what CaptionIt is", "access", quote=ABOUT)], ["access"], ABOUT)
     assert "only if the claim itself says so" in TYPE_HELP["access"]
 
+
+def test_the_planner_adds_the_items_a_search_or_edit_needs_first():
+    # ShelfMate's search test opened an empty shelf and had nothing to search.
+    from talnex_ai.llm.prompts.test_planner import SYSTEM
+    assert "First add the items the test needs" in SYSTEM and "two items with clearly different names" in SYSTEM
 
 # ------------------------------------------------------------------ a starting value is not proof
 
