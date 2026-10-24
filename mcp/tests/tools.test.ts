@@ -54,7 +54,7 @@ const CASES: Record<string, Case> = {
                    calls: [`GET /v1/events/${EVENT}/compare`], bad: { args: { event_id: "" }, names: "event_id" } },
   ask_project: { role: "any", args: () => ({ kind: "project", project_id: PROJECT, question: "How does login work?", wait_seconds: 5 }),
                  routes: [["POST", `/v1/projects/${PROJECT}/walkthroughs`, 202, { id: WALK, status: "queued" }],
-                          ["GET", `/v1/walkthroughs/${WALK}`, 200, { id: WALK, status: "answered", answer: { text: "With a magic link" }, error: null }]],
+                          ["GET", `/v1/walkthroughs/${WALK}`, 200, { id: WALK, status: "done", answer: { text: "With a magic link" }, error: null }]],
                  calls: [`POST /v1/projects/${PROJECT}/walkthroughs`, `GET /v1/walkthroughs/${WALK}`],
                  bad: { args: { kind: "project", project_id: PROJECT, question: "hi" }, names: "question" } },
   list_roles: { role: "recruiter", args: () => ({}), routes: [["GET", "/v1/roles", 200, []]], calls: ["GET /v1/roles"], bad: null },

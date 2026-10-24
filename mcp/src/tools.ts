@@ -46,7 +46,8 @@ async function askAndWait(api: TalnexApi, path: string, question: string, waitSe
   const until = Date.now() + waitSeconds * 1000;
   for (;;) {
     const item = await api.call<{ status: string; answer: unknown; error: string | null }>(`/v1/walkthroughs/${asked.id}`);
-    if (item.status !== "queued" && item.status !== "running") return item;
+    // the API's statuses: queued -> answering -> done | failed
+    if (item.status !== "queued" && item.status !== "answering") return item;
     if (Date.now() > until) return { ...item, note: `Still being answered; read it later with id ${asked.id}.` };
     await sleep(2000);
   }

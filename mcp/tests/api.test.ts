@@ -67,6 +67,19 @@ describe("request bodies match the Go API", () => {
     expect(JSON.parse(fake.seen[0].body)).toEqual({ question: "How is search built?" });
   });
 
+  it("ask_project keeps waiting while the answer is being written", async () => {
+    let polls = 0;
+    fake.json("POST", `/v1/projects/${PROJECT}/walkthroughs`, 202, { id: WALK, status: "queued" })
+      .on("GET", `/v1/walkthroughs/${WALK}`, (_req, res) => {
+        polls += 1;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ id: WALK, status: polls === 1 ? "answering" : "done", answer: { spoken: "With a magic link" }, error: null }));
+      });
+    const out = await run("ask_project", apiFor(fake.url), { kind: "project", project_id: PROJECT, question: "How does login work?", wait_seconds: 10 });
+    expect(out).toMatchObject({ status: "done", answer: { spoken: "With a magic link" } });
+    expect(polls).toBe(2);
+  });
+
   it("who_am_i adds the configured role", async () => {
     fake.json("GET", "/v1/me", 200, { email: "organizer@talnex.test" });
     expect(await run("who_am_i", apiFor(fake.url))).toEqual({ email: "organizer@talnex.test", role: "organizer" });
