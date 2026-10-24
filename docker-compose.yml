@@ -1,0 +1,105 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Local stand-in for Cloudflare R2 (S3 compatible). Development only.
+  s3:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - s3_data:/data
+
+  # Applies the database migrations once, then stops.
+  migrate:
+    build: ./backend
+    command: ["migrate"]
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: ./backend
+    command: ["api"]
+    env_file: .env
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      s3:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${API_PORT}/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  go-worker:
+    build: ./backend
+    command: ["worker"]
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      s3:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${GO_WORKER_HEALTH_PORT}/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Python AI workers. Run more copies to go faster: docker compose up --scale ai-worker=3
+  ai-worker:
+    build: ./ai
+    env_file: .env
+    volumes:
+      # test files the agent may upload (dog photo, test resume); read only
+      - ./testdata:/app/testdata:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      s3:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request as u; u.urlopen('http://localhost:'+os.environ['AI_WORKER_HEALTH_PORT']+'/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: ./web
+    env_file: .env
+    ports:
+      - "${WEB_PORT}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
+  s3_data:
