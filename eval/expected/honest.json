@@ -1,0 +1,23 @@
+{
+  "app": "honest",
+  "description": "TinyTools, the planted app where every real claim is true. TalNex should find each claim working and raise no red flags. The control claim describes something the app does not have, so TalNex should find it broken.",
+  "url": "https://talnex-honest.vercel.app",
+  "role_level": "fresher",
+  "claims": [
+    {"text": "Anyone can enter as a guest and use the tools without signing up or giving an email address", "group": "Access", "importance": 2, "expected": "works"},
+    {"text": "Once inside as a guest, the page shows both a currency converter and a todo list", "group": "Access", "importance": 2, "expected": "works"},
+    {"text": "The converter changes an amount between US dollars, euros, British pounds and Indian rupees", "group": "Core", "importance": 3, "expected": "works"},
+    {"text": "Typing an empty, non-numeric or negative amount into the converter shows a clear error message instead of a converted value", "group": "Core", "importance": 2, "expected": "works"},
+    {"text": "A todo can be added, marked as done and deleted, and the list shows how many todos are still open", "group": "Core", "importance": 3, "expected": "works"},
+    {"text": "Todos are still in the list after the page is reloaded", "group": "Core", "importance": 2, "expected": "works"},
+    {"text": "Submitting an empty todo shows a message and leaves the list unchanged", "group": "Core", "importance": 2, "expected": "works"}
+  ],
+  "controls": [
+    {"text": "The todo list can be downloaded as a PDF file", "group": "Core", "importance": 2, "expected": "broken"}
+  ],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}
