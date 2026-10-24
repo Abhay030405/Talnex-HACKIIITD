@@ -1863,6 +1863,69 @@ a.meta:hover {
   color: var(--color-text-muted);
 }
 
+/* ---------- Hackathon pages ---------- */
+
+.panel__foot {
+  padding: var(--space-3) var(--space-5);
+  border-top: var(--line) solid var(--color-border);
+}
+
+/* A table row that does not open anything, like the group scores on a proof card. */
+.table tbody tr.table__row--static:hover {
+  background: none;
+}
+
+.weighted {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: var(--line) solid var(--color-border);
+  border-left: var(--line-thick) solid var(--color-primary);
+  border-radius: var(--radius-md);
+}
+
+.weighted__value {
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+/* The AI opinion stands apart: a dashed frame, never styled like a score. */
+.opinion {
+  border-style: dashed;
+}
+
+.opinion__part {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.opinion__name {
+  font-weight: 700;
+}
+
+.best-teams {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.best-team {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: var(--line) solid var(--color-border);
+}
+
+.best-team__name {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
 /* The made-up example on the landing page. */
 .example-card {
   margin: 0;

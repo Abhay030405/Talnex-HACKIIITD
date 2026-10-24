@@ -257,3 +257,127 @@ export interface CandidateReport {
   notes: string[];
 }
 
+// ---------- The hackathon proof card, overview and compare ----------
+// Built by ai/talnex_ai/reports/project_card.py and scoring/feature_compare; served by backend/internal/http/proof.go,
+// which swaps storage keys for short-lived links.
+
+export interface CardGroup {
+  group: string;
+  kind: "standard" | "backend" | "other" | "criterion" | string;
+  score: number | null;
+  coverage: number;
+  confidence: string | null;
+  claims_used: number;
+  low_coverage: boolean;
+}
+
+/** Fixed-problem events only: the total over the organizer's criteria, always shown with its label. */
+export interface WeightedTotal {
+  score: number | null;
+  weight_covered: number;
+  criteria_used: number;
+  criteria_total: number;
+  label: string;
+}
+
+export interface OpinionPart {
+  part: string;
+  score: number | null;
+  scores: (number | null)[];
+  disagree: boolean;
+  reason: string;
+  proof_url?: string;
+}
+
+/** Never part of any score, and always labelled "AI opinion — not tested proof". */
+export interface AiOpinion {
+  label: string;
+  ui: { parts: OpinionPart[]; disagreement_note: string | null } | null;
+  innovation: { parts: OpinionPart[]; disagreement_note: string | null } | null;
+  ui_note?: string;
+  models: string[];
+}
+
+export interface CardCheck {
+  stage: string;
+  status: string;
+  reason?: string | null;
+}
+
+export interface HackathonCard {
+  version: number;
+  project_id: string;
+  generated_at: string;
+  team_name: string;
+  status: string;
+  links: { video: string | null; live: string | null; repo: string | null };
+  event: {
+    id: string;
+    name: string;
+    mode: EventMode;
+    role_level: RoleLevel;
+    starts_at: string | null;
+    ends_at: string | null;
+  };
+  criteria: { name: string; description: string; weight: number }[];
+  talnex: ProjectTalnex & { confidence?: string | null };
+  weighted_total: WeightedTotal | null;
+  groups: CardGroup[];
+  features: ReportFeature[];
+  flags: ReportFlag[];
+  checks: CardCheck[];
+  ai_opinion: AiOpinion | null;
+  has_gaps: boolean;
+  notes: string[];
+}
+
+export interface OverviewProject {
+  id: string;
+  team_name: string;
+  status: string;
+  has_video: boolean;
+  has_live: boolean;
+  has_repo: boolean;
+  talnex_score10: number | null;
+  coverage: number | null;
+  weighted_total: number | null;
+  groups: { group: string; score: number | null; coverage: number; low_coverage: boolean }[];
+  /** How many flags of each level: info, review, strong. */
+  flags: Partial<Record<FlagLevel, number>>;
+  report_ready: boolean;
+}
+
+export interface EventOverview {
+  event: EventSummary;
+  projects: OverviewProject[];
+}
+
+/** One of up to three teams that built a feature best. Never one winner, never a ranking between features. */
+export interface BestTeam {
+  project_id: string;
+  team_name: string;
+  claim_id: string;
+  claim_text: string;
+  verdict: Verdict | null;
+  confidence: Confidence | null;
+  feature_score: number | null;
+  reason: string | null;
+  proof_urls: string[];
+  label: string | null;
+}
+
+export interface CopyPair {
+  team_a: { id: string; name: string };
+  team_b: { id: string; name: string };
+  shared_pct: number;
+  level: FlagLevel | null;
+  matching_files: unknown;
+}
+
+export interface EventCompare {
+  ready: boolean;
+  features: { name: string; best_teams: BestTeam[] }[];
+  group_bests: { name: string; best_teams: BestTeam[] }[];
+  copy_pairs: CopyPair[];
+  notes: string[];
+}
