@@ -48,7 +48,7 @@ Other stages run beside these (repository checks, code-before-event checks, tuto
 
 ## How it is tested
 
-- **182 unit tests** against a fake API (`npm test`, coverage with `npm run coverage`). Every tool is tested four ways
+- **183 unit tests** against a fake API (`npm test`, coverage with `npm run coverage`). Every tool is tested four ways
   through a real MCP client: the happy path, bad input, API errors (404, 500, 503), and the wrong account. The confirm
   gates, the token's byte-for-byte match with the website, and live watching (chunk splits, replay then live, the time
   cap, reconnecting, a recorded real run) are tested too.

@@ -167,7 +167,7 @@ Estimates come from earlier runs (about $0.10–0.15 and 5 minutes per project);
 ## Tests
 
 ```bash
-npm test              # 182 tests against a fake API, no network
+npm test              # 183 tests against a fake API, no network
 npm run coverage      # the same with a coverage report
 npm run typecheck
 npm run e2e           # builds, then runs the real server against the local stack (Node 22.6+); never passes confirm
