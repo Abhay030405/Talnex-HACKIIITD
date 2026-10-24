@@ -10,7 +10,7 @@ Two mistakes seen in real runs, both caught here by plain code so a model can't 
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Optional, Sequence
 
 # (what a plan may add on its own, what the claim must say for that to be fair)
 _EXTRA_REQUIREMENTS: tuple[tuple[str, re.Pattern, re.Pattern], ...] = (
@@ -42,6 +42,44 @@ _STARTING_VALUE = re.compile(
 _SHOWS_CHANGE = re.compile(r"\bfrom\b[^.;]{1,40}\bto\b|\bchanged\b|\bwent (?:up|down)\b|\bdropp?ed\b|\brose\b|\bincreased\b|"
                            r"\bdecreased\b|\bafter (?:finishing|completing|marking|adding|ticking|deleting|rating)\b",
                            re.IGNORECASE)
+
+
+_STOP = frozenset("""a an the and or but of to in on at by for with from into onto as is are be been being was were it its this that
+these those you your yours they them their we our us he she his her can will would should could may might must do does did
+done has have had not no yes so if then than there here when where which who whom whose what how all any each every some
+such very just also only own same too more most less least few many much other another one two three per via up out off
+over under again once about above below after before between through during without within""".split())
+
+
+def _stem(word: str) -> str:
+    for end in ("ing", "ed", "es", "s"):
+        if word.endswith(end) and len(word) - len(end) >= 3:
+            return word[: -len(end)]
+    return word
+
+
+def content_words(text: str) -> set[str]:
+    """The words that carry meaning, roughly stemmed, so "books" matches "book" and "tick" matches "ticking"."""
+    return {_stem(w) for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 1 and w not in _STOP}
+
+
+def quote_problem(claim_text: str, quote: str) -> Optional[str]:
+    """Why a check's quote is not the claim's own words, or None. Most of its meaning words must be in the claim."""
+    words = content_words(quote)
+    if not words:
+        return "it quotes no words of the claim"
+    found = words & content_words(claim_text)
+    if len(found) / len(words) < 0.6:
+        return "its quote is not from the claim"
+    return None
+
+
+def uncovered(claim_text: str, quotes: Sequence[str]) -> set[str]:
+    """Meaning words of the claim that no check quotes: promises the plan would leave untested."""
+    covered: set[str] = set()
+    for q in quotes:
+        covered |= content_words(q)
+    return content_words(claim_text) - covered
 
 
 def extra_requirement(claim_text: str, plan_text: str) -> Optional[str]:
