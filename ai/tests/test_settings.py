@@ -65,6 +65,18 @@ def test_azure_provider_and_prices():
     assert s.llm.azure.endpoint == "https://x.azure.com"
 
 
+def test_sandbox_copy_authorship_and_walkthrough_sections():
+    s = settings.load(MINIMAL)
+    assert not s.sandbox.enabled and s.sandbox.vm_time_limit_seconds == 900
+    assert (s.copy.review_pct, s.authorship.min_confidence, s.walkthrough.whisper_device) == (40.0, 0.6, "cpu")
+    on = settings.load(dict(MINIMAL, SANDBOXD_URL="http://vmhost:7070/", SANDBOXD_TOKEN="t", COPY_STRONG_PCT="80"))
+    assert on.sandbox.enabled and on.sandbox.url == "http://vmhost:7070" and on.copy.strong_pct == 80.0
+    with pytest.raises(settings.SettingsError, match="AUTHORSHIP_MIN_CONFIDENCE"):
+        settings.load(dict(MINIMAL, AUTHORSHIP_MIN_CONFIDENCE="2"))
+    with pytest.raises(settings.SettingsError, match="WHISPER_DEVICE"):
+        settings.load(dict(MINIMAL, WHISPER_DEVICE="tpu"))
+
+
 def test_secrets_never_appear_in_errors():
     with pytest.raises(settings.SettingsError) as err:
         settings.load(dict(MINIMAL, S3_SECRET_KEY="", OPENROUTER_API_KEY="sk-very-secret", MAX_TRIES_PER_CLAIM="x"))

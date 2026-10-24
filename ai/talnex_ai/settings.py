@@ -145,6 +145,67 @@ class PhoneSettings:
 
 
 @dataclass(frozen=True)
+class SandboxSettings:
+    """The VM host that runs repos (sandboxd). Without an address or token the sandbox track is simply off:
+    a repo then ends as "could not run: the sandbox host is not set up", never as a problem with the project."""
+
+    url: str
+    token: str
+    vm_time_limit_seconds: int      # how long one VM may live
+    build_timeout_seconds: int      # the longest one command (install, build, test run) may take
+    busy_wait_seconds: int          # how long to wait for a free place when the host is full
+    review_max_files: int = 12      # source files read for the code review of one claim
+    review_max_kb: int = 120        # the most code, in kilobytes, read for one claim
+    feature_read_max_files: int = 25   # files read to find the features a project implements
+    feature_read_max_kb: int = 200     # the most code, in kilobytes, read for that
+    feature_max_claims: int = 12       # the most features turned into claims
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.url and self.token)
+
+
+@dataclass(frozen=True)
+class CopySettings:
+    """The copy check between teams."""
+
+    review_pct: float = 40.0     # this much shared code (of the smaller team's own) is a "review" flag
+    strong_pct: float = 70.0     # and this much is a "strong" flag
+    starter_share: float = 0.5   # code found in at least this share of teams (and 3 teams) is starter code, ignored
+    max_teams: int = 60          # the most teams read in one event
+    look_max_files: int = 3      # the model looks at this many top matching files of a pair
+
+
+@dataclass(frozen=True)
+class AuthorshipSettings:
+    """Authorship proof: how much code is read to find a feature, and the flag thresholds (starting values)."""
+
+    locate_max_files: int = 40        # code files read to find where the claims live
+    max_repo_files: int = 3000        # more code files than this: "could not trace: repo too large"
+    max_claims: int = 25              # the most claims traced in one project
+    max_files_per_claim: int = 6      # the most files in one claim's code map
+    min_confidence: float = 0.6       # a code map less sure than this: "could not trace: code not found"
+    top_commits: int = 8              # commits shown to the model that decides new / moved / reformatting
+    one_drop_share: float = 0.8       # this share of a feature's lines in one commit: "arrived in one drop"
+    before_event_review: float = 0.3  # more than this share pushed before the event: review
+    before_event_strong: float = 0.6  # more than this, on a main feature: strong
+    claimed_min_share: float = 0.2    # "I built" with less than this share by the candidate's account: review
+    reformat_share: float = 0.5       # more than this share owned by reformatting commits: info
+
+
+@dataclass(frozen=True)
+class WalkthroughSettings:
+    """The voice walkthrough: how much code one answer reads, and the speech-to-text model."""
+
+    max_files: int = 8              # code files read for one answer
+    max_lines_per_file: int = 120   # lines read from one file's traced range
+    snippet_lines: int = 20         # lines shown with one code proof link
+    whisper_model: str = "small"    # faster-whisper size: tiny, base, small, medium, large-v3
+    whisper_device: str = "cpu"     # cpu or cuda
+    whisper_compute_type: str = "int8"
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
@@ -155,6 +216,10 @@ class Settings:
     runner: RunnerSettings
     email: EmailSettings
     phone: PhoneSettings = field(default_factory=lambda: PhoneSettings("", 90, 3))
+    sandbox: SandboxSettings = field(default_factory=lambda: SandboxSettings("", "", 900, 600, 600))
+    copy: CopySettings = field(default_factory=CopySettings)
+    authorship: AuthorshipSettings = field(default_factory=AuthorshipSettings)
+    walkthrough: WalkthroughSettings = field(default_factory=WalkthroughSettings)
 
 
 class _Env:
@@ -317,8 +382,49 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         wait_seconds=env.whole("SMS_WAIT_SECONDS", 90),
         poll_seconds=env.whole("SMS_POLL_SECONDS", 3),
     )
+    sandbox = SandboxSettings(
+        url=env.url("SANDBOXD_URL", required=False),
+        token=env.optional("SANDBOXD_TOKEN"),
+        vm_time_limit_seconds=env.whole("SANDBOX_VM_TIME_LIMIT_SECONDS", 900),
+        build_timeout_seconds=env.whole("SANDBOX_BUILD_TIMEOUT_SECONDS", 600),
+        busy_wait_seconds=env.whole("SANDBOX_BUSY_WAIT_SECONDS", 600),
+        review_max_files=env.whole("SANDBOX_REVIEW_MAX_FILES", 12),
+        review_max_kb=env.whole("SANDBOX_REVIEW_MAX_KB", 120),
+        feature_read_max_files=env.whole("FEATURE_READ_MAX_FILES", 25),
+        feature_read_max_kb=env.whole("FEATURE_READ_MAX_KB", 200),
+        feature_max_claims=env.whole("FEATURE_MAX_CLAIMS", 12),
+    )
+    copy = CopySettings(
+        review_pct=env.decimal("COPY_REVIEW_PCT", 40.0, 1.0, 100.0),
+        strong_pct=env.decimal("COPY_STRONG_PCT", 70.0, 1.0, 100.0),
+        starter_share=env.decimal("COPY_STARTER_SHARE", 0.5, 0.1, 1.0),
+        max_teams=env.whole("COPY_MAX_TEAMS", 60),
+        look_max_files=env.whole("COPY_LOOK_MAX_FILES", 3),
+    )
+    authorship = AuthorshipSettings(
+        locate_max_files=env.whole("AUTHORSHIP_LOCATE_MAX_FILES", 40),
+        max_repo_files=env.whole("AUTHORSHIP_MAX_REPO_FILES", 3000),
+        max_claims=env.whole("AUTHORSHIP_MAX_CLAIMS", 25),
+        max_files_per_claim=env.whole("AUTHORSHIP_MAX_FILES_PER_CLAIM", 6),
+        min_confidence=env.decimal("AUTHORSHIP_MIN_CONFIDENCE", 0.6, 0.0, 1.0),
+        top_commits=env.whole("AUTHORSHIP_TOP_COMMITS", 8),
+        one_drop_share=env.decimal("AUTHORSHIP_ONE_DROP_SHARE", 0.8, 0.0, 1.0),
+        before_event_review=env.decimal("AUTHORSHIP_BEFORE_EVENT_REVIEW", 0.3, 0.0, 1.0),
+        before_event_strong=env.decimal("AUTHORSHIP_BEFORE_EVENT_STRONG", 0.6, 0.0, 1.0),
+        claimed_min_share=env.decimal("AUTHORSHIP_CLAIMED_MIN_SHARE", 0.2, 0.0, 1.0),
+        reformat_share=env.decimal("AUTHORSHIP_REFORMAT_SHARE", 0.5, 0.0, 1.0),
+    )
+    walkthrough = WalkthroughSettings(
+        max_files=env.whole("WALKTHROUGH_MAX_FILES", 8),
+        max_lines_per_file=env.whole("WALKTHROUGH_MAX_LINES_PER_FILE", 120),
+        snippet_lines=env.whole("WALKTHROUGH_SNIPPET_LINES", 20),
+        whisper_model=env.optional("WHISPER_MODEL", "small"),
+        whisper_device=env.one_of("WHISPER_DEVICE", "cpu", ("cpu", "cuda")),
+        whisper_compute_type=env.optional("WHISPER_COMPUTE_TYPE", "int8"),
+    )
     database_url = env.required("DATABASE_URL")
 
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
-                    runner=runner, email=email, phone=phone)
+                    runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
+                    walkthrough=walkthrough)
