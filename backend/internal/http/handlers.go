@@ -152,6 +152,10 @@ func (s *server) createCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c, err := s.candidates.Create(r.Context(), who.UserID, in)
+	if errors.Is(err, candidates.ErrRoleNotFound) {
+		writeError(w, http.StatusBadRequest, "that role does not exist")
+		return
+	}
 	if err != nil {
 		s.fail(w, "create candidate", err)
 		return

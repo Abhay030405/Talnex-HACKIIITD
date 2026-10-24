@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -23,6 +24,7 @@ type Candidate struct {
 	ID            string            `json:"id"`
 	Label         string            `json:"label"`
 	RoleLevel     string            `json:"role_level"`
+	RoleID        string            `json:"role_id,omitempty"`
 	CodingHandles map[string]string `json:"coding_handles"`
 	Status        string            `json:"status"`
 	CreatedAt     time.Time         `json:"created_at"`
@@ -32,6 +34,8 @@ type NewCandidate struct {
 	Label         string            `json:"label"`
 	RoleLevel     string            `json:"role_level"`
 	CodingHandles map[string]string `json:"coding_handles"`
+	// RoleID puts the candidate under one of the owner's roles; the role's level is then used.
+	RoleID string `json:"role_id"`
 }
 
 // Validate returns a plain-words problem with the input, or nil.
@@ -42,6 +46,12 @@ func (n *NewCandidate) Validate() error {
 	}
 	if !validLevels[n.RoleLevel] {
 		return errors.New("role_level must be fresher, junior, mid or senior")
+	}
+	n.RoleID = strings.TrimSpace(n.RoleID)
+	if n.RoleID != "" {
+		if _, err := uuid.Parse(n.RoleID); err != nil {
+			return errors.New("role_id is not a valid id")
+		}
 	}
 	if n.CodingHandles == nil {
 		n.CodingHandles = map[string]string{}
@@ -65,14 +75,14 @@ func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool}
 }
 
-const columns = `id::text, coalesce(label, ''), role_level, coding_handles, status, created_at`
+const columns = `id::text, coalesce(label, ''), role_level, coalesce(role_id::text, ''), coding_handles, status, created_at`
 
 func scan(row pgx.Row) (Candidate, error) {
 	var (
 		c   Candidate
 		raw []byte
 	)
-	if err := row.Scan(&c.ID, &c.Label, &c.RoleLevel, &raw, &c.Status, &c.CreatedAt); err != nil {
+	if err := row.Scan(&c.ID, &c.Label, &c.RoleLevel, &c.RoleID, &raw, &c.Status, &c.CreatedAt); err != nil {
 		return Candidate{}, err
 	}
 	c.CodingHandles = map[string]string{}
@@ -87,10 +97,15 @@ func (s *Store) Create(ctx context.Context, ownerID string, n NewCandidate) (Can
 	if err != nil {
 		return Candidate{}, err
 	}
+	if n.RoleID != "" {
+		if n.RoleLevel, err = s.roleLevelOf(ctx, ownerID, n.RoleID); err != nil {
+			return Candidate{}, err
+		}
+	}
 	c, err := scan(s.pool.QueryRow(ctx, `
-		INSERT INTO candidates (owner_id, label, role_level, coding_handles)
-		VALUES ($1::uuid, NULLIF($2, ''), $3, $4::jsonb)
-		RETURNING `+columns, ownerID, n.Label, n.RoleLevel, handles))
+		INSERT INTO candidates (owner_id, label, role_level, coding_handles, role_id)
+		VALUES ($1::uuid, NULLIF($2, ''), $3, $4::jsonb, NULLIF($5, '')::uuid)
+		RETURNING `+columns, ownerID, n.Label, n.RoleLevel, handles, n.RoleID))
 	if err != nil {
 		return Candidate{}, fmt.Errorf("create candidate: %w", err)
 	}
