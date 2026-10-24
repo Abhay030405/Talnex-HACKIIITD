@@ -72,13 +72,20 @@ def run_plan(
     job_id: Optional[str] = None,
     connect: Connector = driver_module.connect,
     on_event: Optional[Callable[..., None]] = None,
+    record_as: Optional[str] = None,
 ) -> RunRecord:
-    """Run one plan. Raises LimitReached when a run limit is hit (nothing is created then)."""
-    if claim.id is None:
-        raise ValueError("the claim must be saved before it can be tested")
-    ensure_can_run(pool, claim.id, limits)
-    try_number = next_try_number(pool, claim.id) or 1
-    run_id = store.create_run(pool, claim.id, try_number, plan.test_type, method="browser")
+    """Run one plan. Raises LimitReached when a run limit is hit (nothing is created then).
+
+    `record_as` is a one-off test (Ask TalNex): no run or step rows are written, so it can never change a result
+    or a score; its screenshots and live screen are kept under that id instead."""
+    if record_as is None:
+        if claim.id is None:
+            raise ValueError("the claim must be saved before it can be tested")
+        ensure_can_run(pool, claim.id, limits)
+        try_number = next_try_number(pool, claim.id) or 1
+        run_id = store.create_run(pool, claim.id, try_number, plan.test_type, method="browser")
+    else:
+        try_number, run_id = 1, record_as
 
     def tell(kind: str, **data) -> None:
         if on_event is not None:
@@ -156,11 +163,12 @@ def run_plan(
         log.exception("test run %s crashed", run_id)
         problem = f"the test run hit a problem on our side: {type(err).__name__}"
     finally:
-        try:
-            store.add_steps(pool, run_id, result.records if result else [])
-            store.finish_run(pool, run_id, db_outcome)
-        except Exception:
-            log.exception("could not save run %s", run_id)
+        if record_as is None:
+            try:
+                store.add_steps(pool, run_id, result.records if result else [])
+                store.finish_run(pool, run_id, db_outcome)
+            except Exception:
+                log.exception("could not save run %s", run_id)
 
     if result is None:
         tell("run.finished", outcome="blocked", reason=problem, actions=0, cost_usd=cost or None)

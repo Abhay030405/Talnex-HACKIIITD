@@ -22,7 +22,11 @@ Reply with one JSON object:
 or, only when the recruiter asks for it or it clearly helps, one action:
 {{"answer": "...", "action": {{"type": "rerun_project", "project": "<exact project name from the report>"}}}}
 {{"answer": "...", "action": {{"type": "rerun_coding"}}}}
-{{"answer": "...", "action": {{"type": "change_weight", "criterion": "<criterion name>", "weight": <number above 0>}}}}"""
+{{"answer": "...", "action": {{"type": "change_weight", "criterion": "<criterion name>", "weight": <number above 0>}}}}
+{{"answer": "...", "action": {{"type": "custom_test", "project": "<exact project name>", "instruction": "<the test to try on the live site, in one plain sentence>"}}}}
+Use custom_test when the reviewer asks you to try something specific on a project's live site (for example "try signing up
+with a very long email on the second project"). It is only a proposal: the reviewer presses a button to run it. Say in the
+answer what will be tried. Never propose a test that pays, deletes other people's data, or messages real people."""
 
 
 def build_user(question: str, report_json: str, brief: str, history: list[tuple[str, str]] = ()) -> str:

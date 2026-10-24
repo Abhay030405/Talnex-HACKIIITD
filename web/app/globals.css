@@ -2001,6 +2001,20 @@ a.meta:hover {
   margin-top: var(--space-2);
 }
 
+.chat__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.chat__shot {
+  width: calc(var(--space-9) * 1.5);
+  height: auto;
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
 .chat__starters {
   display: flex;
   flex-wrap: wrap;

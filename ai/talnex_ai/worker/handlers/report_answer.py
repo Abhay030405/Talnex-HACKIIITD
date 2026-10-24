@@ -23,8 +23,9 @@ MAX_REPORT_CHARS = 24000
 
 
 class Action(BaseModel):
-    type: Literal["rerun_project", "rerun_coding", "change_weight"]
+    type: Literal["rerun_project", "rerun_coding", "change_weight", "custom_test"]
     project: Optional[str] = None
+    instruction: Optional[str] = Field(default=None, max_length=500)
     criterion: Optional[str] = None
     weight: Optional[float] = Field(default=None, gt=0, le=1000)
 
