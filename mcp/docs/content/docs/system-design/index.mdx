@@ -1,0 +1,41 @@
+---
+title: System design
+description: The whole of TalNex on one page, and the rules that keep the parts apart.
+---
+
+TalNex is an AI agent that opens a project's live link, uses it like a real person, and gives **proof** of what
+actually works. The same engine serves recruiters (resumes) and hackathon judges (team submissions).
+
+<SystemOverview />
+
+## The parts
+
+| Part | Built with | Its job |
+|---|---|---|
+| Website | Next.js | Forms, roles, bulk upload, reports, proof clips, live view and live wall, Ask TalNex chat. Signs a short token per request; never touches the database or storage directly. |
+| API | Go | Public API, an owner check on every private route, starting pipelines, short-lived file links, the live event stream (SSE). |
+| Go worker | Go | Jobs that need only plain code or official APIs: GitHub, Codeforces, auto-confirm, resume cleanup. |
+| Python AI workers | Python (scale to N) | Everything that needs a model or a browser: claims, test plans, live tests, proof check, scoring, coding signals, Ask TalNex, custom tests. |
+| Postgres | PostgreSQL | All facts and results **and** the job queue (`jobs`, `pipeline_stages`), plus `live_events` for replay. |
+| sandboxd | Go | The VM host: builds and runs a repository in a fresh, time-limited VM, tests its routes, reviews its code. |
+| File storage | Cloudflare R2 (RustFS locally) | Screenshots, videos, saved replays, live screen frames. Only shown through short-lived links. |
+| Models | OpenRouter or Azure AI Foundry | One switch (`LLM_PROVIDER`); fixed roles (planner, agent, proof checker, …); every call logs model, time and cost. |
+| Remote browser | TinyFish Browser, Browserless as backup | A real Chrome in the cloud, driven over CDP by our own agent loop. |
+
+## The three rules that shape everything
+
+1. **Go and Python never call each other.** They only meet in the Postgres `jobs` table and the shared formats. Either
+   side can restart or scale on its own. (The one exception: Python calls `sandboxd`, a machine controller.)
+2. **Go owns the database schema.** Python reads and writes the same tables but never changes their shape. Every schema
+   change is a numbered migration in `backend/migrations/`.
+3. **Each stage is its own job.** A worker saves its result and queues the next stage in the same database step, and
+   every job is safe to run twice. That is what makes re-runs, live progress and scaling simple.
+
+## Where to read next
+
+- [Job queue and pipelines](/docs/system-design/job-queue) — how each job is taken, run, retried and chained.
+- [Live test engine](/docs/system-design/live-test-engine) — the agent loop, the browser, the proof.
+- [Recruiter flow](/docs/system-design/recruiter-flow) — roles, bulk upload, weights, re-runs.
+- [Ask TalNex](/docs/system-design/ask-talnex) — the chat and custom tests.
+- [Coding signals](/docs/system-design/coding-signals) — Codeforces, LeetCode and the replay paste check.
+- [Scaling and failure](/docs/system-design/scaling-and-failure) — what happens when things go wrong.

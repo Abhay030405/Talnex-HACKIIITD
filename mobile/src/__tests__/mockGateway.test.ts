@@ -1,12 +1,12 @@
 /**
  * @jest-environment node
  */
-import { request } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { sendToGateway } from '../gateway';
 import { buildPayload, buildTestPayload } from '../payload';
 import type { GatewayPayload, Settings } from '../types';
+import { nodeFetch } from './nodeFetch';
 
 interface MockGateway {
   server: import('node:http').Server;
@@ -47,22 +47,6 @@ describe('mock gateway rules', () => {
     expect(check(buildTestPayload('Spare', at))).toBe(202);
   });
 });
-
-// jest-expo swaps the global fetch for a mock, so this test brings a small real one.
-function nodeFetch(url: string, init: RequestInit): Promise<{ status: number }> {
-  return new Promise((resolve, reject) => {
-    const req = request(
-      url,
-      { method: init.method, headers: init.headers as Record<string, string>, signal: init.signal ?? undefined },
-      (res) => {
-        res.resume();
-        res.on('end', () => resolve({ status: res.statusCode ?? 0 }));
-      },
-    );
-    req.on('error', reject);
-    req.end(init.body as string);
-  });
-}
 
 describe('the app against the mock over real HTTP', () => {
   let mock: MockGateway;

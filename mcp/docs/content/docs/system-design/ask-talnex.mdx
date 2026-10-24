@@ -1,0 +1,34 @@
+---
+title: Ask TalNex
+description: The chat on every report, how it answers from proof, and how it runs custom tests.
+---
+
+<AskFlow />
+
+## Asking
+
+- The chat sits on every candidate report and every hackathon project page.
+- `POST /v1/candidates/{id}/ask` or `POST /v1/projects/{id}/ask` queues one `report_answer` job with the question (a
+  new run number per question, so none is dropped as a duplicate). `GET …/asks` lists the conversation.
+- The Python stage answers **only from the saved report or proof card**, with the role brief (or event brief and team
+  abstract) and the last six turns, all wrapped as untrusted data. It never ranks, never gives a hire or winner verdict,
+  and says so when the proof does not show the answer.
+
+## Actions
+
+An answer may carry **one** action. The website shows it as a button; nothing paid starts until a person presses it.
+
+| Action | What the button does |
+|---|---|
+| `rerun_project` | Re-tests that project (a new pipeline run) and opens the live view |
+| `rerun_coding` | Re-runs the coding checks, then the report |
+| `change_weight` | Opens the role or event settings to change that criterion's weight |
+| `custom_test` | Shows the planned test and a **Run this test** button |
+
+## Custom tests
+
+`POST /v1/candidate-projects/{id}/custom-test` (or `/v1/projects/{id}/custom-test`) queues one `custom_test` job with
+the instruction. It becomes a one-off claim, is planned and run by the same [live test engine](/docs/system-design/live-test-engine)
+— same safety rules, login ladder, limits, live screen — but is recorded **apart from the scored features**: it never
+writes claims, results or scores. Its verdict, what it saw and its screenshots come back as a message in the chat.
+Custom tests need a live site; repo-only (VM) custom tests are not built yet.

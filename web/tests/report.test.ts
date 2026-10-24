@@ -8,6 +8,7 @@ import {
   flagTypeLabel,
   formatCoverage,
   formatScore,
+  groupFlags,
   projectStatusInfo,
   proofInfo,
   reportSummary,
@@ -15,7 +16,9 @@ import {
   signalWeightInfo,
   sortFlags,
   statusWords,
+  splitTested,
   verdictInfo,
+  verdictSummary,
 } from "@/lib/report-format";
 import type { Verdict } from "@/lib/types";
 
@@ -62,10 +65,31 @@ describe("flags", () => {
     expect(sampleReport.projects[0].flags[0].level).toBe("info");
   });
 
+  it("folds flags of one kind into one line with every reason, strongest first", () => {
+    const drop = (reason: string) => ({ type: "feature_one_drop", level: "info" as const, reason });
+    const groups = groupFlags([drop("a"), { type: "leaked_secret", level: "strong", reason: "key" }, drop("b")]);
+    expect(groups.map((g) => [g.type, g.reasons.length])).toEqual([["leaked_secret", 1], ["feature_one_drop", 2]]);
+  });
+
   it("names levels and types in words, even ones it does not know", () => {
     expect(flagLevelInfo("strong")).toEqual({ text: "Strong signal", tone: "danger" });
     expect(flagTypeLabel("hidden_ai_instructions")).toMatch(/Hidden instructions/);
     expect(flagTypeLabel("brand_new_check")).toBe("Brand new check");
+  });
+});
+
+describe("project summary", () => {
+  const feature = (verdict: Verdict | null, text = "x") => ({ ...sampleReport.projects[0].features[0], verdict, text });
+
+  it("counts the verdicts in one line, could-not-test last", () => {
+    expect(verdictSummary([feature("works"), feature("could_not_test"), feature("works"), feature("broken")])).toBe(
+      "2 works · 1 broken · 1 could not test",
+    );
+  });
+
+  it("keeps tested claims apart from the ones that could not be tested", () => {
+    const { tested, untested } = splitTested([feature("could_not_test", "a"), feature("works", "b"), feature(null, "c"), feature("broken", "d")]);
+    expect([tested.map((f) => f.text), untested.map((f) => f.text)]).toEqual([["b", "d"], ["a", "c"]]);
   });
 });
 

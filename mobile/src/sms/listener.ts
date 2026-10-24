@@ -1,5 +1,6 @@
 import { DeviceEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
+import { relayServiceNative, type InboxRow } from '../native';
 import { parseReadSmsString } from '../payload';
 import type { IncomingSms } from '../types';
 
@@ -18,12 +19,28 @@ export interface SmsListener {
   /** Starts listening. Returns a problem in words, or null once it is running. */
   start(onSms: (sms: IncomingSms) => void): Promise<string | null>;
   stop(): void;
+  /** Texts in the phone's inbox received after `sinceMs`, oldest first. Used to catch up after the app was dead. */
+  readInboxSince(sinceMs: number): Promise<IncomingSms[]>;
 }
 
 export const UNSUPPORTED_NOTICE =
   'SMS listening needs the Android development build; the rest of the app works for testing.';
 export const NO_PERMISSION = 'The SMS permission is not allowed yet.';
 export const START_TIMEOUT_MS = 5_000;
+export const INBOX_READ_LIMIT = 100;
+
+/** Turns inbox rows into texts, skipping any without a sender, a text or a usable time. */
+export function inboxRowsToSms(rows: InboxRow[]): IncomingSms[] {
+  const texts: IncomingSms[] = [];
+  for (const row of rows) {
+    const from = typeof row.from === 'string' ? row.from.trim() : '';
+    const body = typeof row.body === 'string' ? row.body : '';
+    const at = Number(row.date);
+    if (!from || !body || !Number.isFinite(at) || at <= 0) continue;
+    texts.push({ from, body, receivedAt: new Date(at) });
+  }
+  return texts;
+}
 
 export function createUnsupportedListener(): SmsListener {
   return {
@@ -33,6 +50,7 @@ export function createUnsupportedListener(): SmsListener {
     requestPermission: async () => false,
     start: async () => UNSUPPORTED_NOTICE,
     stop: () => {},
+    readInboxSince: async () => [],
   };
 }
 
@@ -50,6 +68,8 @@ export interface AndroidListenerDeps {
   };
   /** Subscribes to the library's "received_sms" event. */
   onEvent(handler: (raw: unknown) => void): { remove(): void };
+  /** Reads the phone's SMS inbox. Missing when the app's own native module is not in this build. */
+  readInbox?: (sinceMs: number, limit: number) => Promise<InboxRow[]>;
   startTimeoutMs?: number;
 }
 
@@ -113,6 +133,15 @@ export function createAndroidListener(deps: AndroidListenerDeps): SmsListener {
       if (running) deps.native.stopReadSMS();
       running = false;
     },
+
+    async readInboxSince(sinceMs) {
+      if (!deps.readInbox || !(await deps.permissions.check())) return [];
+      try {
+        return inboxRowsToSms(await deps.readInbox(sinceMs, INBOX_READ_LIMIT));
+      } catch {
+        return [];
+      }
+    },
   };
 }
 
@@ -123,6 +152,7 @@ export function createSmsListener(): SmsListener {
   if (Platform.OS !== 'android') return createUnsupportedListener();
   const native = NativeModules.RNExpoReadSms as NativeSms | undefined;
   if (!native || typeof native.startReadSMS !== 'function') return createUnsupportedListener();
+  const relay = relayServiceNative();
 
   return createAndroidListener({
     native,
@@ -134,5 +164,6 @@ export function createSmsListener(): SmsListener {
       },
     },
     onEvent: (handler) => DeviceEventEmitter.addListener('received_sms', handler),
+    readInbox: relay ? (sinceMs, limit) => relay.readInboxSince(sinceMs, limit) : undefined,
   });
 }

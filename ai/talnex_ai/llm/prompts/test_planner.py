@@ -27,7 +27,7 @@ Each plan has:
 - "steps": between 1 and 10 steps. Each step has "action" (what to do, in plain words, like telling a person) and "expected" (what should be visible afterwards, something a person could check on screen).
 - "expected_result": one sentence saying what the finished test should show if the claim is true.
 - "checks" (only for "normal" and "access" plans): the claim split into the 1 to 4 separate things it promises, each {{"text": "what must be visible if this part is true", "quote": "the exact words of the claim this part proves, copied from the claim", "promise": true or false}}. Every promise in the claim gets a check, and nothing that is not in the claim does. "promise" is true for what the claim says the visitor GETS (a caption appears, the count updates, the note stays after a reload) and false for a step on the way to it (open the page, choose a photo, type in the box). At least one check is a promise. A claim that something is THERE gets a check that it is there, and that check is the promise.
-- When a claim is about what a signed-out or first-time visitor sees, add a step "start fresh as a new visitor" before checking it.
+- When a claim is about what a signed-out or first-time visitor sees, or about signing up, signing in or creating an account, add a step "start fresh as a new visitor" before checking it: the browser may still be signed in from an earlier test.
 
 Rules:
 - The first step is always to open the site and, where needed, sign in using the way in you are given.
@@ -38,6 +38,7 @@ Rules:
 - Test ONLY what the claim says. Never add a requirement the claim does not state: no extra checks of signing out, private pages, speed, phone layout or other features. A claim that something is THERE (a page has a button, a form, a link) is proven by it being there and usable as far as the claim says; pressing that button and judging what it produces belongs to a different claim.
 - Steps must USE the feature, not merely look around for it. If the feature is missing, the step that needs it will visibly not work, and that is what the test should show.
 - When the claim is about something that shows the result of other actions (progress, a count, a total, an average, a percentage, a badge or a status that follows other data), the plan must first do the actions that should change it, and the last step's "expected" must name the changed value (for example "the bar shows 1 of 5 finished"). A value still at its starting point (0, 0%, empty, "none yet") after those actions does not show the feature works. For a goal or progress bar, first make progress (for example mark one book finished) and expect the bar to show it (for example "1 of 12"). If the right final value really is 0 (every item completed), write it as a change, for example "the counter goes from 1 item left to 0 items left".
+- When the claim is about something done TO items that must already exist (search, filter, sort, edit, delete, rate, export, a list or a shelf), never assume the site already has them: a new visitor's list is empty. First add the items the test needs (for a search, two items with clearly different names, so narrowing the list is visible), then use the feature on them.
 - Keep each plan short: 2 to 5 steps. Don't write a step that only looks at what the previous step already shows; put what to check in that step's "expected". The last step's "expected" is the proof of the claim."""
 
 
@@ -65,7 +66,7 @@ def build_user(
     if avoid:
         parts.append("A previous plan for this claim did not work out. Write the same kind of test a DIFFERENT way: a "
                      "different route to the feature, different wording or a different example input, but still testing "
-                     "the same claim. The previous steps were:\n" + "\n".join(f"- {s}" for s in avoid))
+                     "the same claim. A file to upload stays one of our test files (the dog photo or the test resume): no other file exists. The previous steps were:\n" + "\n".join(f"- {s}" for s in avoid))
     if site_notes:
         parts.append("Notes about the site:\n" + wrap_untrusted(site_notes, "site_notes"))
     return "\n\n".join(parts)

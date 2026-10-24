@@ -35,6 +35,9 @@ export function ClaimRow({ feature }: { feature: ReportFeature }) {
 
       {feature.reason && !notScored && <p className="claim__reason">{feature.reason}</p>}
 
+      <details className="proof-viewer claim__more">
+        <summary>{proofLabel(feature.proof.length)}</summary>
+        <div className="stack">
       {review && (review.summary || review.mechanism) && (
         <div className="claim__review">
           <span className="badge badge--neutral">Reviewed from code, not run</span>
@@ -63,6 +66,12 @@ export function ClaimRow({ feature }: { feature: ReportFeature }) {
       <AuthorshipLine authorship={feature.authorship} />
       <ProofClip steps={feature.proof} verdict={feature.verdict} />
       <ProofViewer steps={feature.proof} />
+        </div>
+      </details>
     </article>
   );
+}
+
+function proofLabel(steps: number): string {
+  return steps > 0 ? `Show proof (${steps} ${steps === 1 ? "step" : "steps"}) and code` : "Show code details";
 }

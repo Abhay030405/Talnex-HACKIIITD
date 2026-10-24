@@ -62,7 +62,9 @@ export function StatusScreen({ relay, listener, settings, state, listening, onTo
           <View style={styles.flex}>
             <Text style={styles.big}>SMS listening: {listening ? 'ON' : 'OFF'}</Text>
             <Text style={styles.muted}>
-              {listening ? 'New texts to this SIM are sent to TalNex.' : 'Texts are not being forwarded.'}
+              {listening
+                ? 'New texts to this SIM are sent to TalNex. Texts that arrive while the app is closed are sent when it opens again.'
+                : 'Texts are not being forwarded.'}
             </Text>
           </View>
           <Switch

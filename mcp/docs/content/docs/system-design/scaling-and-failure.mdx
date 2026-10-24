@@ -1,0 +1,35 @@
+---
+title: Scaling and failure
+description: What happens under load, and what happens when each part goes wrong.
+---
+
+## Scaling
+
+- **More work → more workers.** `docker compose up -d --scale ai-worker=N`. `take_job` uses `SKIP LOCKED`, so workers
+  never block each other, and each worker runs several threads.
+- **Bulk uploads queue up.** 50 resumes become 50 small uploads and then jobs; nothing has to happen at once.
+- **Cost is capped.** Free Fetch and Search first; paid browser sessions only for live sites; per-key budgets; every
+  model call logs its cost to `usage_log`, and each check shows its time and cost on the report.
+- **VMs are capped.** sandboxd runs at most `SANDBOX_MAX_PARALLEL_VMS` at once, each with CPU, memory and time limits.
+
+## When something fails
+
+| What fails | What happens |
+|---|---|
+| A handler throws or times out | `fail_job` → `retrying` with a growing delay, up to `max_tries`, then `failed` with the reason |
+| A worker dies mid-job | `reap_stuck_jobs` puts the job back once it is past its time limit; jobs are safe to run twice |
+| Two stages finish at once | An advisory lock per pipeline and target, so the next stage is queued exactly once |
+| TinyFish is out of budget or down | The same test runs on Browserless |
+| The site shows a CAPTCHA | Solved on Browserless; otherwise *blocked* (could not test) |
+| The site is slow or flaky | Waits and a second, different try before anything is *broken* (never-blame ladder) |
+| A login is impossible | *Could not test: phone login required* (or the reason) — never counted against anyone |
+| The model answers badly | One repair request; then the stage fails and retries |
+| A coding check is slow | The report waits for it, then notes any still running |
+| A VM hangs | Its time limit and the reaper destroy it |
+
+## What never changes under failure
+
+- "Could not test" and "could not confirm" are left out of the score, with the reason shown.
+- Red flags sit beside the score and are never subtracted from it.
+- No ranking and no single winner: people decide.
+- Results are private to their owner; files are shared only as short-lived links; resumes are deleted after the report.

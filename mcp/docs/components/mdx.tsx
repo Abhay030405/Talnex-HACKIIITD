@@ -3,7 +3,14 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { MDXComponents } from 'mdx/types';
 
+import { AgentLoop } from '@/components/diagrams/agent-loop';
+import { AskFlow } from '@/components/diagrams/ask-flow';
 import { CheckPipeline } from '@/components/diagrams/check-pipeline';
+import { JobLifecycle } from '@/components/diagrams/job-lifecycle';
+import { LeetcodeFlow } from '@/components/diagrams/leetcode-flow';
+import { PipelineDag } from '@/components/diagrams/pipeline-dag';
+import { RecruiterFlow } from '@/components/diagrams/recruiter-flow';
+import { SystemOverview } from '@/components/diagrams/system-overview';
 import { NeverBlameLadder } from '@/components/diagrams/never-blame';
 import { OrchestrationFlow } from '@/components/diagrams/orchestration-flow';
 import { RequestFlow } from '@/components/diagrams/request-flow';
@@ -20,6 +27,13 @@ export function getMDXComponents(components?: MDXComponents) {
     CheckPipeline,
     NeverBlameLadder,
     OrchestrationFlow,
+    SystemOverview,
+    PipelineDag,
+    JobLifecycle,
+    AgentLoop,
+    RecruiterFlow,
+    AskFlow,
+    LeetcodeFlow,
     TestToken,
     ...components,
   } satisfies MDXComponents;
