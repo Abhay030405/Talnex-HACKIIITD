@@ -14,7 +14,9 @@ from typing import Any, Optional
 from psycopg_pool import ConnectionPool
 
 from talnex_ai.checks.authorship import report as authorship_report
+from talnex_ai.coding.insights import build_insights
 from talnex_ai.reports.interview_kit import build_kit
+from talnex_ai.settings import InsightSettings
 from talnex_ai.reports.proof import features
 from talnex_ai.reports.run_cost import run_usage
 
@@ -118,6 +120,15 @@ def _minutes_taken(conn, candidate_id: str) -> int:
     return max(1, math.ceil((last - first).total_seconds() / 60))
 
 
+def _insight_settings() -> InsightSettings:
+    """From the worker's settings when there are any (tests run without them)."""
+    try:
+        from talnex_ai.worker.services import _services
+        return _services.cfg.insights if _services is not None else InsightSettings()
+    except Exception:
+        return InsightSettings()
+
+
 def role_fit(title: str, skills: list[str], projects: list[dict]) -> dict:
     """Each must-have skill of the role, with the working features that show it. Plain word matching on the claims
     TalNex tested, so "not seen" means only that no tested feature mentioned it, never that the candidate lacks it."""
@@ -178,5 +189,6 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
     for p in projects:   # the checklists were written with the role brief when there is a role
         for f in p["features"]:
             f["checked_for_role"] = bool(role_row) and bool(f.get("checklist"))
+    report["profile_insights"] = build_insights(signals, projects, _insight_settings())
     report["interview_kit"] = build_kit(report)
     return report

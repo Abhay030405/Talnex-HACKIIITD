@@ -119,6 +119,9 @@ export interface CandidateSummary {
   /** Set when the candidate was uploaded under a role (a job opening). */
   role_id?: string;
   coding_handles: Record<string, string>;
+  coding_links?: Record<string, string>;
+  /** Profile pages from the resume (links only, never email or phone). */
+  profile_links?: Record<string, string>;
   status: string;
   created_at: string;
 }
@@ -168,12 +171,16 @@ export interface CandidateFound {
   projects: FoundProject[];
   coding_handles: Record<string, string>;
   coding_links: Record<string, string>;
+  /** GitHub, LinkedIn, portfolio, ... from the resume: kind -> address. Links only, never email or phone. */
+  profile_links?: Record<string, string>;
 }
 
 /** What the recruiter sends back. A coding profile left empty is removed. */
 export interface CandidateConfirm {
   projects: FoundProject[];
   coding_profiles: Record<string, string>;
+  /** Replaces the profile links (kind -> address; empty removes it). */
+  profile_links?: Record<string, string>;
 }
 
 // ---------- Live progress ----------
@@ -327,6 +334,8 @@ export interface CandidateReport {
   coding_signals: CodingSignal[];
   flags: ReportFlag[];
   notes: string[];
+  /** Plain-words readings of the coding signals, each a strength, neutral or worth a look. Never scored. */
+  profile_insights?: CodingSignal[];
   /** True while some projects are still being checked: results so far. */
   partial?: boolean;
   /** The role the candidate was checked for, with each must-have skill and the working features that show it. */

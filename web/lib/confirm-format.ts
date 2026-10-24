@@ -1,5 +1,6 @@
 // Turns the confirm form into what POST /v1/candidates/{id}/confirm takes, with the API's own rules
 // (backend/internal/candidates/confirm.go) checked first, so a mistake is explained before anything is sent.
+import { PROFILE_KINDS, profileLinksFrom } from "@/lib/profile-links";
 import type { CandidateConfirm, FoundProject } from "@/lib/types";
 
 export const CODING_SITES = [
@@ -55,7 +56,9 @@ export function parseConfirmForm(form: FormData): ParsedConfirm {
 
   const coding_profiles: Record<string, string> = {};
   for (const site of CODING_SITES) coding_profiles[site.key] = String(form.get(`profile.${site.key}`) ?? "").trim();
-  return { ok: true, value: { projects, coding_profiles } };
+  // Only sent when the form has the link boxes, so an older form never wipes the saved links.
+  const profile_links = form.has(`link.${PROFILE_KINDS[0].key}`) ? profileLinksFrom(form) : undefined;
+  return { ok: true, value: { projects, coding_profiles, ...(profile_links ? { profile_links } : {}) } };
 }
 
 /** What a profile box starts with: the link as written on the resume, else the handle. */
