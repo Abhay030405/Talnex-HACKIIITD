@@ -94,6 +94,29 @@ func (s *server) getDevLive(w http.ResponseWriter, r *http.Request) {
 	s.stream(w, r, nil)
 }
 
+// getDevLiveNames maps subject ids to the names people know them by (team, resume project, candidate, event),
+// so mission control can label each project's panel. Local demos only.
+func (s *server) getDevLiveNames(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.opts.Pool.Query(r.Context(), `
+		SELECT id::text, team_name, 'project' FROM projects
+		UNION ALL SELECT id::text, name, 'candidate_project' FROM candidate_projects
+		UNION ALL SELECT id::text, label, 'candidate' FROM candidates
+		UNION ALL SELECT id::text, name, 'event' FROM events`)
+	if err != nil {
+		s.fail(w, "read live names", err)
+		return
+	}
+	defer rows.Close()
+	names := map[string]map[string]string{}
+	for rows.Next() {
+		var id, name, kind string
+		if err := rows.Scan(&id, &name, &kind); err == nil {
+			names[id] = map[string]string{"name": name, "kind": kind}
+		}
+	}
+	writeJSON(w, http.StatusOK, names)
+}
+
 // getDevLiveView is the mission control page for local demos: it watches /v1/dev/live.
 func (s *server) getDevLiveView(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
