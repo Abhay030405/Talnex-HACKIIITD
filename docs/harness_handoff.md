@@ -87,58 +87,84 @@ Results so far:
   - ShelfMate timed out on long plans.
 - **Round 3** fixes those three and is the run going now.
 
-## Who owns what (so we never edit the same file)
+## How we split the harness: two layers, one engine
 
-| Arnav (live-browser harness) | Abhay (your part) |
+The harness has two layers, and each of us owns one, so we never edit the same file:
+
+- **Judging (Arnav):** how a claim becomes checks, how the two judges mark them, how the verdict is decided, and
+  the never-blame ladder. This decides **whether TalNex is right**.
+- **Acting (Abhay):** how the agent actually uses the browser: the step loop, the actions, finding elements, what
+  it sees of the page, sessions, speed and cost. This decides **whether TalNex manages to do the test**, and how
+  fast and cheaply.
+
+Most of our remaining wrong or unconfirmed results are acting problems, not judging problems:
+- the agent never typed the bad input it was meant to test;
+- it ran out of time on a long sign-up;
+- a click hit the wrong element;
+- a long answer failed a step.
+
+Every saved second or call is also a saving on every claim of every event. So the acting layer is where the next
+big gains are.
+
+| Arnav: judging layer | Abhay: acting layer |
 |---|---|
-| `testing/planner/`, `testing/runner/`, `testing/proof_check/`, `testing/retries/` | `sandbox/` (all of it, including `api_tests/` and `code_review/`) |
-| `testing/checks.py`, `testing/scope.py` | `worker/evaluate.py` |
-| `scoring/claim_points/` | `eval/` (expected answers, reports) |
-| `llm/prompts/test_planner.py`, `runner.py`, `proof_checker.py` | `testdata/planted/`, and the planted repos |
+| `testing/planner/`, `testing/checks.py`, `testing/scope.py` | `testing/runner/executor.py` (the step loop) |
+| `testing/runner/judge.py` (the run's final look) | `testing/runner/actions.py`, `testing/runner/driver.py` |
+| `testing/proof_check/`, `testing/retries/` | `testing/runner/runner.py` (sessions, tries, cost) |
+| `scoring/claim_points/` | `llm/prompts/runner.py`: `STEP_SYSTEM` and `step_user` only |
+| `llm/prompts/test_planner.py`, `proof_checker.py`, and `FINAL_*` in `runner.py` | `tinyfish/` browser sessions, if a task needs it |
 
-- **The shared contract** (`formats.Check`, `formats.TestPlan.checks`, `scoring/claim_points` verdict rules,
-  `testing/checks.py` marks) changes only through a PR that both of us review.
-- If you need a change in Arnav's files, open an issue or ask; don't edit them on your branch.
+- **Shared, changed only through a PR both of us review:** `formats/` (`Check`, `TestPlan`, `StepRecord`),
+  `worker/evaluate.py` (the gate) and `eval/expected/`.
+- **The line between the layers** is `judge.final_look(...)`. The step loop hands over what was done and the final
+  page; the judge hands back the outcome. Change it only by agreement.
+- If you need a change on the other side, ask; don't edit it on your branch.
 
-## Your tasks
+## Your tasks (acting layer)
 
-1. **Check-based judging for the sandbox track.**
-   - Give `sandbox/api_tests` plans (`HttpPlan`) `checks` the same way: quote the claim, mark promises, and validate
-     with `testing/scope.check_parts`-style rules.
-   - Make the HTTP proof check (`sandbox/api_tests/proof.py`) and the sandbox run return per-check marks
-     (`parts`), using `testing/checks.SCALE`, `PartMark` and `read_marks`.
-   - The ladder and `decide` already handle parts: put them on the sandbox `RunRecord(..., parts=...)` and
-     `ProofCheck(..., parts)`.
-   - Done when the sandbox tests pass, the parts show up in sandbox verdict reasons, and the gate (task 3) passes
-     on the repo-only apps.
-2. **More planted apps, so we don't overfit to five.**
-   - Add new apps with claim shapes we don't have yet: form validation with several rules, a file download (CSV or
-     PDF), two users who must not see each other's data, a list with pages or filters, a setting that persists, a
-     multi-step wizard.
-   - Each app has a few features that work, a few that are broken or partly working, and one or two control
-     claims it doesn't have.
-   - **Keep at least two apps back.** Use them only to test, never while fixing, so we can see whether the harness
-     generalises.
-   - Deploy them on Vercel, push each to a public repo (Arnav put the current ones at
-     `github.com/arnavraj-7/talnex-planted-*`), and add `eval/expected/<app>.json`.
-3. **Put the repo-only apps in the gate.** Add the sandbox / open-theme path to `worker/evaluate.py` so
-   `backend_only` and `built_before_event` are checked too, and write their expected answers.
-   - `built_before_event` needs a repo whose history really predates the event. Use an older repo or a dated
-     import that you document in its README; never fake dates on a real person's work.
-4. **Steadiness and failure reports.** Extend the gate's summary:
-   - which claims flip between runs;
-   - which stages and which marks (`cant_tell`, `disputed`) cause most unconfirmed results;
-   - cost and time per claim.
+**Every task is measured with the gate.** Verdicts must stay as good or get better, never worse. The gate's summary
+already shows seconds and dollars per run, so put the before and after numbers in each PR. A change that saves time
+but loses a correct verdict doesn't merge.
 
-   The live events table (`live_events`) and `usage_log` have what you need.
-5. **Later:** a different model family for the blind check (the `MODEL_PROOF_CHECKER` role) once Arnav and Ayush
-   pick the second model. Measure it with the gate before switching.
+1. **Do simple steps without the model.**
+   - Many plan steps name one clear action ("type 'milk' into 'What needs to be done?'", "click Add", "press
+     Enter"). Turn those into actions directly with the browser library's locators (by label, placeholder, role and
+     name), and only ask the model when that fails or the step is not simple.
+   - Expect far fewer model calls per claim (we measured about 23 per claim, about 2.8 s each). Keep a screenshot
+     after every action, exactly as now.
+2. **Send a smaller page snapshot each turn.**
+   - Today every turn resends up to `RUNNER_SNAPSHOT_CHARS` of the accessibility tree: about 1,700 input tokens per
+     call, roughly 25 tokens in for each token out.
+   - Send the interactive elements (buttons, inputs, links) plus what changed since the last turn. Input tokens are
+     most of the model cost.
+3. **Put the fixed part of each prompt first.** Order the step prompt as rules, then plan, then claim, then
+   history, then the page, so providers that cache repeated prompt starts can do it. Check whether our Azure
+   deployment reports cached tokens, and log them to `usage_log`.
+4. **Reuse one browser session across a claim's tries and extra tests.** One demo run opened 12 sessions for
+   7 claims. Each opening costs start-up time and billed minutes.
+5. **Make actions more reliable:**
+   - find elements when the name differs slightly;
+   - wait for the page to settle after an action (network idle, not a fixed 400 ms);
+   - handle pop-up dialogs, new tabs and cookie banners;
+   - spot a click that did nothing, and tell the model.
+
+   Each of these is a "could not test" we lose today.
+6. **Remember what worked on a site (later).** Save the action sequence that got past a sign-up or reached a
+   feature, and replay it first on the next run; ask the model only when the page has changed. This needs a table,
+   and the schema is Go's (Ayush), so plan it with him through a migration.
+
+## Also useful, but second
+
+- The **sandbox track** (`sandbox/api_tests`) still judges each claim as a whole. Giving its plans checks and its
+  HTTP proof check per-check marks would bring the new judging to backend tests too. The ladder already accepts
+  `parts` on any runner's records.
+- **More planted apps** with new claim shapes (form rules, a file download, two users, pages and filters, a wizard),
+  with two kept back and used only to test. They don't change the harness, but they prove it generalises.
 
 ## Where to start
 
 - Wait for Arnav's message that the round-3 gate is done and `ai/eval-gate` is merged into `main`.
-- Then branch from `main`: `ai/sandbox-checks` for task 1, `eval/more-planted-apps` for task 2, and so on. Keep
-  one or two branches open at most.
+- Then branch from `main`: `ai/model-free-steps` for task 1, and so on. Keep one or two branches open at most.
 - Before each merge, run the Python tests and the gate. Write each finding as a test first, as AGENTS.md says.
 - Local test setup:
   - the Python tests need `TALNEX_TEST_DATABASE_URL` (a throwaway Postgres with the migrations applied) and,
