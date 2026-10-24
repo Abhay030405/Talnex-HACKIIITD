@@ -5,13 +5,14 @@ import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { ProjectScore } from "@/components/scores/ProjectScore";
 import { BADGE_CLASS, formatDate } from "@/lib/format";
 import { networkSummary } from "@/lib/network";
-import { projectStatusInfo } from "@/lib/report-format";
+import { projectStatusInfo, splitTested, verdictSummary } from "@/lib/report-format";
 import type { ReportProject } from "@/lib/types";
 
 /** One resume project: status, score with coverage, flags beside it, each claim with its proof, and code history. */
 export function ProjectCard({ project, candidateId }: { project: ReportProject; candidateId?: string }) {
   const status = projectStatusInfo(project.status);
   const network = networkSummary(project.features);
+  const { tested, untested } = splitTested(project.features);
   const originality = project.originality;
   const languages = Object.keys(originality?.languages ?? {});
 
@@ -48,6 +49,7 @@ export function ProjectCard({ project, candidateId }: { project: ReportProject; 
               {network.leaks > 0 && <span className="network__bad">{`, ${network.leaks} leaked secrets (masked below)`}</span>}
             </p>
           )}
+          {project.features.length > 0 && <p className="project-card__summary">{verdictSummary(project.features)}</p>}
           {project.status !== "tested" && (
             <p className="note">
               {project.status_reason || "This project could not be tested."} This does not count against the candidate.
@@ -60,12 +62,25 @@ export function ProjectCard({ project, candidateId }: { project: ReportProject; 
       <div className="panel__body stack">
         <FlagList flags={project.flags} />
 
-        {project.features.length > 0 && (
+        {tested.length > 0 && (
           <div className="claims">
-            {project.features.map((feature) => (
+            {tested.map((feature) => (
               <ClaimRow key={feature.claim_id} feature={feature} />
             ))}
           </div>
+        )}
+        {untested.length > 0 && (
+          <details className="proof-viewer claims-untested" open={tested.length === 0}>
+            <summary>
+              {untested.length} {untested.length === 1 ? "claim" : "claims"} could not be tested (not counted against the
+              candidate)
+            </summary>
+            <div className="claims">
+              {untested.map((feature) => (
+                <ClaimRow key={feature.claim_id} feature={feature} />
+              ))}
+            </div>
+          </details>
         )}
 
         {originality && (
