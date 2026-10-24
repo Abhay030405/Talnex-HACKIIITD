@@ -18,12 +18,13 @@ from talnex_ai.worker.services import get_services
 POLL_SECONDS = 10
 
 
-def coding_still_running(pool, candidate_id: str, run_number: int) -> int:
+def coding_still_running(pool, candidate_id: str, run_number: int = 0) -> int:
+    """Coding checks of this candidate still going, in any run: a re-run of only the coding checks counts too."""
     with pool.connection() as conn:
         return conn.execute(
             """SELECT count(*) FROM jobs WHERE pipeline = 'recruiter_coding' AND target_type = 'candidate'
-                AND target_id = %s::uuid AND run_number = %s AND status IN ('queued', 'running', 'retrying')""",
-            (candidate_id, run_number)).fetchone()[0]
+                AND target_id = %s::uuid AND status IN ('queued', 'running', 'retrying')""",
+            (candidate_id,)).fetchone()[0]
 
 
 def wait_for_coding(job: Job, ctx: JobContext, wait_seconds: int, sleep=time.sleep) -> int:
