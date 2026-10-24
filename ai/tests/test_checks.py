@@ -214,3 +214,55 @@ def test_incomplete_then_failing_climbs_the_whole_ladder_before_broken():
 def test_the_ladder_decides_from_the_parts_when_both_judges_marked_them():
     result = climb([rec("partly_works", ("seen",))], check_parts=("seen",))
     assert result.decision.verdict == "works"   # the checks agree the only part is seen
+
+
+# ------------------------------------------------------------------ round 3: promise vs step, fresh visitor, time, long text
+
+
+def test_a_failed_promise_is_broken_even_when_the_steps_to_it_worked():
+    """'Upload a photo and get a caption': uploading is the way in, the caption is the promise."""
+    e = Evidence("broken", "broken", tries=2, ladder_cleared=True, agent_parts=("seen", "not_seen"),
+                 checker_parts=("seen", "not_seen"), part_names=("a photo can be chosen", "a caption appears"),
+                 part_promises=(False, True))
+    d = decide(e)
+    assert d.verdict == "broken" and "a caption appears" in d.reason
+    assert outcome_from_parts(("seen", "not_seen"), (False, True)) == "broken"
+    assert outcome_from_parts(("seen", "seen", "not_seen"), (True, True, False)) == "works"   # promises seen
+    assert outcome_from_parts(("seen", "not_seen"), (True, True)) == "partly_works"
+
+
+def test_partly_means_some_promises_work():
+    e = Evidence("partly_works", "partly_works", agent_parts=("seen", "not_seen", "seen"),
+                 checker_parts=("seen", "not_seen", "seen"), part_promises=(True, True, False))
+    assert decide(e).verdict == "partly_works"
+
+
+def test_a_plan_needs_at_least_one_promise():
+    p = plan(checks=(("a photo can be chosen", "Upload a photo"), ("a caption describes it", "get a caption describing it")))
+    p.checks[0].promise = False
+    check_parts(p, CLAIM)
+    for c in p.checks:
+        c.promise = False
+    with pytest.raises(FormatError, match="no check as a promise"):
+        check_parts(p, CLAIM)
+
+
+def test_a_fresh_visitor_action_and_long_text_never_fail_a_step():
+    from talnex_ai.testing.runner.actions import Decision, FreshStart, describe
+
+    d = Decision.model_validate({"thought": "x" * 900, "action": {"type": "fresh_start"}})
+    assert isinstance(d.action, FreshStart) and len(d.thought) == 400
+    assert describe(d.action).startswith("Start fresh as a new visitor")
+    assert len(PartMark(n=1, status="seen", note="y" * 900).note) == 300
+
+
+def test_a_longer_plan_gets_more_time():
+    long_plan = TestPlan(test_type="normal", steps=[PlanStep(action=f"step {i}", expected="it is shown") for i in range(6)],
+                         expected_result="done")
+    ticks = iter(range(0, 10_000, 100))           # each look at the clock is 100 s later
+    model = ScriptedModel(*[done("ok")] * 6, marks_json("seen"))
+    result = execute_plan(model, FakeDriver(), long_plan.model_copy(update={"checks": [Check(text="done", quote="Upload a photo")]}),
+                          claim_text=CLAIM, site_url=SITE, cfg=ExecConfig(max_seconds=240, seconds_per_step=60),
+                          uploads_root=Path("."), save_proof=lambda n, b: f"s/{n}", clock=lambda: next(ticks))
+    assert result.stop_reason == "ran out of time"   # 6 steps x 60 s = 360 s, more than 240, and the clock passed it
+    assert "360s limit" in result.records[-1].observed

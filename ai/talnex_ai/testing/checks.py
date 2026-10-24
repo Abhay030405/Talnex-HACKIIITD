@@ -13,27 +13,34 @@ Plain code then turns the marks into a verdict (scoring/claim_points), so a long
 """
 from __future__ import annotations
 
-from typing import Literal, Optional, Sequence
+from typing import Annotated, Literal, Optional, Sequence
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 from talnex_ai.formats import FormatError
 
 Status = Literal["seen", "not_seen", "cant_tell", "beyond_claim"]
 
 
+def cut(limit: int):
+    """A text field that keeps the first `limit` characters: a long answer is never a reason to fail a test."""
+    return BeforeValidator(lambda v: v[:limit] if isinstance(v, str) else v)
+
+
 class PartMark(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
     n: int = Field(ge=1)
     status: Status
-    note: str = Field(default="", max_length=300)
+    note: Annotated[str, cut(300)] = ""
     shot: Optional[int] = None  # which screenshot shows it (the independent check only)
 
 
 def numbered(checks: Sequence) -> str:
     """The checks as the judges see them: number, what must be visible, and the claim words it proves."""
-    return "\n".join(f'{i}. {c.text}  (proves the claim words: "{c.quote}")' if c.quote else f"{i}. {c.text}"
-                     for i, c in enumerate(checks, start=1))
+    def line(i: int, c) -> str:
+        kind = "" if getattr(c, "promise", True) else " [a step on the way]"
+        return f'{i}. {c.text}{kind}' + (f'  (proves the claim words: "{c.quote}")' if c.quote else "")
+    return "\n".join(line(i, c) for i, c in enumerate(checks, start=1))
 
 
 def read_marks(marks: Sequence[PartMark], count: int) -> tuple[Status, ...]:
@@ -54,6 +61,6 @@ def read_marks(marks: Sequence[PartMark], count: int) -> tuple[Status, ...]:
 SCALE = """Mark EVERY check with one status:
 - "seen": the page clearly shows it.
 - "not_seen": the test carried out the steps for it and the page clearly shows it is NOT so. An error message, error page or blank page that appeared because of an action is "not_seen": that is what the feature did.
-- "cant_tell": the steps for it were not carried out (skipped, failed on our side, ran out of time), or the result can't be made out. This is the test's problem, never the site's.
+- "cant_tell": the steps for it were NOT carried out (skipped, failed on our side, ran out of time), or the page could not be seen. This is the test's problem, never the site's. If the step WAS done and the page simply does not show the result (a button that visibly does nothing, a list that did not change, a value that stayed the same), that is "not_seen", not "cant_tell".
 - "beyond_claim": the check asks for more than the claim's words promise. It is left out; never let it count against the claim.
-Judge each check on its own. One check failing says nothing about the others."""
+Judge each check on its own. One check failing says nothing about the others. A check marked "[a step on the way]" only leads to the promise; judge it like the others."""
