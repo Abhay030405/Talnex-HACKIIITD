@@ -318,8 +318,6 @@ TalNex never breaks past a site's security. It finds a **legal way in**, trying 
 | 5 | **Phone OTP** | Hackathon: a test phone number with a fixed code from the form (Firebase and similar tools support this). Recruiter: the team's own Indian SIM in an Android phone with an SMS forwarding app; phone runs take turns, and each code is matched by the time it arrived. If the app accepts international numbers, **AgentCall** is the backup. |
 | 6 | **Could not test** | The card says exactly why, for example "phone login only, no test number given". Never counted against anyone. |
 
-**Never used:** temporary-number websites, CAPTCHA-solving services, or anything that tricks a site's security.
-
 ---
 
 ## 11. The never-blame ladder
@@ -681,7 +679,6 @@ flowchart LR
 | Results private to the owner | Go API checks the owner on every request |
 | Test logins never stored in our database | TinyFish Vault |
 | Resume data deleted after the report (India DPDP Act 2023) | Go cleanup job + R2 delete |
-| No temp-number sites, no CAPTCHA solvers | Login ladder design |
 | Secrets only in environment settings, never in code or images | Docker env files, host settings |
 
 ---

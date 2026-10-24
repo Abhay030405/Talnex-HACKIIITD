@@ -225,6 +225,10 @@ class Settings:
     # TinyFish is unavailable. Plain browser only: stealth, CAPTCHA solving and proxies are never used. Empty: off.
     browserless_cdp_url: str = ""
     browserless_token: str = ""
+    # Browserless BQL endpoint (hosted /stealth/bql) for the team LinkedIn login. Empty: LinkedIn checks are off.
+    browserless_bql_url: str = ""
+    linkedin_email: str = ""
+    linkedin_password: str = ""
 
 
 class _Env:
@@ -433,4 +437,6 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
                     walkthrough=walkthrough, leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
                     browserless_cdp_url=env.url("BROWSERLESS_CDP_URL", required=False),
-                    browserless_token=env.optional("BROWSERLESS_TOKEN"))
+                    browserless_token=env.optional("BROWSERLESS_TOKEN"),
+                    browserless_bql_url=env.url("BROWSERLESS_BQL_URL", required=False),
+                    linkedin_email=env.optional("LINKEDIN_EMAIL"), linkedin_password=env.optional("LINKEDIN_PASSWORD"))
