@@ -27,8 +27,12 @@ type Options struct {
 	ProofLinks ProofLinks
 	// FileRemover deletes stored files when a candidate is deleted. Nil skips file deletion.
 	FileRemover FileRemover
+	// SMSGatewayKey is the secret the team phone sends in X-Gateway-Key. Empty switches phone sign-up off.
+	SMSGatewayKey string
 	// Ready reports whether the services behind the API are reachable (database, storage).
 	Ready func(ctx context.Context) error
+	// Walkthrough limits the voice walkthrough questions (recording size, questions per day).
+	Walkthrough WalkthroughLimits
 }
 
 type server struct {
@@ -37,6 +41,7 @@ type server struct {
 	candidates *candidates.Store
 	projects   *projects.Store
 	queue      *jobs.Queue
+	sms        *smsLimiter
 }
 
 // NewHandler builds the API routes.
@@ -50,6 +55,7 @@ func NewHandler(o Options) http.Handler {
 		candidates: candidates.NewStore(o.Pool),
 		projects:   projects.NewStore(o.Pool),
 		queue:      jobs.NewQueue(o.Pool),
+		sms:        &smsLimiter{},
 	}
 
 	public := http.NewServeMux()
@@ -78,6 +84,12 @@ func NewHandler(o Options) http.Handler {
 	private.HandleFunc("GET /v1/candidates/{id}/found", auth.RequireRole(auth.RoleRecruiter, s.getFound))
 	private.HandleFunc("POST /v1/candidates/{id}/confirm", auth.RequireRole(auth.RoleRecruiter, s.confirmCandidate))
 	private.HandleFunc("DELETE /v1/candidates/{id}", auth.RequireRole(auth.RoleRecruiter, s.deleteCandidate))
+	private.HandleFunc("POST /v1/projects/{id}/walkthroughs", auth.RequireRole(auth.RoleOrganizer, s.askProjectWalkthrough))
+	private.HandleFunc("GET /v1/projects/{id}/walkthroughs", auth.RequireRole(auth.RoleOrganizer, s.listProjectWalkthroughs))
+	private.HandleFunc("POST /v1/candidate-projects/{id}/walkthroughs", auth.RequireRole(auth.RoleRecruiter, s.askCandidateProjectWalkthrough))
+	private.HandleFunc("GET /v1/candidate-projects/{id}/walkthroughs", auth.RequireRole(auth.RoleRecruiter, s.listCandidateProjectWalkthroughs))
+	// Either kind of account; only the person who asked sees the answer.
+	private.HandleFunc("GET /v1/walkthroughs/{id}", s.getWalkthrough)
 	if o.EnableDevEndpoints {
 		private.HandleFunc("POST /v1/dev/selftest", s.startSelfTest)
 		private.HandleFunc("GET /v1/dev/selftest/{target}", s.selfTestStatus)
@@ -86,6 +98,8 @@ func NewHandler(o Options) http.Handler {
 	root := http.NewServeMux()
 	root.Handle("/healthz", public)
 	root.Handle("/readyz", public)
+	// Gateway route: the phone has no user, so it skips sign-in and is checked by its gateway key instead.
+	root.HandleFunc("POST /v1/sms/incoming", s.incomingSMS)
 	root.Handle("/", auth.Middleware(o.Pool, o.AuthSecret)(private))
 
 	return recoverer(o.Log)(logger(o.Log)(cors(o.WebOrigin)(root)))
