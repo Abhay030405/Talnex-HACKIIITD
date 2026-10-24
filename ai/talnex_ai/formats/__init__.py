@@ -18,10 +18,11 @@ from talnex_ai.formats.models import (
     Track,
     Verdict,
 )
+from talnex_ai.formats.tour import TourPlan, TourProof, TourStep
 from talnex_ai.formats.parse import FormatError, parse_json_block, parse_list, parse_model
 
 __all__ = [
     "Check", "Claim", "ClaimSource", "Confidence", "FormatError", "PlanStep", "Result", "RoleLevel",
-    "StepKind", "StepRecord", "TestPlan", "TestType", "Track", "Verdict",
+    "StepKind", "StepRecord", "TestPlan", "TestType", "TourPlan", "TourProof", "TourStep", "Track", "Verdict",
     "parse_json_block", "parse_list", "parse_model",
 ]

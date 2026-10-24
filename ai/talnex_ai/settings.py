@@ -20,6 +20,7 @@ MODEL_ROLES = {
     "opinion_a": "MODEL_OPINION_A",
     "opinion_b": "MODEL_OPINION_B",
     "copy_review": "MODEL_COPY_REVIEW",
+    "tour_guide": "MODEL_TOUR_GUIDE",
 }
 
 PROVIDERS = ("openrouter", "azure_foundry")
@@ -223,6 +224,18 @@ class LeetCodeReplaySettings:
 
 
 @dataclass(frozen=True)
+class TourSettings:
+    """The guided tour (architecture section 32): the guide reads code in a read-only VM, the driver shows it live."""
+
+    max_browser_steps: int = 12     # browser actions in one tour message
+    vm_minutes: int = 30            # how long a chat's code VM lives before the host's reaper removes it
+    guide_max_tool_calls: int = 12  # list, search and read calls the guide may make before it must write the tour
+    repo_max_mb: int = 30           # the biggest repository download accepted
+    file_max_kb: int = 200          # a bigger code file is left out of the VM
+    max_files: int = 3000           # most files put in the VM
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
@@ -240,6 +253,7 @@ class Settings:
     leetcode_replay: LeetCodeReplaySettings = field(default_factory=LeetCodeReplaySettings)
     # The candidate report waits this long for the coding profile checks before it is built without them
     report_coding_wait_seconds: int = 480
+    tour: TourSettings = field(default_factory=TourSettings)
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
     leetcode_graphql_url: str = ""
     # A Chrome-over-CDP endpoint used as a backup browser when TinyFish is unavailable. Hosted Browserless /stealth also
@@ -465,12 +479,20 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         match_pct=env.decimal("LEETCODE_MATCH_PCT", 90.0, 50.0, 100.0),
         match_min_users=env.whole("LEETCODE_MATCH_MIN_USERS", 2),
     )
+    tour = TourSettings(
+        max_browser_steps=env.whole("TOUR_MAX_BROWSER_STEPS", 12),
+        vm_minutes=env.whole("TOUR_VM_MINUTES", 30),
+        guide_max_tool_calls=env.whole("TOUR_GUIDE_MAX_TOOL_CALLS", 12),
+        repo_max_mb=env.whole("TOUR_REPO_MAX_MB", 30),
+        file_max_kb=env.whole("TOUR_FILE_MAX_KB", 200),
+        max_files=env.whole("TOUR_MAX_FILES", 3000),
+    )
     database_url = env.required("DATABASE_URL")
 
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
-                    walkthrough=walkthrough, leetcode_replay=leetcode_replay,
+                    walkthrough=walkthrough, tour=tour, leetcode_replay=leetcode_replay,
                     report_coding_wait_seconds=env.whole("REPORT_CODING_WAIT_SECONDS", 480), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
                     browserless_cdp_url=env.url("BROWSERLESS_CDP_URL", required=False),
                     browserless_token=env.optional("BROWSERLESS_TOKEN"),
