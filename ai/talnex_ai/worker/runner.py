@@ -32,12 +32,16 @@ STAGE_CHECK = {"live_test": "live_test", "code_review": "code_review", "authorsh
 def check_turned_off(pool, job) -> "str | None":
     """The role check that turns this stage off for its candidate, or None. An empty checks set means every check."""
     check = STAGE_CHECK.get(job.type)
-    if check is None or job.target_type not in ("candidate", "candidate_project"):
+    queries = {
+        "candidate": "SELECT r.checks FROM candidates c JOIN roles r ON r.id = c.role_id WHERE c.id = %s::uuid",
+        "candidate_project": "SELECT r.checks FROM candidate_projects cp JOIN candidates c ON c.id = cp.candidate_id "
+                             "JOIN roles r ON r.id = c.role_id WHERE cp.id = %s::uuid",
+        "project": "SELECT e.checks FROM projects p JOIN events e ON e.id = p.event_id WHERE p.id = %s::uuid",
+    }
+    if check is None or job.target_type not in queries:
         return None
-    candidate = "c.id = %s::uuid" if job.target_type == "candidate" else         "c.id = (SELECT candidate_id FROM candidate_projects WHERE id = %s::uuid)"
     with pool.connection() as conn:
-        row = conn.execute(f"SELECT r.checks FROM candidates c JOIN roles r ON r.id = c.role_id WHERE {candidate}",
-                           (job.target_id,)).fetchone()
+        row = conn.execute(queries[job.target_type], (job.target_id,)).fetchone()
     checks = (row[0] if row else None) or {}
     return check if checks and checks.get(check) is False else None
 
