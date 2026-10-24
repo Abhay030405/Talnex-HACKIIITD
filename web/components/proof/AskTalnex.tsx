@@ -21,8 +21,12 @@ export interface Ask {
       criterion?: string;
       weight?: number;
     } | null;
+    /** Fresh facts the answer looked up (GitHub, the live site, a coding profile), with when. */
+    sources?: { tool: string; what: string; at: string }[];
   };
 }
+
+const SOURCE_NAME: Record<string, string> = { github: "GitHub", fetch_page: "Live site", coding_profile: "Coding profile" };
 
 /** A one-off test the reviewer asked for (job custom_test). Its result never changes a score. */
 export interface CustomTest {
@@ -146,6 +150,15 @@ export function AskTalnex({
                   <div className="chat__bubble chat__bubble--me">{a.question}</div>
                   <div className={`chat__bubble chat__bubble--ai${done ? "" : " chat__bubble--waiting"}`}>
                     {done ? a.result?.answer : a.status === "failed" ? "I could not answer that one. Try asking again." : "TalNex is thinking…"}
+                    {done && (a.result?.sources ?? []).length > 0 && (
+                      <div className="chat__sources">
+                        {(a.result.sources ?? []).map((s, i) => (
+                          <span className="chat__source" key={i} title={`Checked ${new Date(s.at).toLocaleString()}`}>
+                            {SOURCE_NAME[s.tool] ?? s.tool}: {s.what}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {target && candidateId && (
                       <div className="chat__action">
                         <RerunButton candidateId={candidateId} projectId={target.id}>

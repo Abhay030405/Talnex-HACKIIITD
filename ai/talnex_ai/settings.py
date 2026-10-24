@@ -245,6 +245,10 @@ class Settings:
     report_coding_wait_seconds: int = 480
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
     leetcode_graphql_url: str = ""
+    # Read-only lookups for Ask TalNex (the same GitHub and Codeforces settings the Go side uses). Empty token: anonymous.
+    github_api_base_url: str = "https://api.github.com"
+    github_token: str = ""
+    codeforces_api_base_url: str = "https://codeforces.com/api"
     # A Chrome-over-CDP endpoint used as a backup browser when TinyFish is unavailable. Hosted Browserless /stealth also
     # solves CAPTCHAs during the test; a self-hosted container cannot. Empty: off.
     browserless_cdp_url: str = ""
@@ -478,6 +482,9 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
                     walkthrough=walkthrough, leetcode_replay=leetcode_replay,
                     report_coding_wait_seconds=env.whole("REPORT_CODING_WAIT_SECONDS", 480), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                    github_api_base_url=env.url("GITHUB_API_BASE_URL", required=False) or "https://api.github.com",
+                    github_token=env.optional("GITHUB_TOKEN"),
+                    codeforces_api_base_url=env.url("CODEFORCES_API_BASE_URL", required=False) or "https://codeforces.com/api",
                     browserless_cdp_url=env.url("BROWSERLESS_CDP_URL", required=False),
                     browserless_token=env.optional("BROWSERLESS_TOKEN"),
                     browserless_bql_url=env.url("BROWSERLESS_BQL_URL", required=False),
