@@ -1,3 +1,4 @@
+import { NetworkBlock } from "@/components/proof/NetworkBlock";
 import { proofInfo } from "@/lib/report-format";
 import type { ProofStep } from "@/lib/types";
 
@@ -36,6 +37,7 @@ export function ProofViewer({ steps }: { steps: ProofStep[] }) {
                 </a>
               )}
               {proof.show === "none" && <span className="proof-step__observed">{proof.text}</span>}
+              <NetworkBlock devtools={step.devtools} />
             </li>
           );
         })}

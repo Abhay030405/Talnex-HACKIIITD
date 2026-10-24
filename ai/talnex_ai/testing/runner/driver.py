@@ -14,11 +14,14 @@ from typing import Iterator, Optional, Protocol
 from talnex_ai.testing.runner.actions import (
     Action, Click, Fill, FreshStart, Navigate, Press, Scroll, Select, Target, Upload, Wait,
 )
-from talnex_ai.testing.runner.devtools import DevtoolsWatch
+from talnex_ai.safety.leaks import scan
+from talnex_ai.testing.runner.devtools import DevtoolsWatch, bare_url
 
 log = logging.getLogger("talnex.runner")
 
 ACTION_TIMEOUT_MS = 8000
+MAX_LEAK_READS = 40          # API answers read for leaks per step
+MAX_LEAK_BYTES = 64 * 1024   # of each answer
 NAVIGATE_TIMEOUT_MS = 30000
 
 # Errors that mean OUR browser couldn't connect (a tunnel or proxy problem), not that the site is down.
@@ -49,13 +52,32 @@ class PlaywrightDriver:
         page.on("response", lambda r: self.watch.response(id(r.request), r.request.method, r.url, r.status,
                                                            r.request.resource_type))
         page.on("requestfinished", lambda q: self.watch.finished(id(q), (q.timing or {}).get("responseEnd")))
+        self._to_read: list = []   # API answers whose bodies are read for leaks between steps, never in a handler
+        page.on("response", lambda r: self._to_read.append(r)
+                if r.request.resource_type in ("fetch", "xhr") and len(self._to_read) < MAX_LEAK_READS else None)
         page.on("requestfailed", lambda q: self.watch.failed_request(q.method, q.url, q.failure or ""))
         page.on("console", lambda m: self.watch.console_message(m.type, m.text))
         page.on("pageerror", lambda e: self.watch.page_error(str(e)))
 
     def devtools(self) -> Optional[dict]:
-        """What the developer tools saw since the last call (API calls and timings, errors, console), or None."""
+        """What the developer tools saw since the last call (API calls and timings, errors, console, leaks), or None."""
+        self._scan_answers()
         return self.watch.drain()
+
+    def _scan_answers(self) -> None:
+        """Read the queued API answers (text or JSON only, capped) and note any leaked secrets, masked."""
+        queued, self._to_read = self._to_read, []
+        for r in queued:
+            try:
+                kind = (r.headers.get("content-type") or "").lower()
+                if not any(t in kind for t in ("json", "text", "javascript", "xml")):
+                    continue
+                body = r.body()[:MAX_LEAK_BYTES].decode("utf-8", "replace")
+            except Exception:   # an answer that is gone or unreadable is simply not scanned
+                continue
+            findings = scan(body)
+            if findings:
+                self.watch.found_leaks(f"response {r.request.method} {bare_url(r.url)}", findings)
 
     def url(self) -> str:
         return self.page.url
