@@ -81,6 +81,7 @@ describe("failures in plain words", () => {
     [502, null, "had a problem (error 502)"],
     [422, null, "refused (error 422)"],
     [400, { error: "ends_at is before starts_at" }, "ends_at is before starts_at"],
+    [401, { error: "sign in required" }, "sign in required. The TalNex API did not accept the sign-in. Check AUTH_SECRET"],
   ])("status %i", (status, body, words) => {
     expect(errorMessage(body, status)).toContain(words);
   });

@@ -79,11 +79,15 @@ export class TalnexApi {
   }
 }
 
+const SIGN_IN_HINT = "The TalNex API did not accept the sign-in. Check AUTH_SECRET and TALNEX_EMAIL.";
+
 export function errorMessage(data: unknown, status: number): string {
   if (data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string") {
-    return (data as { error: string }).error;
+    const said = (data as { error: string }).error;
+    // the API's own words ("sign in required") don't say what to fix here, so add it
+    return status === 401 ? `${said}. ${SIGN_IN_HINT}` : said;
   }
-  if (status === 401) return "The TalNex API did not accept the sign-in. Check AUTH_SECRET and TALNEX_EMAIL.";
+  if (status === 401) return SIGN_IN_HINT;
   if (status === 403) return "This needs the other kind of account: check TALNEX_ROLE (organizer or recruiter).";
   if (status === 404) return "Not found (or it belongs to another account).";
   if (status >= 500) return `The TalNex API had a problem (error ${status}).`;
