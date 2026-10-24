@@ -3,9 +3,19 @@ title: Connect and test it yourself
 description: Set up Claude Code, Claude Desktop or Gemini CLI, try a full conversation, switch roles and fix common problems.
 ---
 
-Build the server first (`cd mcp && npm install && npm run build`). In every snippet, replace
-`C:/Projects/Talnex-HACKIIITD` with where you cloned the repository and `<AUTH_SECRET from .env>` with the value from
-your `.env`.
+Build the server once, in the repository (it writes `mcp/dist/index.js`, the file every snippet below starts):
+
+```powershell
+cd C:\Projects\Talnex-HACKIIITD
+git pull
+cd mcp
+npm install
+npm run build
+```
+
+In every snippet, replace `C:/Projects/Talnex-HACKIIITD` with where you cloned the repository if it is somewhere else,
+and `<AUTH_SECRET from .env>` with the value from your `.env`. The server has **19 tools**; the ones that spend money
+or delete (`run_project`, `run_event`, `confirm_candidate`, `delete_candidate`) only act with `confirm: true`.
 
 <Callout type="warn" title="AUTH_SECRET is a master key">
   Whoever holds it can sign in as any account. Use it only on your own computer against your own TalNex stack, and
@@ -26,8 +36,15 @@ claude mcp add talnex \
   -- node C:/Projects/Talnex-HACKIIITD/mcp/dist/index.js
 ```
 
-Start a new `claude` session and type `/mcp`. `talnex` should show as **connected** with 19 tools. Add
-`--scope user` to have it in every project; `claude mcp remove talnex` takes it away.
+On Windows PowerShell you can load the secret from `.env` without it ever showing on screen:
+
+```powershell
+$s = (Select-String -Path C:\Projects\Talnex-HACKIIITD\.env -Pattern '^AUTH_SECRET=').Line.Substring(12)
+claude mcp add talnex --scope user -e TALNEX_API_URL=http://localhost:8080 -e AUTH_SECRET=$s -e TALNEX_EMAIL=organizer@example.com -e TALNEX_ROLE=organizer -- node C:/Projects/Talnex-HACKIIITD/mcp/dist/index.js
+```
+
+Start a new `claude` session and type `/mcp`. `talnex` should show as **connected** with 19 tools. `--scope user`
+makes it available in every project; `claude mcp remove talnex` takes it away.
 
 </Tab>
 <Tab value="Claude Desktop">
