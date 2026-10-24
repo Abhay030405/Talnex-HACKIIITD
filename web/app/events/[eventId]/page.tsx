@@ -45,11 +45,16 @@ export default async function EventPage({
         title={event.name}
         back={{ href: "/organizer", label: "All events" }}
         actions={
-          hasResults && (
-            <Link href={`${path}/compare`} className="button button--soft">
-              Who built each feature best <ArrowIcon size={16} />
+          <>
+            <Link href={`${path}/live`} className="button button--ghost">
+              Watch live
             </Link>
-          )
+            {hasResults && (
+              <Link href={`${path}/compare`} className="button button--soft">
+                Who built each feature best <ArrowIcon size={16} />
+              </Link>
+            )}
+          </>
         }
       >
         <div className="row">
