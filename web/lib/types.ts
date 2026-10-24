@@ -58,7 +58,8 @@ export interface EventSummary {
   starts_at: string;
   ends_at: string;
   sponsor_tools: string[];
-  criteria: Criterion[];
+  /** Fixed-problem events only. Lists may leave it out or send null. */
+  criteria?: Criterion[] | null;
   created_at: string;
 }
 
