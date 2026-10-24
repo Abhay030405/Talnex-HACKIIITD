@@ -1,0 +1,148 @@
+---
+title: Connect and test it yourself
+description: Set up Claude Code, Claude Desktop or Gemini CLI, try a full conversation, switch roles and fix common problems.
+---
+
+Build the server first (`cd mcp && npm install && npm run build`). In every snippet, replace
+`C:/Projects/Talnex-HACKIIITD` with where you cloned the repository and `<AUTH_SECRET from .env>` with the value from
+your `.env`.
+
+<Callout type="warn" title="AUTH_SECRET is a master key">
+  Whoever holds it can sign in as any account. Use it only on your own computer against your own TalNex stack, and
+  never commit a config that contains it. Per-person API keys are future work.
+</Callout>
+
+## Set up your assistant
+
+<Tabs items={['Claude Code', 'Claude Desktop', 'Gemini CLI']}>
+<Tab value="Claude Code">
+
+```bash
+claude mcp add talnex \
+  --env TALNEX_API_URL=http://localhost:8080 \
+  --env AUTH_SECRET=<AUTH_SECRET from .env> \
+  --env TALNEX_EMAIL=organizer@example.com \
+  --env TALNEX_ROLE=organizer \
+  -- node C:/Projects/Talnex-HACKIIITD/mcp/dist/index.js
+```
+
+Start a new `claude` session and type `/mcp`. `talnex` should show as **connected** with 19 tools. Add
+`--scope user` to have it in every project; `claude mcp remove talnex` takes it away.
+
+</Tab>
+<Tab value="Claude Desktop">
+
+Edit `%APPDATA%\Claude\claude_desktop_config.json` on Windows, or
+`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS:
+
+```json
+{
+  "mcpServers": {
+    "talnex": {
+      "command": "node",
+      "args": ["C:\\Projects\\Talnex-HACKIIITD\\mcp\\dist\\index.js"],
+      "env": {
+        "TALNEX_API_URL": "http://localhost:8080",
+        "AUTH_SECRET": "<AUTH_SECRET from .env>",
+        "TALNEX_EMAIL": "organizer@example.com",
+        "TALNEX_ROLE": "organizer"
+      }
+    }
+  }
+}
+```
+
+Quit Claude Desktop completely (also from the system tray) and open it again. The TalNex tools appear under the tools
+button in the message box.
+
+</Tab>
+<Tab value="Gemini CLI">
+
+Add to `~/.gemini/settings.json` (Windows: `%USERPROFILE%\.gemini\settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "talnex": {
+      "command": "node",
+      "args": ["C:/Projects/Talnex-HACKIIITD/mcp/dist/index.js"],
+      "env": {
+        "TALNEX_API_URL": "http://localhost:8080",
+        "AUTH_SECRET": "<AUTH_SECRET from .env>",
+        "TALNEX_EMAIL": "organizer@example.com",
+        "TALNEX_ROLE": "organizer"
+      }
+    }
+  }
+}
+```
+
+Start `gemini` and type `/mcp` to see the server and its tools.
+
+</Tab>
+</Tabs>
+
+## Try a full conversation
+
+Each step names the tool the assistant should pick.
+
+<Steps>
+<Step>
+**"Which TalNex account am I? List my events."**: `who_am_i`, `list_events`
+</Step>
+<Step>
+**"Create a fixed-problem event called Campus Hack, 23 Oct 2026 09:00 to 24 Oct 18:00 UTC, with criteria Core
+features (weight 3) and Ease of use (weight 1)."**: `create_event`
+</Step>
+<Step>
+**"Add team TinyTools with the live site https://talnex-honest.vercel.app."**: `add_project`
+</Step>
+<Step>
+**"What would checking every team cost?"**: `run_event` without confirm. You get the teams that would be checked and
+an estimate (about $0.10–0.15 and 5 minutes per team). Nothing starts.
+</Step>
+<Step>
+**"Go ahead and start it."**: `run_event` with `confirm: true`. This spends money, so a good assistant asks you first.
+</Step>
+<Step>
+**"Watch it live for a minute."**: `watch_live`. Stages, each claim's status, the agent's latest actions and reasons.
+</Step>
+<Step>
+**"Show TinyTools' proof card."**: `get_proof_card`. Claims, verdicts, scores out of 10, proof, flags beside the
+score, and the labelled AI opinion.
+</Step>
+<Step>
+**"Which teams built each feature best?"**: `compare_event`. Up to three teams per feature, never one winner.
+</Step>
+</Steps>
+
+For a recruiter: "Add a candidate from `C:/resumes/cv.pdf`" (`create_candidate`), "What did TalNex find?"
+(`get_found_projects`), "What would checking them cost?" (`confirm_candidate` without confirm), "Start it"
+(`confirm_candidate` with confirm), "How far along is it?" (`get_progress`), "Show the report" (`get_report`).
+
+## Switching roles
+
+One server acts as one person. To work as both, add it twice under different names:
+
+```bash
+claude mcp add talnex-organizer --env TALNEX_ROLE=organizer --env TALNEX_EMAIL=organizer@example.com \
+  --env TALNEX_API_URL=http://localhost:8080 --env AUTH_SECRET=<AUTH_SECRET from .env> \
+  -- node C:/Projects/Talnex-HACKIIITD/mcp/dist/index.js
+claude mcp add talnex-recruiter --env TALNEX_ROLE=recruiter --env TALNEX_EMAIL=recruiter@example.com \
+  --env TALNEX_API_URL=http://localhost:8080 --env AUTH_SECRET=<AUTH_SECRET from .env> \
+  -- node C:/Projects/Talnex-HACKIIITD/mcp/dist/index.js
+```
+
+Changing `TALNEX_EMAIL` changes whose events and candidates you see. Calling a tool meant for the other role gives a
+clear refusal that names the setting to change.
+
+## Troubleshooting
+
+| You see | Fix |
+|---|---|
+| `Cannot reach the TalNex API at http://localhost:8080` | The stack is down or on another port: `docker compose up -d`, then check `TALNEX_API_URL` |
+| `sign in required. ... Check AUTH_SECRET and TALNEX_EMAIL` | `AUTH_SECRET` must be exactly the API's value, with no quotes or spaces |
+| `list_events is for organizer accounts, but this server is set up as a recruiter` | Set `TALNEX_ROLE` to the role the tool needs, or use the other server entry |
+| `Not found (or it belongs to another account)` | The id is wrong, or it belongs to a different `TALNEX_EMAIL` |
+| The server stops at once: `Missing setting: AUTH_SECRET` | Add that setting to the `env` block. Each missing one is named |
+| Nothing starts on Windows | Run `npm run build` first. In JSON, write paths with `\\` or `/`. If `node` is not found, use its full path, such as `C:\\Program Files\\nodejs\\node.exe`. Claude Desktop logs are in `%APPDATA%\Claude\logs\mcp-server-talnex.log` |
