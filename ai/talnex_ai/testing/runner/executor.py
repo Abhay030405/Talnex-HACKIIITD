@@ -18,8 +18,12 @@ from pathlib import Path
 from typing import Any, Callable, Literal, Optional, Protocol
 from urllib.parse import urlparse
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from talnex_ai.formats import FormatError, StepRecord, TestPlan, parse_model
-from talnex_ai.llm.prompts.runner import FINAL_SYSTEM, STEP_SYSTEM, final_user, step_user
+from talnex_ai.llm.prompts.runner import FINAL_PARTS_SYSTEM, FINAL_SYSTEM, STEP_SYSTEM, final_parts_user, final_user, step_user
+from talnex_ai.scoring.claim_points import outcome_from_parts
+from talnex_ai.testing.checks import PartMark, numbered, read_marks
 from talnex_ai.testing.scope import unchanged_value
 from talnex_ai.llm.structured import ChatClient, ask_json
 from talnex_ai.login.email.extract import EmailHint
@@ -64,6 +68,7 @@ class ExecResult:
     actions_used: int = 0
     vision_used: bool = False
     stop_reason: Optional[str] = None  # set when the outcome is "blocked"
+    parts: tuple[str, ...] = ()        # one mark per plan check, when the plan had checks
 
 
 def trim(text: str, limit: int) -> str:
@@ -85,6 +90,27 @@ def list_test_files(uploads_root: Path) -> list[str]:
         return []
     return sorted(p.relative_to(uploads_root).as_posix() for p in root.rglob("*")
                   if p.is_file() and p.suffix.lower() in UPLOADABLE and not p.name.lower().startswith("readme"))[:30]
+
+
+INCOMPLETE = "the test could not show every part of the claim"
+
+
+class _FinalParts(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+    checks: list[PartMark] = Field(min_length=1)
+    observed: str = Field(min_length=1, max_length=600)
+
+
+def _final_parts(text: str, claim_text: str, count: int) -> tuple[tuple[str, ...], str]:
+    """The run's marks for each check, and what it saw. A count or progress "seen" at its starting value is sent back."""
+    answer = parse_model(_FinalParts, text)
+    marks = read_marks(answer.checks, count)
+    for m in answer.checks:
+        start = unchanged_value(claim_text, m.note) if m.status == "seen" else None
+        if start:
+            raise FormatError(f'check {m.n} is marked seen, but its note describes a starting value ("{start}"), which would '
+                              "look the same if the feature did nothing. Mark it not_seen, or say how the value changed.")
+    return marks, answer.observed
 
 
 def _final(text: str, claim_text: str) -> FinalVerdict:
@@ -290,6 +316,18 @@ def execute_plan(
     snapshot = trim(driver.snapshot(), cfg.snapshot_chars)
     if looks_like_captcha(snapshot):
         return finish("blocked", "a human check (CAPTCHA) stopped the test", "a human check appeared")
+    if plan.checks:
+        marks, observed = ask_json(
+            client, "agent", FINAL_PARTS_SYSTEM,
+            final_parts_user(claim=claim_text, checks=numbered(plan.checks), history=history, url=driver.url(),
+                             snapshot=snapshot),
+            lambda text: _final_parts(text, claim_text, len(plan.checks)), job_id=job_id,
+        )
+        record("Final check", plan.expected_result, observed)
+        outcome = outcome_from_parts(marks)
+        done = finish(outcome, observed, INCOMPLETE if outcome == "blocked" else None)
+        done.parts = marks
+        return done
     verdict = ask_json(
         client, "agent", FINAL_SYSTEM,
         final_user(claim=claim_text, expected_result=plan.expected_result, history=history, url=driver.url(),

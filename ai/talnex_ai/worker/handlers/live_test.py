@@ -117,8 +117,8 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
             screens = screens_for_check(record.steps)
             ev.emit("check.started", images=len(screens))
             found = check_proof(sv.model, sv.files, claim_text=claim.text, expected_result=p.expected_result,
-                                proof_keys=screens, job_id=job_id)
-            ev.emit("check", outcome=found.outcome, seen=found.seen, images=found.images_used)
+                                proof_keys=screens, job_id=job_id, checks=p.checks)
+            ev.emit("check", outcome=found.outcome, seen=found.seen, images=found.images_used, parts=list(found.parts))
             return found
 
         deps = LadderDeps(fetch=lambda url: sv.tinyfish.fetch([url])[0], run=run, alternate=alternate, check=check,
