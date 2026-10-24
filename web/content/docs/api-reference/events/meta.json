@@ -1,0 +1,11 @@
+{
+  "title": "Events",
+  "description": "Organizer only. Hackathon events and starting their checks.",
+  "pages": [
+    "listEvents",
+    "createEvent",
+    "getEvent",
+    "runEvent",
+    "updateCriteria"
+  ]
+}

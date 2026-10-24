@@ -266,6 +266,38 @@
   --live-shot-min: 9rem;
   --live-ring-width: 3;
   --live-time-width: 4.6rem;
+
+  /* Docs section (/docs): the docs' own names on the site tokens, the diagram sizes, and the orchestration palette
+     for the light proof-paper background (each runner and tool keeps its hue, darkened for contrast). */
+  --tx-black: var(--tn-bg-page);
+  --tx-surface: var(--tn-bg-raised);
+  --tx-surface-raised: var(--tn-bg-surface);
+  --tx-crimson: var(--tn-brand);
+  --tx-crimson-bright: var(--tn-brand-hover);
+  --tx-crimson-soft: var(--tn-brand-soft);
+  --tx-text: var(--tn-text);
+  --tx-text-muted: var(--tn-text-muted);
+  --tx-border: var(--tn-line);
+  --tx-edge: var(--tn-line-strong);
+  --tx-good: var(--tn-works);
+  --tx-radius: var(--tn-radius-2);
+  --tx-radius-small: var(--tn-radius-1);
+  --tx-font-small: var(--tn-type-label);
+  --tx-font-label: var(--tn-type-small);
+  --tx-shadow: var(--tn-shadow-raise);
+  --tx-diagram-small: 340px;
+  --tx-diagram-medium: 420px;
+  --tx-diagram-large: 640px;
+  --ox-go: #0b7ea8;
+  --ox-py: #8f6400;
+  --ox-llm: #c4314b;
+  --ox-browser: #6b4fd6;
+  --ox-fetch: #b45f12;
+  --ox-sandbox: #1e8a4c;
+  --ox-github: #4b5260;
+  --ox-api: #2f5fd0;
+  --ox-main: #c8231b;
+  --ox-mono: var(--tn-font-mono);
 }
 
 /* ---------- Base ---------- */
@@ -4798,4 +4830,603 @@ html[data-intro="skip"] .intro {
     padding: var(--tn-space-5) 0;
     border-left: 0;
   }
+}
+
+/* ---------- Docs (/docs): fumadocs on the site tokens ----------
+   The vendor styles load only on /docs (app/docs/docs.css). While the docs are on screen, fumadocs' colour variables
+   point at the site tokens, so the sidebar, the search dialog, code blocks, tables and the API playground share the
+   site's light proof-paper look. */
+:root:has(.docs-section) {
+  --color-fd-background: var(--tn-bg-page);
+  --color-fd-foreground: var(--tn-text);
+  --color-fd-card: var(--tn-bg-raised);
+  --color-fd-card-foreground: var(--tn-text);
+  --color-fd-popover: var(--tn-bg-raised);
+  --color-fd-popover-foreground: var(--tn-text);
+  --color-fd-muted: var(--tn-bg-surface);
+  --color-fd-muted-foreground: var(--tn-text-muted);
+  --color-fd-border: var(--tn-line);
+  --color-fd-primary: var(--tn-brand);
+  --color-fd-primary-foreground: var(--tn-on-brand);
+  --color-fd-secondary: var(--tn-bg-surface);
+  --color-fd-secondary-foreground: var(--tn-text);
+  --color-fd-accent: var(--tn-brand-soft);
+  --color-fd-accent-foreground: var(--tn-text);
+  --color-fd-ring: var(--tn-brand-ring);
+}
+
+.docs-section {
+  font-family: var(--tn-font-text);
+  line-height: var(--tn-leading-body);
+}
+
+.docs-section h1,
+.docs-section h2,
+.docs-section h3 {
+  font-family: var(--tn-font-display);
+  font-stretch: var(--tn-display-stretch);
+  letter-spacing: var(--tn-tracking-display);
+}
+
+.docs-section code,
+.docs-section pre {
+  font-family: var(--tn-font-mono);
+}
+
+.docs-section pre,
+.docs-section table {
+  border-radius: var(--tn-radius-2);
+}
+
+/* ---- the docs bar's brand */
+.docs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tn-space-2);
+  font-weight: 600;
+}
+.docs-brand__mark {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  background: var(--tx-crimson);
+}
+/* ---- React Flow diagrams (components/diagrams) */
+.tx-diagram {
+  margin: var(--tn-space-5) 0;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  background: var(--tx-surface);
+  overflow: hidden;
+}
+.tx-diagram__canvas {
+  width: 100%;
+}
+.tx-diagram[data-size='small'] .tx-diagram__canvas {
+  height: var(--tx-diagram-small);
+}
+.tx-diagram[data-size='medium'] .tx-diagram__canvas {
+  height: var(--tx-diagram-medium);
+}
+.tx-diagram[data-size='large'] .tx-diagram__canvas {
+  height: var(--tx-diagram-large);
+}
+.tx-diagram__caption {
+  border-top: 1px solid var(--tx-border);
+  padding: var(--tn-space-3) var(--tn-space-4);
+  color: var(--tx-text-muted);
+  font-size: var(--tx-font-small);
+}
+.tx-diagram .react-flow {
+  --xy-background-color: var(--tx-surface);
+  --xy-background-pattern-color: var(--tx-border);
+  --xy-edge-stroke: var(--tx-edge);
+  --xy-edge-label-color: var(--tx-text);
+  --xy-edge-label-background-color: var(--tx-surface);
+  --xy-attribution-background-color: transparent;
+}
+.tx-diagram .react-flow__edge-text {
+  font-size: 11px;
+  fill: var(--tx-text-muted);
+}
+.tx-diagram .react-flow__edge-textbg {
+  fill: var(--tx-surface);
+}
+.tx-diagram .react-flow__edge-path {
+  stroke: var(--tx-edge);
+  stroke-width: 1.5;
+}
+.tx-diagram .react-flow__arrowhead polyline {
+  stroke: var(--tx-edge) !important;
+  fill: var(--tx-edge) !important;
+}
+.tx-diagram .react-flow__edge.tx-edge--yes .react-flow__edge-path {
+  stroke: var(--tx-crimson-bright);
+}
+.tx-diagram .react-flow__edge.tx-edge--yes .react-flow__edge-text {
+  fill: var(--tx-crimson-bright);
+}
+.tx-diagram .react-flow__edge.tx-edge--soft .react-flow__edge-path {
+  stroke-dasharray: 5 4;
+}
+.tx-diagram .react-flow__attribution a {
+  color: var(--tx-text-muted);
+}
+
+.tx-node {
+  width: 200px;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius-small);
+  background: var(--tx-surface-raised);
+  color: var(--tx-text);
+  padding: var(--tn-space-3) var(--tn-space-3);
+  box-shadow: var(--tx-shadow);
+  text-align: center;
+}
+.tx-node__label {
+  font-size: var(--tx-font-label);
+  font-weight: 600;
+}
+.tx-node__sub {
+  margin-top: var(--tn-space-1);
+  color: var(--tx-text-muted);
+  font-size: var(--tx-font-small);
+  line-height: 1.35;
+}
+.tx-node--accent {
+  border-color: var(--tx-crimson);
+  background: var(--tx-crimson-soft);
+}
+.tx-node--danger {
+  border-color: var(--tx-crimson-bright);
+  background: var(--tx-crimson);
+}
+.tx-node--danger .tx-node__sub {
+  color: var(--tx-text);
+}
+.tx-node--question {
+  border-radius: var(--tx-radius);
+  border-color: var(--tx-edge);
+}
+.tx-node--safe {
+  border-style: dashed;
+  border-color: var(--tx-good);
+}
+/* ---- Orchestration flow (components/diagrams/orchestration-flow.tsx) */
+.ox-figure {
+  margin: var(--tn-space-5) 0;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  background: var(--tx-black);
+  overflow: hidden;
+}
+.ox-figure__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tn-space-4);
+  border-bottom: 1px solid var(--tx-border);
+  padding: 0.55rem var(--tn-space-4);
+}
+.ox-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tn-space-2) var(--tn-space-4);
+  color: var(--tx-text-muted);
+  font-size: 0.8rem;
+}
+.ox-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tn-space-2);
+}
+.ox-legend b {
+  font-weight: 700;
+}
+.ox-key {
+  display: inline-block;
+  width: 26px;
+  border-top: 2px solid var(--tx-edge);
+}
+.ox-key--main {
+  border-top-color: var(--ox-main);
+}
+.ox-key--soft {
+  border-top-style: dashed;
+}
+.ox-tools {
+  display: flex;
+  flex: none;
+  gap: var(--tn-space-2);
+}
+.ox-full {
+  flex: none;
+  min-width: 2rem;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius-small);
+  padding: var(--tn-space-1) var(--tn-space-3);
+  color: var(--tx-text);
+  font-size: 0.8rem;
+}
+.ox-full:hover {
+  border-color: var(--ox-main);
+}
+/* the flow is about twice as wide as it is tall, so the canvas keeps that shape and the fit stays large */
+.ox-canvas {
+  aspect-ratio: 2.15 / 1;
+  min-height: 420px;
+}
+.ox-figure:fullscreen {
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+}
+.ox-figure:fullscreen .ox-canvas {
+  flex: 1;
+  aspect-ratio: auto;
+  min-height: 0;
+}
+.ox-figure__caption {
+  border-top: 1px solid var(--tx-border);
+  padding: var(--tn-space-3) var(--tn-space-4);
+  color: var(--tx-text-muted);
+  font-size: 0.8rem;
+}
+.ox-figure .react-flow {
+  --xy-background-color: var(--tx-black);
+  --xy-edge-stroke: var(--tx-edge);
+  --xy-minimap-background-color: var(--tx-surface);
+  --xy-controls-button-background-color: var(--tx-surface-raised);
+  --xy-controls-button-background-color-hover: var(--tx-border);
+  --xy-controls-button-color: var(--tx-text);
+  --xy-attribution-background-color: transparent;
+}
+.ox-figure .react-flow__attribution a {
+  color: var(--tx-text-muted);
+}
+.ox-figure .react-flow__minimap-node.ox-mini-node {
+  fill: var(--tn-line-strong);
+  stroke: none;
+}
+.ox-figure .react-flow__minimap-node.ox-mini-lane {
+  fill: var(--tn-line-soft);
+  stroke: var(--tn-line-strong);
+  stroke-width: 4;
+}
+.ox-figure .react-flow__edge-path {
+  stroke: var(--tx-edge);
+  stroke-width: 1.6;
+}
+.ox-figure .react-flow__edge.ox-edge--main .react-flow__edge-path {
+  stroke: var(--ox-main);
+  stroke-width: 2.2;
+}
+.ox-figure .react-flow__edge.ox-edge--join .react-flow__edge-path {
+  stroke: var(--tn-line-strong);
+  stroke-width: 2;
+}
+.ox-figure .react-flow__edge.ox-edge--soft .react-flow__edge-path {
+  stroke-dasharray: 6 5;
+}
+.ox-figure .react-flow__arrowhead polyline {
+  stroke: var(--tx-edge) !important;
+  fill: var(--tx-edge) !important;
+}
+.ox-edge-label {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid var(--tx-border);
+  border-radius: 999px;
+  background: var(--tx-black);
+  padding: 1px 8px;
+  color: var(--tn-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ox-edge-label--main {
+  border-color: var(--ox-main);
+  color: var(--tx-text);
+}
+.ox-edge-label--join {
+  border-color: var(--tn-line-strong);
+  color: var(--tx-text);
+}
+.ox-figure .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+  min-width: 0;
+  min-height: 0;
+  width: 1px;
+  height: 1px;
+  border: 0;
+}
+
+.ox-stage {
+  box-sizing: border-box;
+  width: 180px;
+  min-height: 80px;
+  border: 1px solid var(--tx-border);
+  border-top-width: 3px;
+  border-radius: var(--tx-radius-small);
+  background: var(--tx-surface-raised);
+  color: var(--tx-text);
+  padding: 7px 9px 8px;
+  box-shadow: var(--tx-shadow);
+}
+.ox-stage--go {
+  border-top-color: var(--ox-go);
+}
+.ox-stage--py {
+  border-top-color: var(--ox-py);
+}
+.ox-stage--api {
+  border-top-color: var(--tx-edge);
+}
+.ox-stage--human {
+  border-style: dashed;
+  border-top-style: solid;
+  border-top-color: var(--tx-good);
+}
+.ox-stage--out {
+  border-color: var(--ox-main);
+  border-top-color: var(--ox-main);
+  background: var(--tx-crimson-soft);
+}
+.ox-stage__name {
+  font-family: var(--ox-mono);
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+}
+.ox-stage__title {
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.ox-stage__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+.ox-stage__note {
+  margin-top: 5px;
+  color: var(--tn-text-muted);
+  font-size: 13px;
+  line-height: 1.25;
+}
+.ox-run,
+.ox-chip {
+  display: inline-block;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 17px;
+  white-space: nowrap;
+}
+.ox-run {
+  font-family: var(--ox-mono);
+  color: var(--tx-black);
+}
+.ox-run--go {
+  border-color: var(--ox-go);
+  background: var(--ox-go);
+}
+.ox-run--py {
+  border-color: var(--ox-py);
+  background: var(--ox-py);
+}
+.ox-run--api,
+.ox-run--human {
+  border-color: var(--tx-edge);
+  background: transparent;
+  color: var(--tx-text-muted);
+}
+.ox-run--out {
+  border-color: var(--ox-main);
+  background: var(--ox-main);
+  color: var(--tx-text);
+}
+.ox-chip--llm {
+  border-color: var(--ox-llm);
+  color: var(--ox-llm);
+}
+.ox-chip--browser {
+  border-color: var(--ox-browser);
+  color: var(--ox-browser);
+}
+.ox-chip--fetch,
+.ox-chip--search {
+  border-color: var(--ox-fetch);
+  border-style: dashed;
+  color: var(--ox-fetch);
+}
+.ox-chip--sandbox {
+  border-color: var(--ox-sandbox);
+  color: var(--ox-sandbox);
+}
+.ox-chip--github {
+  border-color: var(--ox-github);
+  color: var(--ox-github);
+}
+.ox-chip--api {
+  border-color: var(--ox-api);
+  color: var(--ox-api);
+}
+
+.ox-loop {
+  box-sizing: border-box;
+  width: 170px;
+  height: 140px;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius-small);
+  background: var(--tx-surface);
+  color: var(--tx-text);
+  padding: 7px 9px 8px;
+}
+.ox-loop--ladder {
+  border-color: var(--tx-edge);
+}
+.ox-loop--verdict {
+  border-color: var(--ox-main);
+}
+.ox-loop__name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.ox-loop__lines {
+  margin: 5px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--tn-text-muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.ox-lane {
+  box-sizing: border-box;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius);
+  background: var(--tn-bg-surface);
+}
+.ox-lane--group {
+  border-color: var(--tn-line);
+}
+.ox-lane--lane {
+  border-style: dashed;
+  border-color: var(--tn-line);
+  background: transparent;
+}
+.ox-lane--inset {
+  border-color: var(--tn-broken-line);
+  background: var(--tn-brand-soft);
+}
+.ox-lane__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tn-space-3);
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+.ox-lane__title {
+  color: var(--tx-text);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ox-lane--inset .ox-lane__title {
+  font-family: var(--ox-mono);
+  text-transform: none;
+  color: var(--ox-main);
+}
+.ox-lane__sub {
+  color: var(--tx-text-muted);
+  font-size: 13px;
+}
+
+.ox-note {
+  box-sizing: border-box;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius-small);
+  background: var(--tx-surface);
+  color: var(--tx-text);
+  padding: 9px 12px;
+}
+.ox-note--safety {
+  border-color: var(--ox-main);
+  border-left-width: 4px;
+}
+.ox-note__title {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ox-note ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--tn-text-muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+/* ---- "Get a test token" (components/test-token.tsx) */
+.tx-token {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tn-space-3);
+  margin: var(--tn-space-5) 0;
+  border: 1px solid var(--tx-crimson);
+  border-radius: var(--tx-radius);
+  background: var(--tx-crimson-soft);
+  padding: var(--tn-space-4) var(--tn-space-5);
+}
+.tx-token__title {
+  margin: 0;
+  font-weight: 600;
+}
+.tx-token__note {
+  margin: 0;
+  color: var(--tx-text-muted);
+  font-size: var(--tx-font-label);
+}
+.tx-token__error {
+  margin: 0;
+  color: var(--tx-crimson-bright);
+  font-size: var(--tx-font-label);
+}
+.tx-token__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--tn-space-3);
+}
+.tx-token__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tn-space-1);
+  font-size: var(--tx-font-small);
+  color: var(--tx-text-muted);
+}
+.tx-token__field input,
+.tx-token__field select {
+  min-width: 14rem;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius-small);
+  background: var(--tx-black);
+  color: var(--tx-text);
+  padding: var(--tn-space-2) var(--tn-space-3);
+  font-size: var(--tx-font-label);
+}
+.tx-token__result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tn-space-3);
+}
+.tx-token__value {
+  display: block;
+  max-height: 6rem;
+  overflow: auto;
+  word-break: break-all;
+  border: 1px solid var(--tx-border);
+  border-radius: var(--tx-radius-small);
+  background: var(--tx-black);
+  padding: var(--tn-space-3);
+  font-size: var(--tx-font-small);
+}
+
+.tx-node .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
 }

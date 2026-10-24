@@ -1,0 +1,7 @@
+{
+  "title": "Live",
+  "description": "What TalNex is doing right now, as Server-Sent Events (`docs/live_events.md`).",
+  "pages": [
+    "getLive"
+  ]
+}

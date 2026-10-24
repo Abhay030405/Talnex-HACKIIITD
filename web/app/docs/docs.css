@@ -1,0 +1,11 @@
+/* Vendor CSS for the docs section only (app/docs/layout.tsx). Tailwind is loaded WITHOUT its preflight reset, so the
+   rest of the website is untouched. No design values here: fumadocs' colour variables and every docs style are mapped
+   onto the site tokens in app/globals.css (the "Docs" block). */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumadocs-openapi/css/preset.css";
+@source "../../components/docs";
+@source "../../content/docs";
