@@ -209,12 +209,22 @@ def locate(
 ) -> list[CodeMap]:
     """One code map per claim (with an id). `read` turns repo paths into their text; a file it cannot read is simply missing.
 
-    A big repo is traced like a small one: only the `locate_max_files` files whose paths best match the claims are read."""
+    A big repo is traced like a small one: only the `locate_max_files` files whose paths best match the claims are read.
+    When GitHub cut the file list short, the files it did list are used, and a claim still not found says so."""
+    maps = _locate(claims, files=files, read=read, model=model, locate_max_files=locate_max_files, max_claims=max_claims,
+                   max_files_per_claim=max_files_per_claim, min_confidence=min_confidence, discovery=discovery,
+                   app_dir=app_dir, job_id=job_id, check=check)
+    if files_truncated:
+        for m in maps:
+            if m.not_traced_reason and m.not_traced_reason.startswith(NOT_FOUND):
+                m.not_traced_reason += " (GitHub cut the file list short, so some files were not visible)"
+    return maps
+
+
+def _locate(claims, *, files, read, model, locate_max_files, max_claims, max_files_per_claim, min_confidence,
+            discovery, app_dir, job_id, check) -> list[CodeMap]:
     claims = [c for c in claims if c.id]
     code = code_files(files)
-    if files_truncated:
-        why = f"{TOO_LARGE} (GitHub cut the file list short)"
-        return [CodeMap(c.id or "", not_traced_reason=why) for c in claims]
     if not code:
         return [CodeMap(c.id or "", not_traced_reason=f"{NOT_FOUND} (the repository has no code files)") for c in claims]
 

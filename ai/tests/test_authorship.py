@@ -99,9 +99,13 @@ class TestLocate:
         assert not m.not_traced_reason and m.files[0]["path"] == "src/cart.py"
         assert len(read) <= 10 and read[0] == "src/cart.py"
 
-    def test_a_file_list_github_cut_short_says_so(self):
-        (m,) = self.run([claim("Add items to a cart")], {"cart.py": CART_PY}, files_truncated=True)
-        assert "repo too large" in m.not_traced_reason and "cut the file list short" in m.not_traced_reason
+    def test_a_file_list_github_cut_short_is_still_traced(self):
+        (m,) = self.run([claim("Add items to a shopping cart")], {"cart.py": CART_PY}, files_truncated=True)
+        assert not m.not_traced_reason and m.files[0]["path"] == "cart.py"
+
+    def test_a_claim_not_found_in_a_cut_short_list_says_some_files_were_not_visible(self):
+        (m,) = self.run([claim("Zzyzx quux")], {"cart.py": CART_PY}, files_truncated=True)
+        assert locate.NOT_FOUND in m.not_traced_reason and "some files were not visible" in m.not_traced_reason
 
 
 # ------------------------------------------------------------------ A3: the share maths

@@ -1262,7 +1262,7 @@ Like "could not test", these **never count against anyone** and never mean "fake
 | Private repo, or not reachable | Could not trace: repo not reachable |
 | The whole repo is one commit or a squashed history | Could not trace: history not available (the whole-repo "one big upload" flag in section 17 still applies) |
 | Code for the claim not found with enough confidence | Could not trace: code not found |
-| Claims beyond the claim limit, or a file list GitHub cut short | Could not trace: repo too large, with the reason named. A big repo alone is not a reason: only the files that best match the claims are read |
+| Claims beyond the claim limit | Could not trace: repo too large, with the limit named. A big repo alone is not a reason: only the files that best match the claims are read, and when GitHub cuts the file list short the listed files are used ("code not found" then says some files were not visible) |
 | A fork | Lines from the original repo are shown as "from the original repo", not credited to anyone on the team |
 
 ### 30.10 Data, formats and folders
