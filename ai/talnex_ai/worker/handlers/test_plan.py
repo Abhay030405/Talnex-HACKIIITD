@@ -38,6 +38,9 @@ def code_hint(note: Mapping[str, Any]) -> str:
     return "\n".join(parts)
 
 
+_hint = code_hint  # the name the reference used; kept so other code and tests that use it still work
+
+
 def plan_one(model: ChatClient, info: SubjectInfo, claim: Claim, job_id: Optional[str],
              note: Optional[Mapping[str, Any]] = None) -> dict[str, Any]:
     """Plans and a checklist for one claim. A failure is recorded, never raised, so other claims still get planned."""
