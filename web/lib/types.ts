@@ -21,6 +21,8 @@ export interface JobRow {
   seconds: number;
   error?: string;
   result?: Record<string, unknown>;
+  /** The stages this one waits for, to draw the pipeline. */
+  after_stages?: string[];
 }
 
 // ---------- Roles ----------
@@ -310,6 +312,8 @@ export interface ReportProject {
   features: ReportFeature[];
   flags: ReportFlag[];
   originality: ProjectOriginality | null;
+  /** What the VM track did with the repository (ai/talnex_ai/reports/sandbox.py). Missing on older reports. */
+  sandbox?: SandboxFacts | null;
   /** The repository judged as engineering work (stage repo_quality). Missing when it was not judged. */
   engineering?: Engineering | null;
 }
@@ -324,6 +328,25 @@ export interface Engineering {
     summary: string;
     evidence: { kind: "file" | "commit"; path?: string; sha?: string; message?: string; note: string; url?: string }[];
   }[];
+}
+
+/** The VM (sandbox) facts of one project. Log keys arrive from the API as short-lived links. */
+export interface SandboxFacts {
+  ran: boolean;
+  reason?: string;
+  status?: string;
+  detail?: string | null;
+  stack?: string | null;
+  recipe_source?: string | null;
+  needed_a_fix?: boolean;
+  notes?: string[];
+  routes_found?: number;
+  spec_found?: boolean;
+  no_live_link?: boolean;
+  build_log_url?: string;
+  run_log_url?: string;
+  /** Each sandbox stage's saved result, kept small (scalars and counts). */
+  stages?: Record<string, Record<string, unknown>>;
 }
 
 export interface CodingSignal {
@@ -450,6 +473,8 @@ export interface HackathonCard {
   run?: RunUsage | null;
   ai_opinion: AiOpinion | null;
   who_built_what?: WhoBuiltWhatRow[] | null;
+  /** What the VM track did with the repository. Missing on older cards. */
+  sandbox?: SandboxFacts | null;
   has_gaps: boolean;
   notes: string[];
 }

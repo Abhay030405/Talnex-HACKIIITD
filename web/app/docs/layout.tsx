@@ -1,6 +1,7 @@
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import { RootProvider } from "fumadocs-ui/provider/next";
 
+import { AutoSession } from "@/components/docs/auto-session";
 import SearchDialog from "@/components/docs/search";
 import { baseOptions } from "@/lib/docs/layout.shared";
 import { source } from "@/lib/docs/source";
@@ -13,6 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <RootProvider search={{ SearchDialog }} theme={{ enabled: false }}>
       <div className="docs-section">
+        <AutoSession />
         <DocsLayout tree={source.getPageTree()} {...baseOptions()}>
           {children}
         </DocsLayout>

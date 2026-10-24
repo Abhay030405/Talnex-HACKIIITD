@@ -2,9 +2,10 @@ import type { Engineering } from "@/lib/types";
 
 /** How the repository is built as engineering work: a bar per area, a summary, and evidence linked to GitHub. */
 export function EngineeringQuality({ engineering }: { engineering?: Engineering | null }) {
-  if (!engineering || engineering.areas.length === 0) return null;
+  if (!engineering || engineering.areas.length === 0)
+    return <p className="note">The repository was not judged (no GitHub link, or GitHub would not show it).</p>;
   return (
-    <details className="engineering">
+    <details className="engineering" open>
       <summary className="engineering__head">
         <span>Engineering quality</span>
         <span className="meta">{engineering.overall === null ? "not scored" : `${engineering.overall} / 10`}</span>
