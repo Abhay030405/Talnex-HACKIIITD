@@ -6,6 +6,7 @@ import type { MDXComponents } from 'mdx/types';
 import { CheckPipeline } from '@/components/diagrams/check-pipeline';
 import { NeverBlameLadder } from '@/components/diagrams/never-blame';
 import { RequestFlow } from '@/components/diagrams/request-flow';
+import { TestToken } from '@/components/test-token';
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
@@ -17,6 +18,7 @@ export function getMDXComponents(components?: MDXComponents) {
     RequestFlow,
     CheckPipeline,
     NeverBlameLadder,
+    TestToken,
     ...components,
   } satisfies MDXComponents;
 }
