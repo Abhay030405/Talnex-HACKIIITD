@@ -205,6 +205,19 @@ class WalkthroughSettings:
 
 
 @dataclass(frozen=True)
+class LeetCodeReplaySettings:
+    """The LeetCode Code Replay paste check (architecture section 18): which contests, and when a paste is suspicious."""
+
+    contests: int = 5               # most recent rated contests read (plus any with a rating jump)
+    rating_jump: int = 100          # a contest whose rating gain is at least this is also read
+    settle_days: int = 7            # newer contests are skipped until LeetCode's own checks have settled
+    paste_min_lines: int = 4        # shorter pastes are helper code, never suspicious
+    template_seconds: int = 60      # a paste this soon after opening the problem is a personal template
+    max_edits_after: int = 3        # a core paste with at most this many edits after it is "pasted in one go"
+    repeat_contests: int = 3        # suspicious pastes in this many contests make every one of them strong
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
@@ -219,6 +232,7 @@ class Settings:
     copy: CopySettings = field(default_factory=CopySettings)
     authorship: AuthorshipSettings = field(default_factory=AuthorshipSettings)
     walkthrough: WalkthroughSettings = field(default_factory=WalkthroughSettings)
+    leetcode_replay: LeetCodeReplaySettings = field(default_factory=LeetCodeReplaySettings)
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
     leetcode_graphql_url: str = ""
     # A Chrome-over-CDP endpoint used as a backup browser when TinyFish is unavailable. Hosted Browserless /stealth also
@@ -430,12 +444,21 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         whisper_device=env.one_of("WHISPER_DEVICE", "cpu", ("cpu", "cuda")),
         whisper_compute_type=env.optional("WHISPER_COMPUTE_TYPE", "int8"),
     )
+    leetcode_replay = LeetCodeReplaySettings(
+        contests=env.whole("LEETCODE_REPLAY_CONTESTS", 5),
+        rating_jump=env.whole("LEETCODE_REPLAY_RATING_JUMP", 100),
+        settle_days=env.whole("LEETCODE_REPLAY_SETTLE_DAYS", 7),
+        paste_min_lines=env.whole("LEETCODE_PASTE_MIN_LINES", 4),
+        template_seconds=env.whole("LEETCODE_PASTE_TEMPLATE_SECONDS", 60),
+        max_edits_after=env.whole("LEETCODE_PASTE_MAX_EDITS_AFTER", 3),
+        repeat_contests=env.whole("LEETCODE_PASTE_REPEAT_CONTESTS", 3),
+    )
     database_url = env.required("DATABASE_URL")
 
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
-                    walkthrough=walkthrough, leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                    walkthrough=walkthrough, leetcode_replay=leetcode_replay, leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
                     browserless_cdp_url=env.url("BROWSERLESS_CDP_URL", required=False),
                     browserless_token=env.optional("BROWSERLESS_TOKEN"),
                     browserless_bql_url=env.url("BROWSERLESS_BQL_URL", required=False),
