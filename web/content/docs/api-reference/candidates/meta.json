@@ -16,6 +16,9 @@
     "getProgress",
     "getReport",
     "rerunCoding",
-    "rerunCandidateProject"
+    "rerunCandidateProject",
+    "listCandidateJobs",
+    "runCandidateProjectStages",
+    "runCandidateStages"
   ]
 }

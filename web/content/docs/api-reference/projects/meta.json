@@ -5,6 +5,9 @@
     "listProjects",
     "createProject",
     "getProject",
-    "runProject"
+    "runProject",
+    "listProjectJobs",
+    "runProjectStages",
+    "retryJob"
   ]
 }
