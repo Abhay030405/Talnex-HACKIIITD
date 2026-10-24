@@ -1,3 +1,4 @@
+import { AskTalnex, type Ask } from "@/components/proof/AskTalnex";
 import type { JobRole } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -51,6 +52,14 @@ export default async function CandidatePage({
   if (candidate.status === "awaiting_confirmation") redirect(`${path}/confirm`);
 
   const report = await getCandidateReport(candidateId);
+  let asks: Ask[] = [];
+  if (report) {
+    try {
+      asks = await apiFetch<Ask[]>(`/v1/candidates/${encodeURIComponent(candidateId)}/asks`);
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+  }
   let criteria: { name: string; weight: number }[] = [];
   if (candidate.role_id) {
     try {
@@ -89,7 +98,7 @@ export default async function CandidatePage({
         </div>
       </PageHeader>
 
-      <AutoRefresh active={!isFinishedStatus(status)} />
+      <AutoRefresh active={!isFinishedStatus(status) || asks.some((a) => a.status !== "done" && a.status !== "failed")} />
 
       {resume && RESUME_MESSAGES[resume] && (
         <p className="notice" role="alert">
@@ -116,7 +125,15 @@ export default async function CandidatePage({
       {progress && (!report || !isFinishedStatus(status)) && <ProgressPanel progress={progress} />}
 
       {report ? (
-        <CandidateReportView report={report} criteria={criteria} />
+        <>
+          <AskTalnex
+            candidateId={candidateId}
+            asks={asks}
+            projects={report.projects.map((p) => ({ id: p.id, name: p.name }))}
+            roleId={candidate.role_id}
+          />
+          <CandidateReportView report={report} criteria={criteria} />
+        </>
       ) : (
         <section className="panel" aria-labelledby="report-title">
           <div className="panel__head">

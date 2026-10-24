@@ -92,6 +92,8 @@ var ownerRoutes = []struct {
 	{"GET", "/v1/candidates/{cand}/found", "recruiter", true},
 	{"POST", "/v1/candidates/{cand}/confirm", "recruiter", true},
 	{"POST", "/v1/candidates/{cand}/rerun-coding", "recruiter", true},
+	{"POST", "/v1/candidates/{cand}/ask", "recruiter", true},
+	{"GET", "/v1/candidates/{cand}/asks", "recruiter", true},
 	{"POST", "/v1/candidate-projects/{cproj}/rerun", "recruiter", true},
 	{"DELETE", "/v1/candidates/{cand}", "recruiter", true},
 	{"POST", "/v1/projects/{project}/walkthroughs", "organizer", true},

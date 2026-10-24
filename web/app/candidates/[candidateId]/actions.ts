@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ApiError, apiFetch } from "@/lib/api";
@@ -78,4 +79,17 @@ export async function rerunAction(candidateId: string, what: { kind: "project"; 
     return { error: error instanceof ApiError && error.status < 500 ? error.message : "We could not start it. Try again." };
   }
   redirect(`${candidatePath(candidateId)}/live`);
+}
+
+/** Ask TalNex one question about this candidate's report; the answer appears on the page when ready. */
+export async function askAction(candidateId: string, _previous: { error?: string }, form: FormData) {
+  const question = String(form.get("question") ?? "").trim();
+  if (!question) return { error: "Type a question first." };
+  try {
+    await apiFetch(`/v1/candidates/${encodeURIComponent(candidateId)}/ask`, { method: "POST", body: { question } });
+  } catch (error) {
+    return { error: error instanceof ApiError && error.status < 500 ? error.message : "We could not send the question." };
+  }
+  revalidatePath(candidatePath(candidateId));
+  return {};
 }

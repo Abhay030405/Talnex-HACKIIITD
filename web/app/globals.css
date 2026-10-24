@@ -1864,6 +1864,119 @@ a.meta:hover {
   color: var(--color-warning);
 }
 
+/* Ask TalNex: a chat panel over the report, opened from a floating button. */
+.chat-launcher {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 40;
+  box-shadow: var(--shadow-lg);
+}
+
+.chat {
+  position: fixed;
+  right: var(--space-5);
+  bottom: calc(var(--space-5) * 3);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: min(28rem, calc(100vw - var(--space-5) * 2));
+  height: min(36rem, calc(100vh - var(--space-9)));
+  border: var(--line) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.chat__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--line) solid var(--color-border);
+}
+
+.chat__thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.chat__pair {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.chat__bubble {
+  max-width: 85%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.chat__bubble--me {
+  align-self: flex-end;
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
+.chat__bubble--ai {
+  align-self: flex-start;
+  background: var(--color-bg);
+  border: var(--line) solid var(--color-border);
+}
+
+.chat__bubble--waiting {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.chat__action {
+  margin-top: var(--space-2);
+}
+
+.chat__starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.chat__chip {
+  padding: var(--space-1) var(--space-3);
+  border: var(--line) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.chat__chip:hover {
+  border-color: var(--color-primary);
+}
+
+.chat__compose {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  padding: var(--space-3);
+  border-top: var(--line) solid var(--color-border);
+}
+
+.chat__input {
+  flex: 1;
+  resize: none;
+  font-family: var(--font-sans);
+}
+
 /* The interview kit: numbered questions, each with why it is worth asking. */
 .interview-kit {
   display: flex;

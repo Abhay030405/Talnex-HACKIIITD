@@ -19,3 +19,6 @@ from talnex_ai.worker.handlers import resume_read, project_summary, candidate_re
 
 # Authorship proof and the voice walkthrough.
 from talnex_ai.worker.handlers import authorship_read, code_locate, walkthrough_answer  # noqa: F401
+
+# Ask TalNex: a recruiter question answered from the saved report.
+from talnex_ai.worker.handlers import report_answer  # noqa: F401
