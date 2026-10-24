@@ -115,7 +115,8 @@ class RunnerSettings:
     max_seconds: int
     snapshot_chars: int
     uploads_dir: str
-    seconds_per_step: int = 60  # a longer plan gets more time: the limit is the larger of max_seconds and this per step  # the only folder the agent may upload test files from (known-answer photos, the test resume)
+    seconds_per_step: int = 60  # a longer plan gets more time: the limit is the larger of max_seconds and this per step
+    model_free_steps: bool = True  # steps that name one clear action are done by plain code, with no model call
 
 
 @dataclass(frozen=True)
@@ -374,6 +375,7 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         max_seconds=env.whole("RUNNER_MAX_SECONDS", 240),
         seconds_per_step=env.whole("RUNNER_SECONDS_PER_STEP", 60),
         snapshot_chars=env.whole("RUNNER_SNAPSHOT_CHARS", 6000),
+        model_free_steps=env.whole("RUNNER_MODEL_FREE_STEPS", 1) != 0,
         uploads_dir=env.optional("TEST_FILES_DIR", "testdata"),
     )
     email = EmailSettings(

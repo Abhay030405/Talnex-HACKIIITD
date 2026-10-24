@@ -26,7 +26,9 @@ class _Shape(BaseModel):
 class Target(_Shape):
     """How to find an element: by what a person sees, never by code selectors."""
 
-    kind: Literal["role", "label", "placeholder", "text"]
+    # "any" is for plain code that knows only the visible name (testing/runner/simple_steps.py): the driver tries
+    # label, placeholder, role and text in turn. The model is told to use the other four.
+    kind: Literal["role", "label", "placeholder", "text", "any"]
     name: str = Field(min_length=1, max_length=120)
     role: Optional[str] = Field(default=None, max_length=30, description="button, link, textbox, checkbox... (kind=role)")
 
@@ -151,6 +153,8 @@ def describe(action: Action) -> str:
 
 
 def _target(t: Target) -> str:
+    if t.kind == "any":
+        return f'"{t.name}"'
     return f'the {t.role} "{t.name}"' if t.kind == "role" else f'the {t.kind} "{t.name}"'
 
 

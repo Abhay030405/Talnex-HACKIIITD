@@ -26,6 +26,16 @@ _BROWSER_NETWORK_ERROR = re.compile(r"ERR_(?:TUNNEL|PROXY|CONNECTION|INTERNET|NE
                                     re.IGNORECASE)
 
 
+# What a plain name is looked up as, in order, for each kind of action (kind="any" targets).
+ANY_ORDER = {
+    "fill": [("label", None), ("placeholder", None), ("role", "textbox"), ("role", "searchbox"), ("role", "combobox")],
+    "select": [("label", None), ("role", "combobox"), ("role", "listbox")],
+    "upload": [("label", None), ("role", "button")],
+    "click": [("role", "button"), ("role", "link"), ("role", "tab"), ("role", "checkbox"), ("role", "menuitem"),
+              ("text", None)],
+}
+
+
 class ActionError(RuntimeError):
     """The action couldn't be done on the page (element not found, timeout...). The model is told and tries again."""
 
@@ -102,7 +112,9 @@ class PlaywrightDriver:
         except Exception:
             return self.page.screenshot(type="jpeg", quality=70)
 
-    def _find(self, target: Target):
+    def _find(self, target: Target, use: str = "click"):
+        if target.kind == "any":
+            return self._find_any(target.name, use)
         if target.kind == "role":
             return self.page.get_by_role(target.role, name=target.name).first
         if target.kind == "label":
@@ -111,10 +123,35 @@ class PlaywrightDriver:
             return self.page.get_by_placeholder(target.name).first
         return self.page.get_by_text(target.name).first
 
-    def _box_of(self, target: Target) -> Optional[dict]:
+    def _find_any(self, name: str, use: str):
+        """The one element a visitor means by this name. What it is looked up by depends on what is being done to
+        it; an exact match beats a partial one, and two matches are an error (the model then chooses), never a guess."""
+        for attempt in range(2):
+            for how, role in ANY_ORDER.get(use, ANY_ORDER["click"]):
+                for exact in (True, False):
+                    found = self._locator(how, role, name, exact)
+                    count = found.count()
+                    if count == 1:
+                        return found
+                    if count > 1:
+                        raise ActionError(f'more than one element is called "{name}"')
+            if attempt == 0:
+                self.page.wait_for_timeout(600)  # the page may still be drawing; look once more
+        raise ActionError(f'nothing on the page is called "{name}"')
+
+    def _locator(self, how: str, role: Optional[str], name: str, exact: bool):
+        if how == "role":
+            return self.page.get_by_role(role, name=name, exact=exact)
+        if how == "label":
+            return self.page.get_by_label(name, exact=exact)
+        if how == "placeholder":
+            return self.page.get_by_placeholder(name, exact=exact)
+        return self.page.get_by_text(name, exact=exact)
+
+    def _box_of(self, target: Target, use: str = "click") -> Optional[dict]:
         """The element's position on the full page (so it lines up with the full-page screenshot). Never raises."""
         try:
-            box = self._find(target).bounding_box(timeout=1500)
+            box = self._find(target, use).bounding_box(timeout=1500)
             scroll_x, scroll_y = self.page.evaluate("[window.scrollX, window.scrollY]")
             if not box:
                 return None
@@ -126,23 +163,23 @@ class PlaywrightDriver:
     def perform(self, action: Action, uploads_root: Path) -> None:
         self.last_box = None
         if isinstance(action, (Click, Fill, Select, Upload)):
-            self.last_box = self._box_of(action.target)
+            self.last_box = self._box_of(action.target, _use(action))
         try:
             if isinstance(action, Navigate):
                 url = action.url if "//" in action.url else "https://" + action.url
                 self.page.goto(url, wait_until="domcontentloaded", timeout=NAVIGATE_TIMEOUT_MS)
             elif isinstance(action, Click):
-                self._find(action.target).click(timeout=ACTION_TIMEOUT_MS)
+                self._find(action.target, "click").click(timeout=ACTION_TIMEOUT_MS)
             elif isinstance(action, Fill):
-                self._find(action.target).fill(action.value, timeout=ACTION_TIMEOUT_MS)
+                self._find(action.target, "fill").fill(action.value, timeout=ACTION_TIMEOUT_MS)
             elif isinstance(action, Press):
                 self.page.keyboard.press(action.key)
             elif isinstance(action, Select):
-                self._find(action.target).select_option(label=action.value, timeout=ACTION_TIMEOUT_MS)
+                self._find(action.target, "select").select_option(label=action.value, timeout=ACTION_TIMEOUT_MS)
             elif isinstance(action, Upload):
                 path = Path(action.file)
                 path = path if path.is_absolute() else uploads_root / path
-                self._find(action.target).set_input_files(str(path), timeout=ACTION_TIMEOUT_MS)
+                self._find(action.target, "upload").set_input_files(str(path), timeout=ACTION_TIMEOUT_MS)
             elif isinstance(action, Wait):
                 self.page.wait_for_timeout(int(action.seconds * 1000))
             elif isinstance(action, Scroll):
@@ -162,6 +199,10 @@ class PlaywrightDriver:
         except Exception:
             pass
         self.page.wait_for_timeout(400)
+
+
+def _use(action: Action) -> str:
+    return {Fill: "fill", Select: "select", Upload: "upload"}.get(type(action), "click")
 
 
 def first_line(err: Exception) -> str:

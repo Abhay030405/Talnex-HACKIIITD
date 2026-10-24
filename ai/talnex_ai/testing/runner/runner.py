@@ -105,7 +105,7 @@ def run_plan(
             return None
 
     config = ExecConfig(runner_cfg.max_actions, runner_cfg.max_actions_per_step, runner_cfg.max_seconds,
-                        runner_cfg.snapshot_chars, runner_cfg.seconds_per_step)
+                        runner_cfg.snapshot_chars, runner_cfg.seconds_per_step, runner_cfg.model_free_steps)
     try:
         # A remote browser sometimes can't connect at all (a tunnel error on our side). That says nothing
         # about the site, so the start page is loaded first and, if the browser couldn't connect, a fresh

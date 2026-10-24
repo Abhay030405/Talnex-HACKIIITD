@@ -29,6 +29,7 @@ from talnex_ai.testing.runner.actions import (
     unsafe_reason,
 )
 from talnex_ai.testing.runner.driver import ActionError, PageDriver
+from talnex_ai.testing.runner.simple_steps import parse_simple_step
 
 log = logging.getLogger("talnex.runner")
 
@@ -56,6 +57,7 @@ class ExecConfig:
     max_seconds: int = 240
     snapshot_chars: int = 6000
     seconds_per_step: int = 60  # the run's limit grows with the plan: max(max_seconds, steps x seconds_per_step)
+    model_free_steps: bool = True  # steps that name one clear action are done by plain code, with no model call
 
 
 @dataclass
@@ -67,6 +69,8 @@ class ExecResult:
     vision_used: bool = False
     stop_reason: Optional[str] = None  # set when the outcome is "blocked"
     parts: tuple[str, ...] = ()        # one mark per plan check, when the plan had checks
+    model_free_steps: int = 0          # plan steps done without asking the model
+    model_calls: int = 0               # step decisions asked of the model (the final look is counted by its own module)
 
 
 def trim(text: str, limit: int) -> str:
@@ -109,6 +113,29 @@ def _read_code(kind: str, box: Optional[Any], since: datetime) -> tuple[Optional
     return f"the code is {found.code}", None
 
 
+def _do_directly(simple, step, driver, uploads_root, site_host, cfg, used, record, history, tell) -> Optional[str]:
+    """Do a simple step's actions one after another. Returns None when all were done, or a short reason
+    ("" when nothing was wrong but the model should decide) when the model has to continue instead."""
+    if not simple.actions:
+        record(f"Look: {step.action}", step.expected, None)  # "open the site": the page is already open
+        return None
+    for action in simple.actions:
+        if used["actions"] >= cfg.max_actions or unsafe_reason(action, site_host=site_host, uploads_root=uploads_root):
+            return ""  # the model path stops the run properly with its reason
+        used["actions"] += 1
+        label = describe(action)
+        try:
+            driver.perform(action, uploads_root)
+        except ActionError as err:
+            label = f"{label} (did not work: {err})"
+            record(label, step.expected, str(err))
+            history.append(label)
+            return str(err)
+        record(label, step.expected, None, box=getattr(driver, "last_box", None))
+        history.append(label)
+    return None
+
+
 def execute_plan(
     client: ChatClient,
     driver: PageDriver,
@@ -133,7 +160,7 @@ def execute_plan(
     messages_since = datetime.now(timezone.utc) - CLOCK_SLACK
     records: list[StepRecord] = []
     history: list[str] = []
-    used = {"actions": 0, "vision": False}
+    used = {"actions": 0, "vision": False, "free": 0, "asked": 0}
     test_files = list_test_files(uploads_root)  # only these may be uploaded; the model never invents a file
     scanned_urls: set[str] = set()              # each page is asked for its hidden text once
     seen_text: list[str] = []                   # every page seen so far: addresses in it are ones a visitor could follow
@@ -148,7 +175,10 @@ def execute_plan(
 
     def finish(outcome: Outcome, observed: str, reason: Optional[str] = None) -> ExecResult:
         tell("run.outcome", outcome=outcome, observed=observed, stop_reason=reason, actions=used["actions"])
-        return ExecResult(outcome, observed, records, used["actions"], used["vision"], reason)
+        log.info("test run ended %s: %d actions, %d steps without the model, %d model decisions",
+                 outcome, used["actions"], used["free"], used["asked"])
+        return ExecResult(outcome, observed, records, used["actions"], used["vision"], reason,
+                          model_free_steps=used["free"], model_calls=used["asked"])
 
     def record(action: str, expected: Optional[str], observed: Optional[str], box: Optional[dict] = None) -> None:
         """Save a step record with a screenshot of the page as it is right now."""
@@ -185,6 +215,7 @@ def execute_plan(
         last_error: Optional[str] = None
         send_picture = False
         acted_in_step = False
+        simple = parse_simple_step(step.action) if cfg.model_free_steps else None
 
         while True:
             if clock() - started > time_limit:
@@ -201,6 +232,20 @@ def execute_plan(
                 record("Stopped: a human check appeared", step.expected, "a CAPTCHA or human check is on the page")
                 return finish("blocked", "a human check (CAPTCHA) stopped the test", "a human check appeared")
 
+            if simple is not None:
+                # A step that names one clear action needs no model: do it, with a picture after each action. If the
+                # page does not match, or the action is not allowed, the model takes over from where this stopped.
+                todo, simple = simple, None
+                failed = _do_directly(todo, step, driver, uploads_root, site_host, cfg, used, record, history, tell)
+                if failed is None:
+                    history.append(f"Step {index} done: {history[-1] if todo.actions else step.action}")
+                    tell("step.result", step=index, steps=len(plan.steps), result="done", observed="", model_free=True)
+                    used["free"] += 1
+                    break
+                acted_in_step = acted_in_step or bool(todo.actions)
+                last_error, send_picture = failed or None, bool(failed)
+                continue
+
             images: list[bytes] = []
             if send_picture or len(snapshot.strip()) < SPARSE_SNAPSHOT:
                 try:
@@ -209,6 +254,7 @@ def execute_plan(
                 except Exception as err:
                     log.warning("could not take a screenshot for the model: %s", err)
 
+            used["asked"] += 1
             decision = ask_json(
                 client, "agent", STEP_SYSTEM,
                 step_user(claim=claim_text, step_number=index, step_total=len(plan.steps), action=step.action,
