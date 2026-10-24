@@ -1,0 +1,16 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "account",
+    "events",
+    "projects",
+    "proof",
+    "candidates",
+    "walkthroughs",
+    "live",
+    "sms-gateway",
+    "health",
+    "dev"
+  ]
+}

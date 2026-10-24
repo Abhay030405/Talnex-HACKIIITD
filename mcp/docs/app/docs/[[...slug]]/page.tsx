@@ -2,8 +2,11 @@ import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layo
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import type { ComponentProps } from 'react';
 
+import { OpenAPIPage } from '@/components/api-page';
 import { getMDXComponents } from '@/components/mdx';
+import { openapi } from '@/lib/openapi';
 import { source } from '@/lib/source';
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
@@ -17,7 +20,15 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
-        <MDX components={getMDXComponents({ a: createRelativeLink(source, page) })} />
+        <MDX
+          components={getMDXComponents({
+            a: createRelativeLink(source, page),
+            // API reference pages: the endpoint's docs, code samples and playground
+            OpenAPIPage: async (props: ComponentProps<typeof OpenAPIPage>) => (
+              <OpenAPIPage {...await openapi.preloadOpenAPIPage(page)} {...props} />
+            ),
+          })}
+        />
       </DocsBody>
     </DocsPage>
   );
