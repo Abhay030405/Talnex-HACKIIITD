@@ -119,3 +119,30 @@ def checklists(conn, kind: str, subject_id: str) -> dict[str, list[str]]:
             if texts:
                 out[cid] = texts
     return out
+
+
+AREA_LABELS = {"production": "Production practices", "structure": "Project structure", "hygiene": "Repository hygiene",
+               "commits": "Commit style", "docs": "Docs and setup", "consistency": "Consistency and error handling"}
+
+
+def engineering(conn, kind: str, subject_id: str, repo_url: Optional[str]) -> Optional[dict]:
+    """The repo_quality rows of one project, with a GitHub link on each piece of evidence, or None when not judged."""
+    column = "project_id" if kind == "project" else "candidate_project_id"
+    rows = conn.execute(f"SELECT area, score, summary, evidence FROM repo_quality WHERE {column} = %s::uuid "
+                        "ORDER BY created_at, area", (subject_id,)).fetchall()
+    if not rows:
+        return None
+    base = (repo_url or "").rstrip("/").removesuffix(".git")
+    areas = []
+    for area, score, summary, evidence in rows:
+        items = []
+        for e in evidence or []:
+            if e.get("kind") == "commit" and base:
+                e = {**e, "url": f"{base}/commit/{e.get('sha')}"}
+            elif e.get("kind") == "file" and base:
+                e = {**e, "url": f"{base}/{'tree' if str(e.get('path', '')).endswith('/') else 'blob'}/HEAD/{e.get('path')}"}
+            items.append(e)
+        areas.append({"area": area, "label": AREA_LABELS.get(area, area), "score": _num(score), "summary": summary,
+                      "evidence": items})
+    scored = [a["score"] for a in areas if a["score"] is not None]
+    return {"areas": areas, "overall": round(sum(scored) / len(scored), 1) if scored else None}

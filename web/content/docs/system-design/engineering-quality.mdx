@@ -1,0 +1,40 @@
+---
+title: Engineering quality
+description: How the repo_quality stage judges a submitted repository as engineering work, beside the feature scores.
+---
+
+The `repo_quality` stage runs once per project (resume project or hackathon team), after `github_check`. It reads the
+repository through GitHub's official API — the file tree, a few key files and the recent commits, within the
+`REPO_QUALITY_*` limits — and judges how the project is **built**, not whether its features work. The report and the
+card wait for it.
+
+## The areas
+
+| Area | What is checked | How |
+|---|---|---|
+| Production practices | Tests and their share of the code, CI and whether it runs the tests, lint/format config, type checking, deploy or container config, env handling (`.env.example`; a committed `.env` or secret-looking value is called out), lockfiles | Plain code |
+| Project structure | A layout that fits the stack, very large files, generated or dependency files committed | Plain code |
+| Repository hygiene | README with setup, run and config steps, a licence, `.gitignore`, branches beyond the default | Plain code |
+| Commit style | Share of low-information messages (`fix`, `update`, `wip`), conventional commits, work spread over days vs one burst | Plain code |
+| Docs and setup | An API spec for a backend; whether the README's setup worked in a fresh VM (from the sandbox run) | Plain code |
+| Consistency and error handling | Naming, formatting and patterns across a few sampled source files; whether errors are handled and logged | One model call, low temperature, the files wrapped as untrusted data |
+
+Each area gets a score out of 10, a one-line summary and 2–4 pieces of evidence. **Every piece of evidence must point at
+a real file, folder or commit** in what was read; anything else is dropped, so nothing is invented. The report links each
+one to GitHub.
+
+## Judged for the level
+
+The role or event level decides what is expected. A **fresher** is never marked down for missing enterprise practices
+(CI, type checking, containers, lint): having them only adds credit. A **senior** is held to all of them, and the
+consistency judgement asks for production-ready patterns.
+
+## Where it shows
+
+- An **Engineering quality** section on each project in the candidate report and on the hackathon proof card, with a bar
+  per area and the evidence.
+- A role criterion named **Engineering** weighs the average engineering score in the role's weighted score.
+- Ask TalNex reads it from the saved report.
+
+It never changes a feature score. A repository GitHub will not show (private, rate-limited, missing) is skipped with the
+reason; set `GITHUB_TOKEN` for a higher rate limit.

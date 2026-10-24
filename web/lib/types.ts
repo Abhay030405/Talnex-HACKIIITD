@@ -303,6 +303,20 @@ export interface ReportProject {
   features: ReportFeature[];
   flags: ReportFlag[];
   originality: ProjectOriginality | null;
+  /** The repository judged as engineering work (stage repo_quality). Missing when it was not judged. */
+  engineering?: Engineering | null;
+}
+
+/** One project's engineering quality: per area a score out of 10, a summary and evidence that links to GitHub. */
+export interface Engineering {
+  overall: number | null;
+  areas: {
+    area: string;
+    label: string;
+    score: number | null;
+    summary: string;
+    evidence: { kind: "file" | "commit"; path?: string; sha?: string; message?: string; note: string; url?: string }[];
+  }[];
 }
 
 export interface CodingSignal {
@@ -423,6 +437,7 @@ export interface HackathonCard {
   features: ReportFeature[];
   flags: ReportFlag[];
   checks: CardCheck[];
+  engineering?: Engineering | null;
   run?: RunUsage | null;
   ai_opinion: AiOpinion | null;
   who_built_what?: WhoBuiltWhatRow[] | null;

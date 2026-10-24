@@ -209,6 +209,16 @@ class WalkthroughSettings:
 
 
 @dataclass(frozen=True)
+class RepoQualitySettings:
+    """The repo_quality stage: how much of a repository is read to judge it as engineering work."""
+
+    max_files: int = 25             # files read in full (key config files first, then the largest source files)
+    max_bytes: int = 200_000        # total bytes read across those files
+    max_commits: int = 100          # recent commits read for commit style
+    sample_files: int = 6           # source files shown to the model for consistency and error handling
+
+
+@dataclass(frozen=True)
 class LeetCodeReplaySettings:
     """The LeetCode Code Replay paste check (architecture section 18): which contests, and when a paste is suspicious."""
 
@@ -241,6 +251,7 @@ class Settings:
     authorship: AuthorshipSettings = field(default_factory=AuthorshipSettings)
     walkthrough: WalkthroughSettings = field(default_factory=WalkthroughSettings)
     leetcode_replay: LeetCodeReplaySettings = field(default_factory=LeetCodeReplaySettings)
+    repo_quality: RepoQualitySettings = field(default_factory=RepoQualitySettings)
     # The candidate report waits this long for the coding profile checks before it is built without them
     report_coding_wait_seconds: int = 480
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
@@ -462,6 +473,12 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         whisper_device=env.one_of("WHISPER_DEVICE", "cpu", ("cpu", "cuda")),
         whisper_compute_type=env.optional("WHISPER_COMPUTE_TYPE", "int8"),
     )
+    repo_quality = RepoQualitySettings(
+        max_files=env.whole("REPO_QUALITY_MAX_FILES", 25),
+        max_bytes=env.whole("REPO_QUALITY_MAX_BYTES", 200_000),
+        max_commits=env.whole("REPO_QUALITY_MAX_COMMITS", 100),
+        sample_files=env.whole("REPO_QUALITY_SAMPLE_FILES", 6),
+    )
     leetcode_replay = LeetCodeReplaySettings(
         contests=env.whole("LEETCODE_REPLAY_CONTESTS", 5),
         rating_jump=env.whole("LEETCODE_REPLAY_RATING_JUMP", 100),
@@ -480,7 +497,7 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
-                    walkthrough=walkthrough, leetcode_replay=leetcode_replay,
+                    walkthrough=walkthrough, leetcode_replay=leetcode_replay, repo_quality=repo_quality,
                     report_coding_wait_seconds=env.whole("REPORT_CODING_WAIT_SECONDS", 480), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
                     github_api_base_url=env.url("GITHUB_API_BASE_URL", required=False) or "https://api.github.com",
                     github_token=env.optional("GITHUB_TOKEN"),

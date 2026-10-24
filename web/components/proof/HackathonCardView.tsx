@@ -1,6 +1,7 @@
 import { weightedFromGroups } from "@/lib/role-score";
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
+import { EngineeringQuality } from "@/components/proof/EngineeringQuality";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { WhoBuiltWhat } from "@/components/proof/WhoBuiltWhat";
 import { ProjectScore } from "@/components/scores/ProjectScore";
@@ -158,6 +159,8 @@ export function HackathonCardView({
           {card.features.length > 0 && <WalkthroughBox subject="project" subjectId={card.project_id} />}
         </div>
       </section>
+
+      <EngineeringQuality engineering={card.engineering} />
 
       <WhoBuiltWhat rows={card.who_built_what} />
 

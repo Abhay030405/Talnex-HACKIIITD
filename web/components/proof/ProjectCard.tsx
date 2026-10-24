@@ -1,6 +1,7 @@
 import { RerunButton } from "@/components/proof/RerunButton";
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
+import { EngineeringQuality } from "@/components/proof/EngineeringQuality";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { ProjectScore } from "@/components/scores/ProjectScore";
 import { BADGE_CLASS, formatDate } from "@/lib/format";
@@ -82,6 +83,8 @@ export function ProjectCard({ project, candidateId }: { project: ReportProject; 
             </div>
           </details>
         )}
+
+        <EngineeringQuality engineering={project.engineering} />
 
         {originality && (
           <dl className="definition">
