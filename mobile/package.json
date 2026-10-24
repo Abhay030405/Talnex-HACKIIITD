@@ -1,0 +1,43 @@
+{
+  "name": "talnex-sms-relay",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "mock-gateway": "node scripts/mock-gateway.js",
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@maniac-tech/react-native-expo-read-sms": "^9.1.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~57.0.31",
+    "expo-build-properties": "~57.0.22",
+    "expo-dev-client": "~57.0.20",
+    "expo-network": "~57.0.3",
+    "expo-secure-store": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
+    "react": "19.2.3",
+    "react-native": "0.86.3"
+  },
+  "devDependencies": {
+    "@types/jest": "29.5.14",
+    "@types/node": "^24.19.2",
+    "@types/react": "~19.2.2",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.6",
+    "typescript": "~6.0.3"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "@maniac-tech/react-native-expo-read-sms"
+        ]
+      }
+    }
+  }
+}

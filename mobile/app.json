@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "TalNex SMS Relay",
+    "slug": "talnex-sms-relay",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0f1115",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.talnex.smsrelay"
+    },
+    "android": {
+      "package": "com.talnex.smsrelay",
+      "permissions": [
+        "android.permission.RECEIVE_SMS",
+        "android.permission.READ_SMS"
+      ],
+      "blockedPermissions": [
+        "android.permission.SEND_SMS",
+        "android.permission.READ_CONTACTS"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1115",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-dev-client",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ]
+  }
+}
