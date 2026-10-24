@@ -27,6 +27,7 @@ Actions (the "type" field picks one). Find elements the way a person would, from
 - {{"type": "scroll", "direction": "down"}}
 - {{"type": "read_email"}}  (only after the site says it sent a verification email: waits for it and gives you its code or link, which you then type or open)
 - {{"type": "read_sms"}}  (only after the site says it sent a text message: waits for it and gives you its code, which you then type)
+- {{"type": "fresh_start"}}  (clears this browser's cookies and saved data and reloads the page, like a brand-new visitor: use it when a step needs you signed out or on a first visit)
 TARGET is {{"kind": "role", "role": "button", "name": "Sign in"}} or {{"kind": "label", "name": "Email"}} or {{"kind": "placeholder", "name": "Search"}} or {{"kind": "text", "name": "visible words"}}. "kind" must be exactly one of role, label, placeholder or text (for a text box use placeholder or label, or role "textbox"). Use the exact name shown in the snapshot.
 
 Rules:
