@@ -853,6 +853,11 @@ a.meta:hover {
   gap: var(--space-4);
 }
 
+/* Fields that hold whole web addresses: wider, so a link can be read in full before it is checked. */
+.form-grid--wide {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+}
+
 .form-success {
   padding: var(--space-3) var(--space-4);
   border: var(--line) solid var(--color-success);
