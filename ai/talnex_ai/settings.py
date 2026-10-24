@@ -180,8 +180,7 @@ class CopySettings:
 class AuthorshipSettings:
     """Authorship proof: how much code is read to find a feature, and the flag thresholds (starting values)."""
 
-    locate_max_files: int = 40        # code files read to find where the claims live
-    max_repo_files: int = 3000        # more code files than this: "could not trace: repo too large"
+    locate_max_files: int = 40        # code files read to find where the claims live, however big the repo
     max_claims: int = 25              # the most claims traced in one project
     max_files_per_claim: int = 6      # the most files in one claim's code map
     min_confidence: float = 0.6       # a code map less sure than this: "could not trace: code not found"
@@ -403,7 +402,6 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
     )
     authorship = AuthorshipSettings(
         locate_max_files=env.whole("AUTHORSHIP_LOCATE_MAX_FILES", 40),
-        max_repo_files=env.whole("AUTHORSHIP_MAX_REPO_FILES", 3000),
         max_claims=env.whole("AUTHORSHIP_MAX_CLAIMS", 25),
         max_files_per_claim=env.whole("AUTHORSHIP_MAX_FILES_PER_CLAIM", 6),
         min_confidence=env.decimal("AUTHORSHIP_MIN_CONFIDENCE", 0.6, 0.0, 1.0),

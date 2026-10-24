@@ -61,7 +61,7 @@ def code_locate(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     resources = run.resources if run is not None else {}
     maps = locate(
         claims, files=facts.get("files") or [], read=read, model=sv.model,
-        locate_max_files=cfg.locate_max_files, max_repo_files=cfg.max_repo_files, max_claims=cfg.max_claims,
+        locate_max_files=cfg.locate_max_files, max_claims=cfg.max_claims,
         max_files_per_claim=cfg.max_files_per_claim, min_confidence=cfg.min_confidence,
         discovery=resources.get("discovery") or {}, app_dir=resources.get("app_dir") or "",
         files_truncated=bool(facts.get("files_truncated")), job_id=job.id, check=ctx.check,

@@ -198,7 +198,6 @@ def locate(
     read: Callable[[list[str]], Mapping[str, str]],
     model: Optional[ChatClient],
     locate_max_files: int,
-    max_repo_files: int,
     max_claims: int,
     max_files_per_claim: int,
     min_confidence: float,
@@ -208,11 +207,13 @@ def locate(
     job_id: Optional[str] = None,
     check: Callable[[], None] = lambda: None,
 ) -> list[CodeMap]:
-    """One code map per claim (with an id). `read` turns repo paths into their text; a file it cannot read is simply missing."""
+    """One code map per claim (with an id). `read` turns repo paths into their text; a file it cannot read is simply missing.
+
+    A big repo is traced like a small one: only the `locate_max_files` files whose paths best match the claims are read."""
     claims = [c for c in claims if c.id]
     code = code_files(files)
-    if files_truncated or len(code) > max_repo_files:
-        why = f"{TOO_LARGE} (more than {max_repo_files} code files, the limit)"
+    if files_truncated:
+        why = f"{TOO_LARGE} (GitHub cut the file list short)"
         return [CodeMap(c.id or "", not_traced_reason=why) for c in claims]
     if not code:
         return [CodeMap(c.id or "", not_traced_reason=f"{NOT_FOUND} (the repository has no code files)") for c in claims]

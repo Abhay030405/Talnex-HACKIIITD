@@ -62,7 +62,7 @@ class TestSymbols:
 class TestLocate:
     def run(self, claims, texts, model=None, **kw):
         args = dict(files=list(texts), read=lambda paths: {p: texts[p] for p in paths if p in texts}, model=model,
-                    locate_max_files=10, max_repo_files=100, max_claims=10, max_files_per_claim=4, min_confidence=0.6)
+                    locate_max_files=10, max_claims=10, max_files_per_claim=4, min_confidence=0.6)
         return locate.locate(claims, **{**args, **kw})
 
     def test_structure_finds_the_cart_function(self):
@@ -91,9 +91,17 @@ class TestLocate:
         assert locate.code_files(["node_modules/x/index.js", "src/app.js", "tests/app.test.js", "dist/a.js", "package-lock.json",
                                   "src/__tests__/a.js", "web/vendor/b.js"]) == ["src/app.js"]
 
-    def test_too_large_a_repo_says_which_limit(self):
-        (m,) = self.run([claim("Add items to a cart")], {"a.py": "x", "b.py": "y"}, max_repo_files=1)
-        assert "repo too large" in m.not_traced_reason and "limit" in m.not_traced_reason
+    def test_a_big_repo_is_traced_by_reading_only_the_matching_files(self):
+        texts = {f"pkg/gen/result_{i}.py": "x = 1\n" for i in range(5000)} | {"src/cart.py": CART_PY}
+        read = []
+        (m,) = self.run([claim("Add items to a shopping cart")], texts,
+                        read=lambda paths: read.extend(paths) or {p: texts[p] for p in paths})
+        assert not m.not_traced_reason and m.files[0]["path"] == "src/cart.py"
+        assert len(read) <= 10 and read[0] == "src/cart.py"
+
+    def test_a_file_list_github_cut_short_says_so(self):
+        (m,) = self.run([claim("Add items to a cart")], {"cart.py": CART_PY}, files_truncated=True)
+        assert "repo too large" in m.not_traced_reason and "cut the file list short" in m.not_traced_reason
 
 
 # ------------------------------------------------------------------ A3: the share maths
