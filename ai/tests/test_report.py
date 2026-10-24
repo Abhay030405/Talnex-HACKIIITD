@@ -121,7 +121,7 @@ class TestBuilder:
         assert b["originality"]["repo_found"] is False and b["originality"]["notes"]
         assert r["flags"][0]["type"] == "hidden_ai_instructions"
         assert r["coding_signals"] == [{"site": "leetcode", "signal": "leetcode_profile", "weight": "not_suspicious",
-                                        "contest": None, "evidence": {"a": 1}}]
+                                        "contest": None, "problem": None, "evidence": {"a": 1}}]
         assert any("could not be tested" in n and "not counted against" in n for n in r["notes"])
         assert "overall" not in json.dumps(r).lower().replace("overall score", "")  # no overall score field
 

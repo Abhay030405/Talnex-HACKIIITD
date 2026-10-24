@@ -121,9 +121,9 @@ func RunStages(ctx context.Context, pool *pgxpool.Pool, pipeline, targetType, ta
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO jobs (job_type, runner, target_type, target_id, input, pipeline, run_number, time_limit_seconds,
 			                  status, result, dedupe_key)
-			VALUES ($1, $2, $3, $4::uuid, '{}', $5, $6, $7, 'done', $8::jsonb || jsonb_build_object('reused_from_run', $9::int),
-			        $5 || ':' || $1 || ':' || $3 || ':' || $4 || ':' || $6::text)`,
-			s.name, s.runner, targetType, targetID, pipeline, newRun, s.limit, saved[s.name], last); err != nil {
+			VALUES ($1, $2, $3, $4::uuid, '{}', $5, $6, $7, 'done', $8::jsonb || jsonb_build_object('reused_from_run', $9::int), $10)`,
+			s.name, s.runner, targetType, targetID, pipeline, newRun, s.limit, string(saved[s.name]), last,
+			fmt.Sprintf("%s:%s:%s:%s:%d", pipeline, s.name, targetType, targetID, newRun)); err != nil {
 			return 0, nil, fmt.Errorf("reuse %s: %w", s.name, err)
 		}
 	}
