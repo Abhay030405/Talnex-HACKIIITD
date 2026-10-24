@@ -1,4 +1,4 @@
 {
   "title": "System design",
-  "pages": ["index", "job-queue", "live-test-engine", "recruiter-flow", "ask-talnex", "coding-signals", "scaling-and-failure"]
+  "pages": ["index", "job-queue", "live-test-engine", "recruiter-flow", "ask-talnex", "coding-signals", "engineering-quality", "scaling-and-failure"]
 }

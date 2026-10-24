@@ -17,7 +17,7 @@ from talnex_ai.checks.authorship import report as authorship_report
 from talnex_ai.checks.authorship.identity import identity_of
 from talnex_ai.claims.store import Subject
 from talnex_ai.reports.sandbox import sandbox_facts
-from talnex_ai.reports.proof import features
+from talnex_ai.reports.proof import engineering, features
 from talnex_ai.reports.run_cost import run_usage
 
 CARD_VERSION = 1
@@ -141,6 +141,7 @@ def build_project_card(pool: ConnectionPool, project_id: str) -> dict:
         criteria = [{"name": n, "description": d or "", "weight": float(w)} for n, d, w in conn.execute(
             "SELECT name, description, weight FROM criteria WHERE event_id = %s::uuid ORDER BY weight DESC, name", (event_id,))]
         feats = features(conn, "project", project_id)
+        engineering_card = engineering(conn, "project", project_id, repo)
         authorship_report.attach(conn, "project", project_id, feats)
         groups = _groups(conn, project_id, criteria)
         talnex_row = conn.execute("SELECT score, coverage, confidence FROM scores WHERE project_id = %s::uuid AND score_group = %s",
@@ -180,6 +181,7 @@ def build_project_card(pool: ConnectionPool, project_id: str) -> dict:
                    "features_total": len(testable), "low_coverage": coverage < LOW_COVERAGE_PERCENT},
         "weighted_total": weighted, "groups": groups, "features": feats, "flags": flags, "checks": checks,
         "sandbox": sandbox,
+        "engineering": engineering_card,
         "who_built_what": authorship_report.who_built_what(
             feats, list(identity_of(pool, Subject("project", project_id)).accounts)),
         "ai_opinion": opinion,  # labelled "AI opinion — not tested proof"; None until the event-level opinion stage runs
