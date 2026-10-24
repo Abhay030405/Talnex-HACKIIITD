@@ -2,6 +2,7 @@ import {
   createAndroidListener,
   createSmsListener,
   createUnsupportedListener,
+  inboxRowsToSms,
   NO_PERMISSION,
   UNSUPPORTED_NOTICE,
   type AndroidListenerDeps,
@@ -87,5 +88,41 @@ describe('createAndroidListener', () => {
     l.stop();
     expect(f.native.stopReadSMS).toHaveBeenCalledTimes(1);
     expect(f.removed).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('reading the inbox', () => {
+  const row = (from: string, body: string, date: number) => ({ id: String(date), from, body, date });
+
+  it('turns rows into texts with the inbox time, skipping broken rows', () => {
+    const texts = inboxRowsToSms([
+      row(' AX-BANK ', 'code 1', 1000),
+      row('', 'no sender', 2000),
+      row('X', '', 3000),
+      row('X', 'no time', NaN),
+      row('X', 'zero time', 0),
+    ]);
+    expect(texts).toEqual([{ from: 'AX-BANK', body: 'code 1', receivedAt: new Date(1000) }]);
+  });
+
+  it('reads through the native module when permitted', async () => {
+    const f = fakeAndroid();
+    const readInbox = jest.fn(async () => [row('AX', 'code 2', 5000)]);
+    const l = createAndroidListener({ ...f.deps, readInbox });
+    expect(await l.readInboxSince(4000)).toEqual([{ from: 'AX', body: 'code 2', receivedAt: new Date(5000) }]);
+    expect(readInbox).toHaveBeenCalledWith(4000, 100);
+  });
+
+  it('reads nothing without permission, without the module, or on an error', async () => {
+    const denied = fakeAndroid('ok', false);
+    const readInbox = jest.fn(async () => [row('AX', 'x', 1)]);
+    expect(await createAndroidListener({ ...denied.deps, readInbox }).readInboxSince(0)).toEqual([]);
+    expect(readInbox).not.toHaveBeenCalled();
+    expect(await createAndroidListener(fakeAndroid().deps).readInboxSince(0)).toEqual([]);
+    const failing = jest.fn(async () => {
+      throw new Error('provider gone');
+    });
+    expect(await createAndroidListener({ ...fakeAndroid().deps, readInbox: failing }).readInboxSince(0)).toEqual([]);
+    expect(await createUnsupportedListener().readInboxSince(0)).toEqual([]);
   });
 });
