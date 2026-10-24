@@ -1,6 +1,8 @@
 // Calls the Go API from the website's server. The browser never talks to the API directly, so no key or token
-// ever reaches it. The signed-in wrapper, apiFetch, is added with sign-in (lib/session.ts uses it).
+// ever reaches it.
 import "server-only";
+
+import { redirect } from "next/navigation";
 
 import { env } from "@/lib/env";
 import { signApiToken } from "@/lib/token";
@@ -88,6 +90,24 @@ export async function callApi<T>(
   }
   if (!response.ok) throw new ApiError(errorMessage(data, response.status), response.status);
   return data as T;
+}
+
+/**
+ * A call for whoever is signed in. A signed-out person, or one the API no longer accepts, is sent to sign in.
+ * Other failures throw ApiError for the page to show.
+ */
+export async function apiFetch<T>(path: string, request: ApiRequest = {}): Promise<T> {
+  // Loaded here, not at the top: sign-in itself uses this file, and a top-level import would make a loop.
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.email) redirect("/login");
+  try {
+    return await callApi<T>({ email: user.email, name: user.name, role: user.role }, path, request);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) redirect(user.role ? `/login/${user.role}` : "/login");
+    throw e;
+  }
 }
 
 function errorMessage(data: unknown, status: number): string {

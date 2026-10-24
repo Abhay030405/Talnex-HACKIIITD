@@ -1,7 +1,16 @@
 import Link from "next/link";
 
-/** The top bar on public pages. The signed-in frame has its own navigation. */
-export function Nav() {
+import { auth, signOut } from "@/auth";
+
+/** The top bar on public pages. The signed-in workspace has its own navigation. */
+export async function Nav() {
+  const signedIn = Boolean((await auth())?.user);
+
+  async function leave() {
+    "use server";
+    await signOut({ redirectTo: "/" });
+  }
+
   return (
     <header className="nav">
       <div className="container nav__inner">
@@ -12,9 +21,17 @@ export function Nav() {
           TalNex
         </Link>
         <nav className="nav__links" aria-label="Main">
-          <Link className="button button--primary" href="/login">
-            Sign in
-          </Link>
+          {signedIn ? (
+            <form action={leave}>
+              <button type="submit" className="button button--ghost">
+                Sign out
+              </button>
+            </form>
+          ) : (
+            <Link className="button button--primary" href="/login">
+              Sign in
+            </Link>
+          )}
         </nav>
       </div>
     </header>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ArrowIcon, BriefcaseIcon, ShieldIcon, TrophyIcon } from "@/components/ui/Icons";
+import { redirectIfSignedIn } from "@/lib/session";
 
 const DOORS = [
   {
@@ -39,7 +40,9 @@ const PROMISES = [
   { title: "Humans decide", text: "No winner picking and no ranking. TalNex gives you the evidence." },
 ];
 
-export default function Home() {
+export default async function Home() {
+  await redirectIfSignedIn();
+
   return (
     <>
       <section className="hero">
