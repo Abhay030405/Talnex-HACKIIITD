@@ -98,3 +98,24 @@ def test_only_real_test_files_can_be_uploaded_never_a_readme(tmp_path):
     for name in ("README.md", "readme.txt", "dog.jpg", "test_resume.pdf", "notes.md", "script.py"):
         (folder / name).write_bytes(b"x")
     assert list_test_files(tmp_path) == ["known_answers/dog.jpg", "known_answers/test_resume.pdf"]
+
+
+# ------------------------------------------------------------------ planner wording from the demo run
+
+
+def test_a_readme_claim_that_repeats_a_bullet_in_other_words_is_dropped():
+    # CaptionIt's caption claim came in twice, once from the resume and once from its README.
+    from talnex_ai.claims.resume_claims import repeats
+    assert repeats("Upload a photo and CaptionIt writes a caption describing it.",
+                   "Upload a photo and the app writes a caption describing it.")
+    assert not repeats("Add a todo to the list", "Delete a todo from the list")
+    assert not repeats("Search your notes as you type", "Pin a note so it moves to the top")
+
+
+def test_sign_up_claims_start_fresh_and_retries_keep_to_real_test_files():
+    from talnex_ai.formats import Claim
+    from talnex_ai.llm.prompts.test_planner import SYSTEM, build_user
+    assert "signing up, signing in or creating an account" in SYSTEM
+    claim = Claim(text="Upload a photo and get a caption", claim_group="Core", importance=2, source="resume")
+    retry = build_user(claim, ["normal"], site_url="https://x.test", avoid=["upload a photo of a plate of food"])
+    assert "no other file exists" in retry

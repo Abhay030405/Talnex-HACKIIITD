@@ -27,7 +27,7 @@ Each plan has:
 - "steps": between 1 and 10 steps. Each step has "action" (what to do, in plain words, like telling a person) and "expected" (what should be visible afterwards, something a person could check on screen).
 - "expected_result": one sentence saying what the finished test should show if the claim is true.
 - "checks" (only for "normal" and "access" plans): the claim split into the 1 to 4 separate things it promises, each {{"text": "what must be visible if this part is true", "quote": "the exact words of the claim this part proves, copied from the claim", "promise": true or false}}. Every promise in the claim gets a check, and nothing that is not in the claim does. "promise" is true for what the claim says the visitor GETS (a caption appears, the count updates, the note stays after a reload) and false for a step on the way to it (open the page, choose a photo, type in the box). At least one check is a promise. A claim that something is THERE gets a check that it is there, and that check is the promise.
-- When a claim is about what a signed-out or first-time visitor sees, add a step "start fresh as a new visitor" before checking it.
+- When a claim is about what a signed-out or first-time visitor sees, or about signing up, signing in or creating an account, add a step "start fresh as a new visitor" before checking it: the browser may still be signed in from an earlier test.
 
 Rules:
 - The first step is always to open the site and, where needed, sign in using the way in you are given.
@@ -66,7 +66,7 @@ def build_user(
     if avoid:
         parts.append("A previous plan for this claim did not work out. Write the same kind of test a DIFFERENT way: a "
                      "different route to the feature, different wording or a different example input, but still testing "
-                     "the same claim. The previous steps were:\n" + "\n".join(f"- {s}" for s in avoid))
+                     "the same claim. A file to upload stays one of our test files (the dog photo or the test resume): no other file exists. The previous steps were:\n" + "\n".join(f"- {s}" for s in avoid))
     if site_notes:
         parts.append("Notes about the site:\n" + wrap_untrusted(site_notes, "site_notes"))
     return "\n\n".join(parts)
