@@ -27,14 +27,14 @@ func TestParseProfile(t *testing.T) {
 	}
 
 	bad := []struct{ site, input string }{
-		{"leetcode", "https://leetcode.com/problems/two-sum"},   // a problem page, not a person
-		{"leetcode", "https://leetcode.com/"},                   // no handle
-		{"leetcode", "https://example.com/u/asha"},              // another website
-		{"codeforces", "https://leetcode.com/u/asha"},           // the wrong site
-		{"codechef", "https://www.codechef.com/problems/ABC"},   // not a profile
-		{"codechef", "a"},                                       // too short
-		{"codeforces", "has space"},                             // not a handle
-		{"hackerrank", "asha"},                                  // not a site we read
+		{"leetcode", "https://leetcode.com/problems/two-sum"}, // a problem page, not a person
+		{"leetcode", "https://leetcode.com/"},                 // no handle
+		{"leetcode", "https://example.com/u/asha"},            // another website
+		{"codeforces", "https://leetcode.com/u/asha"},         // the wrong site
+		{"codechef", "https://www.codechef.com/problems/ABC"}, // not a profile
+		{"codechef", "a"},           // too short
+		{"codeforces", "has space"}, // not a handle
+		{"hackerrank", "asha"},      // not a site we read
 	}
 	for _, c := range bad {
 		_, _, err := candidates.ParseProfile(c.site, c.input)

@@ -200,8 +200,8 @@ func (c Confirmation) check() (confirmed, error) {
 // Found returns what was read from the resume. The caller has already checked the owner.
 func (s *Store) Found(ctx context.Context, candidateID string) (Found, error) {
 	var (
-		f                Found
-		handles, links   []byte
+		f              Found
+		handles, links []byte
 	)
 	err := s.pool.QueryRow(ctx, `
 		SELECT status, coalesce(status_detail, ''), role_level, coding_handles, coding_links
