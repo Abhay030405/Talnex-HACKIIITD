@@ -27,4 +27,6 @@ Judge only what you can see. Never assume something worked. When unsure between 
 def user(claim: str, expected_result: str, count: int) -> str:
     return (f"Feature being checked: {claim}\n"
             f"What should be visible if it works: {expected_result}\n"
-            f"You are shown {count} screenshot{'s' if count != 1 else ''}, oldest first, the last one being the final state.")
+            f"You are shown {count} screenshot{'s' if count != 1 else ''}, oldest first: one for each step of the test, "
+            "the last one being the final state. When the result has several parts, a part shown in an earlier "
+            "screenshot counts.")

@@ -26,7 +26,7 @@ from talnex_ai.safety.site_rules import LimitReached, RunLimits
 from talnex_ai.scoring.flags.store import add_flag
 from talnex_ai.scoring.store import save_result
 from talnex_ai.testing.planner.planner import plan_claim
-from talnex_ai.testing.proof_check import check_proof
+from talnex_ai.testing.proof_check import check_proof, screens_for_check
 from talnex_ai.testing.retries import LadderDeps, judge_claim, to_result
 from talnex_ai.testing.runner.runner import run_plan
 from talnex_ai.worker.registry import JobContext, stage
@@ -114,9 +114,10 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
             return fresh[0]
 
         def check(record, p: TestPlan):
-            ev.emit("check.started", images=min(4, sum(1 for s in record.steps if s.proof_key)))
+            screens = screens_for_check(record.steps)
+            ev.emit("check.started", images=len(screens))
             found = check_proof(sv.model, sv.files, claim_text=claim.text, expected_result=p.expected_result,
-                                proof_keys=[s.proof_key for s in record.steps], job_id=job_id)
+                                proof_keys=screens, job_id=job_id)
             ev.emit("check", outcome=found.outcome, seen=found.seen, images=found.images_used)
             return found
 
