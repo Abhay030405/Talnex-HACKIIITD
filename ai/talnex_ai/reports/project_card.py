@@ -17,6 +17,7 @@ from talnex_ai.checks.authorship import report as authorship_report
 from talnex_ai.checks.authorship.identity import identity_of
 from talnex_ai.claims.store import Subject
 from talnex_ai.reports.proof import features
+from talnex_ai.reports.run_cost import run_usage
 
 CARD_VERSION = 1
 LOW_COVERAGE_PERCENT = 50.0
@@ -165,6 +166,7 @@ def build_project_card(pool: ConnectionPool, project_id: str) -> dict:
         checks = _checks(conn, project_id)
         sandbox = _sandbox(conn, project_id)
         opinion = _opinion(conn, project_id, live)
+        run = run_usage(conn, [("project", project_id)])
 
     testable = [f for f in feats if f["testable"]]
     scored = [f for f in testable if f["score10"] is not None]
@@ -194,6 +196,7 @@ def build_project_card(pool: ConnectionPool, project_id: str) -> dict:
         "who_built_what": authorship_report.who_built_what(
             feats, list(identity_of(pool, Subject("project", project_id)).accounts)),
         "ai_opinion": opinion,  # labelled "AI opinion — not tested proof"; None until the event-level opinion stage runs
+        "run": run,  # how long this check took and what it cost (model and browser apart); None if it never ran
         "has_gaps": bool(untested or any(c["status"] == "failed" for c in checks)),
         "notes": _notes(len(untested), len(from_code), live, repo),
     }
