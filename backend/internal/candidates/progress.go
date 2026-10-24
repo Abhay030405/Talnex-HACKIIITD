@@ -32,7 +32,7 @@ type Progress struct {
 }
 
 // The order stages are shown in. A stage with no job yet is left out.
-var candidateStageOrder = []string{"resume_read", "codeforces", "codechef", "leetcode", "candidate_report", "resume_cleanup"}
+var candidateStageOrder = []string{"resume_read", "codeforces", "codechef", "leetcode", "leetcode_replay", "candidate_report", "resume_cleanup"}
 var candidatePipelines = []string{"recruiter_candidate", "recruiter_coding", "recruiter_report"}
 var projectStageOrder = []string{"precheck", "claims", "github_check", "test_plan", "live_test", "proof_check",
 	"feature_score", "originality", "project_summary"}
@@ -105,7 +105,7 @@ func (s *Store) Progress(ctx context.Context, candidateID string) (Progress, err
 	var p Progress
 	err := s.pool.QueryRow(ctx, `
 		SELECT status, coalesce(status_detail, ''),
-		       EXISTS (SELECT 1 FROM candidate_reports WHERE candidate_id = $1::uuid)
+		       EXISTS (SELECT 1 FROM candidate_reports WHERE candidate_id = $1::uuid AND coalesce(report->>'partial', '') <> 'true')
 		  FROM candidates WHERE id = $1::uuid`, candidateID).Scan(&p.Status, &p.StatusDetail, &p.ReportReady)
 	if err != nil {
 		return Progress{}, fmt.Errorf("read candidate status: %w", err)

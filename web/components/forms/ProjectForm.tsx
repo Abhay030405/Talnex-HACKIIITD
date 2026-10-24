@@ -35,7 +35,7 @@ export function ProjectForm({ eventId }: { eventId: string }) {
       </Field>
 
       <div className="form-grid">
-        <Field label="Demo video" htmlFor="video_url" hint="Where the claims come from in an open-theme event.">
+        <Field label="Demo video" htmlFor="video_url" hint="Optional. Saved with the team so judges can watch it.">
           <input className="input" id="video_url" name="video_url" type="url" placeholder="https://youtu.be/…" />
         </Field>
         <Field label="Live site" htmlFor="live_url" hint="The link TalNex uses like a real person.">

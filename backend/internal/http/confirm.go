@@ -33,7 +33,7 @@ func (s *server) confirmCandidate(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	projectIDs, err := s.candidates.Confirm(r.Context(), id, in)
+	run, projectIDs, err := pipeline.StartChecks(r.Context(), s.candidates, s.queue, id, in)
 	var bad candidates.ErrBadInput
 	switch {
 	case errors.As(err, &bad):
@@ -44,25 +44,6 @@ func (s *server) confirmCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	case err != nil:
 		s.fail(w, "confirm candidate", err)
-		return
-	}
-	run, err := s.candidates.ReadRun(r.Context(), id)
-	if err != nil {
-		s.fail(w, "find run", err)
-		return
-	}
-	if _, err := s.queue.StartPipeline(r.Context(), pipeline.RecruiterCoding, "candidate", id, run); err != nil {
-		s.fail(w, "start coding checks", err)
-		return
-	}
-	for _, projectID := range projectIDs {
-		if _, err := s.queue.StartPipeline(r.Context(), pipeline.Recruiter, "candidate_project", projectID, run); err != nil {
-			s.fail(w, "start project check", err)
-			return
-		}
-	}
-	if err := s.candidates.MarkStarted(r.Context(), id); err != nil {
-		s.fail(w, "mark started", err)
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]any{"candidate_id": id, "run": run, "projects": len(projectIDs)})

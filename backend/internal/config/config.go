@@ -34,6 +34,7 @@ type API struct {
 	// SMSGatewayKey is optional: empty switches phone sign-up off.
 	SMSGatewayKey string
 	Walkthrough   Walkthrough
+	Tour          Tour
 }
 
 type Worker struct {
@@ -62,6 +63,11 @@ type GitHubHistory struct {
 type Walkthrough struct {
 	AudioMaxBytes   int
 	QuestionsPerDay int
+}
+
+// Tour limits the guided tours (architecture section 32). PerDay 0 means no daily limit.
+type Tour struct {
+	PerDay int
 }
 
 type Codeforces struct {
@@ -170,6 +176,7 @@ func LoadAPI() (*Config, error) {
 			AudioMaxBytes:   r.integer("WALKTHROUGH_AUDIO_MAX_BYTES", 10<<20),
 			QuestionsPerDay: r.integer("WALKTHROUGH_QUESTIONS_PER_DAY", 30),
 		},
+		Tour: Tour{PerDay: r.integer("TOUR_MAX_PER_PROJECT_PER_DAY", 10)},
 	}
 	if c.API.SMSGatewayKey != "" && len(c.API.SMSGatewayKey) < 16 {
 		r.invalid = append(r.invalid, "SMS_GATEWAY_KEY must be at least 16 characters (or empty to switch phone sign-up off)")

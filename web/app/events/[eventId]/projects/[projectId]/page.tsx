@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { SubmitButton } from "@/components/forms/SubmitButton";
@@ -9,6 +10,7 @@ import { BADGE_CLASS } from "@/lib/format";
 import { projectStatus } from "@/lib/hackathon-format";
 import { getProject, getProjectCard } from "@/lib/project-card";
 import { requireRole } from "@/lib/session";
+import { tourPageUrl } from "@/lib/tour";
 
 import { runProjectAction } from "../../actions";
 
@@ -45,11 +47,19 @@ export default async function ProjectPage({
         title={project.team_name}
         back={{ href: `/events/${encodeURIComponent(eventId)}`, label: "Back to the event" }}
         actions={
-          !status.running && (
-            <form action={runProjectAction.bind(null, eventId, projectId)}>
-              <SubmitButton pendingText="Starting…">{card ? "Check again" : "Check this project"}</SubmitButton>
-            </form>
-          )
+          <>
+            <Link
+              href={`/events/${encodeURIComponent(eventId)}/projects/${encodeURIComponent(projectId)}/live`}
+              className="button button--ghost"
+            >
+              Watch live
+            </Link>
+            {!status.running && (
+              <form action={runProjectAction.bind(null, eventId, projectId)}>
+                <SubmitButton pendingText="Starting…">{card ? "Check again" : "Check this project"}</SubmitButton>
+              </form>
+            )}
+          </>
         }
       >
         <div className="row">
@@ -64,7 +74,7 @@ export default async function ProjectPage({
       )}
 
       {card ? (
-        <HackathonCardView card={card} />
+        <HackathonCardView card={card} tourHref={tourPageUrl("project", projectId, eventId)} />
       ) : (
         <section className="panel" aria-labelledby="pending-title">
           <div className="panel__head">

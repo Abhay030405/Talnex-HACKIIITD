@@ -83,7 +83,7 @@ Read the section for the area you are touching before planning. If code and the 
 | `ai/talnex_ai/tinyfish/` | **All code that talks to TinyFish**: fetch, agent, browser, search, vault | Business logic |
 | `ai/talnex_ai/video/`, `resume/`, `claims/` | Video reading, resume reading, claim extraction | — |
 | `ai/talnex_ai/testing/` | `planner/`, `runner/`, `demo_replay/`, `retries/`, `proof_check/` | — |
-| `ai/talnex_ai/login/` | `ladder/`, `email/`, `phone/` | CAPTCHA solvers, temp-number sites |
+| `ai/talnex_ai/login/` | `ladder/`, `email/`, `phone/` | — |
 | `ai/talnex_ai/checks/` | `required_items/`, `sponsor_usage/`, `repo_vs_live/`, `copy_between_teams/`, `tutorial_copy/` | — |
 | `ai/talnex_ai/coding/` | `leetcode_capture/`, `leetcode_signals/`, `codechef/` | — |
 | `ai/talnex_ai/scoring/` | `claim_points/`, `talnex_score/`, `feature_compare/`, `ai_opinion/`, `flags/` | — |
@@ -120,7 +120,7 @@ Read the section for the area you are touching before planning. If code and the 
 3. **A new setting** goes into `.env.example` with a one-line comment and its default (empty for secrets), then into that service's settings module. Tell the founder to add it to their own `.env`.
 4. **If a required setting is missing, stop with a clear message** naming it. No silent default for a secret, an address or a model name.
 5. **Never print, copy, log or commit `.env`.**
-6. **Test logins never go in our database.** They live in TinyFish Vault. Team LeetCode, Google and GitHub sessions also stay in Vault. Until Vault support is built, a team session made by a person logging in by hand (for example the team LeetCode `LEETCODE_SESSION` cookie) may sit in `.env` as a secret: never in the database, never committed, never logged or printed, and replaced by a person when it expires. An agent never logs in to a team account itself.
+6. **Test logins never go in our database.** They live in TinyFish Vault. Team LeetCode, Google and GitHub sessions also stay in Vault. Until Vault support is built, a team session made by a person logging in by hand (for example the team LeetCode `LEETCODE_SESSION` cookie) may sit in `.env` as a secret: never in the database, never committed, never logged or printed, and replaced by a person when it expires. An agent never logs in to a team account itself, except the team LinkedIn account: `ai/talnex_ai/browser/linkedin.py` logs in with `LINKEDIN_EMAIL` / `LINKEDIN_PASSWORD` (`.env` secrets) through Browserless BQL.
 7. **In `web/`, a name starting with `NEXT_PUBLIC_` reaches the browser,** so never put a key behind it. The website never touches R2 directly.
 
 ## 6. Web design: always through the global stylesheet

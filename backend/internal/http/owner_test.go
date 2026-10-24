@@ -79,6 +79,9 @@ var ownerRoutes = []struct {
 	{"GET", "/v1/events/{event}/overview", "organizer", true},
 	{"GET", "/v1/events/{event}/compare", "organizer", true},
 	{"POST", "/v1/projects/{project}/run", "organizer", true},
+	{"POST", "/v1/roles", "recruiter", false},
+	{"GET", "/v1/roles", "recruiter", false},
+	{"GET", "/v1/roles/{role}", "recruiter", true},
 	{"POST", "/v1/candidates", "recruiter", false},
 	{"GET", "/v1/candidates", "recruiter", false},
 	{"GET", "/v1/candidates/{cand}", "recruiter", true},
@@ -93,6 +96,10 @@ var ownerRoutes = []struct {
 	{"POST", "/v1/candidate-projects/{cproj}/walkthroughs", "recruiter", true},
 	{"GET", "/v1/candidate-projects/{cproj}/walkthroughs", "recruiter", true},
 	{"GET", "/v1/walkthroughs/{walk}", "", true},
+	{"POST", "/v1/projects/{project}/tours", "organizer", true},
+	{"POST", "/v1/candidate-projects/{cproj}/tours", "recruiter", true},
+	{"POST", "/v1/tours/{tour}/messages", "", true},
+	{"GET", "/v1/tours/{tour}", "", true},
 	{"GET", "/v1/live/{kind}/{event}", "", true},
 }
 
@@ -144,6 +151,8 @@ func TestEveryPrivateRouteChecksTheOwner(t *testing.T) {
 	code, out = roleCall(t, srv.URL, "POST", "/v1/events/"+eventID+"/projects", org, "organizer",
 		map[string]any{"team_name": "t", "live_url": "https://example.com"})
 	projectID := idOf(t, code, out)
+	code, out = roleCall(t, srv.URL, "POST", "/v1/roles", rec, "recruiter", map[string]any{"title": "Audit role"})
+	roleID := idOf(t, code, out)
 	code, out = roleCall(t, srv.URL, "POST", "/v1/candidates", rec, "recruiter", map[string]any{"label": "Asha"})
 	candID := idOf(t, code, out)
 	if _, err := pool.Exec(context.Background(),
@@ -163,11 +172,19 @@ func TestEveryPrivateRouteChecksTheOwner(t *testing.T) {
 		ID string `json:"id"`
 	}
 	_ = json.Unmarshal([]byte(out), &walk)
+	code, out = roleCall(t, srv.URL, "POST", "/v1/projects/"+projectID+"/tours", org, "organizer", map[string]any{"question": "how?"})
+	if code != 202 {
+		t.Fatalf("start tour: %d %s", code, out)
+	}
+	var tour struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal([]byte(out), &tour)
 	// Make the two strangers real accounts with the right role.
 	roleCall(t, srv.URL, "GET", "/v1/me", orgStranger, "organizer", nil)
 	roleCall(t, srv.URL, "GET", "/v1/me", recStranger, "recruiter", nil)
 
-	fill := strings.NewReplacer("{event}", eventID, "{project}", projectID, "{cand}", candID, "{cproj}", cprojID, "{walk}", walk.ID, "{kind}", "event")
+	fill := strings.NewReplacer("{event}", eventID, "{project}", projectID, "{cand}", candID, "{cproj}", cprojID, "{walk}", walk.ID, "{tour}", tour.ID, "{kind}", "event", "{role}", roleID)
 	for _, r := range ownerRoutes {
 		path := fill.Replace(r.path)
 		name := r.method + " " + r.path
@@ -223,6 +240,7 @@ func TestEveryPrivateRouteChecksTheOwner(t *testing.T) {
 		{"/v1/candidates/" + candID + "/report", "recruiter", rec},
 		{"/v1/candidate-projects/" + cprojID + "/walkthroughs", "recruiter", rec},
 		{"/v1/walkthroughs/" + walk.ID, "organizer", org},
+		{"/v1/tours/" + tour.ID, "organizer", org},
 	} {
 		if code, out := roleCall(t, srv.URL, "GET", p.path, p.who, p.role, nil); code != 200 {
 			t.Errorf("owner GET %s: %d %s, want 200", p.path, code, out)

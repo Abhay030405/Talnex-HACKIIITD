@@ -86,6 +86,7 @@ func run(log *slog.Logger) error {
 		ProofLinks:         store,
 		FileRemover:        store,
 		Walkthrough:        apihttp.WalkthroughLimits(cfg.API.Walkthrough),
+		Tour:               apihttp.TourLimits(cfg.API.Tour),
 		Live:               hub,
 		Ready: func(ctx context.Context) error {
 			if err := pool.Ping(ctx); err != nil {

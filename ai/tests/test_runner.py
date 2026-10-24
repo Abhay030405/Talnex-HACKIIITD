@@ -288,3 +288,30 @@ def test_precheck_flags_dead_links_and_hidden_instructions(pool, claim_row):
     with pool.connection() as conn:
         flags = sorted(conn.execute("SELECT flag_type, level FROM flags WHERE project_id = %s", (project,)).fetchall())
     assert flags == [("hidden_ai_instructions", "strong"), ("required_item_missing", "info")]
+
+
+class SolvingDriver(FakeDriver):
+    """A browser that can solve human checks (Browserless): solving moves the page on."""
+
+    def __init__(self, *a, solves=True, **k):
+        super().__init__(*a, **k)
+        self.solves, self.solve_calls = solves, 0
+
+    def solve_captcha(self) -> bool:
+        self.solve_calls += 1
+        if self.solves:
+            self.position += 1
+        return self.solves
+
+
+def test_a_human_check_the_browser_solves_does_not_stop_the_run():
+    model = ScriptedModel(act(type="press", key="Enter"), done("milk is listed"), verdict())
+    driver = SolvingDriver(["Please complete the CAPTCHA", LONG_PAGE])
+    result, _ = run(model, driver)
+    assert result.outcome == "works" and driver.solve_calls == 1
+    assert result.records[0].action == "Solved a human check (CAPTCHA)"
+
+
+def test_a_human_check_the_browser_cannot_solve_still_blocks():
+    driver = SolvingDriver(["Please complete the CAPTCHA"], solves=False)
+    assert run(ScriptedModel(), driver)[0].stop_reason == "a human check appeared" and driver.solve_calls == 1

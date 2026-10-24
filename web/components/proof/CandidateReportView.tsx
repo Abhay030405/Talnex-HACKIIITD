@@ -1,14 +1,16 @@
 import { Fragment } from "react";
 
 import { FlagList } from "@/components/flags/FlagBadge";
+import { InterviewKit } from "@/components/proof/InterviewKit";
 import { ProjectCard } from "@/components/proof/ProjectCard";
 import { StatTile } from "@/components/ui/StatTile";
-import { BADGE_CLASS, formatDate } from "@/lib/format";
+import { BADGE_CLASS, formatCost, formatDate, formatDuration } from "@/lib/format";
 import { SITE_NAMES, evidenceFacts, reportSummary, signalWeightInfo } from "@/lib/report-format";
+import { tourPageUrl } from "@/lib/tour";
 import type { CandidateReport } from "@/lib/types";
 
 /** The whole recruiter proof report. There is no overall candidate score and no ranking: a human decides. */
-export function CandidateReportView({ report }: { report: CandidateReport }) {
+export function CandidateReportView({ report, candidateId }: { report: CandidateReport; candidateId?: string }) {
   const summary = reportSummary(report);
   const saved = report.time_saved;
 
@@ -22,16 +24,62 @@ export function CandidateReportView({ report }: { report: CandidateReport }) {
           value={`about ${saved.saved_minutes} min`}
           hint={`By hand: roughly ${saved.manual_minutes_estimate} min. TalNex: about ${saved.talnex_minutes} min.`}
         />
+        {report.run && (
+          <StatTile
+            label="Time and cost of this check"
+            value={`${formatDuration(report.run.seconds)} · ${formatCost(report.run.cost_usd)}`}
+            hint={`Model ${formatCost(report.run.model_usd)} (${report.run.model_calls} calls) · browser ${formatCost(report.run.browser_usd)} (${report.run.browser_sessions} sessions).`}
+          />
+        )}
       </div>
 
-      {report.has_gaps && (
+      {report.partial && (
+        <p className="notice" role="status">
+          Results so far: {summary.projectsTested} of {summary.projectsTotal} projects checked. The rest appear here as
+          they finish, then the final report.
+        </p>
+      )}
+
+      {report.has_gaps && !report.partial && (
         <p className="notice" role="status">
           Some parts could not be tested. They are shown with the reason and do not count against the candidate.
         </p>
       )}
 
+      {report.role && report.role.skills.length > 0 && (
+        <section className="panel" aria-labelledby="fit-title">
+          <div className="panel__head">
+            <h2 className="panel__title" id="fit-title">
+              Fit to the role: {report.role.title}
+            </h2>
+          </div>
+          <div className="panel__body stack">
+            <p className="note">
+              Must-have skills shown by features that worked in testing. “Not seen” only means no tested feature showed it.
+            </p>
+            <ul className="report-list">
+              {report.role.skills.map((s) => (
+                <li key={s.skill}>
+                  <span className={s.proven_by.length ? "badge badge--success" : "badge badge--neutral"}>
+                    {s.proven_by.length ? "Shown" : "Not seen"}
+                  </span>{" "}
+                  <strong>{s.skill}</strong>
+                  {s.proven_by.length > 0 && <span className="meta"> by {s.proven_by.join("; ")}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      <InterviewKit questions={report.interview_kit ?? []} />
+
       {report.projects.map((project) => (
-        <ProjectCard key={project.id} project={project} />
+        <ProjectCard
+          key={project.id}
+          project={project}
+          tourHref={candidateId ? tourPageUrl("candidate_project", project.id, candidateId) : undefined}
+        />
       ))}
 
       {report.coding_signals.length > 0 && (

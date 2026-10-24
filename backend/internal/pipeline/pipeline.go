@@ -43,5 +43,6 @@ func GoHandlers(pool *pgxpool.Pool, gh *github.Client, cf *codeforces.Client, fi
 		StageResumeCleanup: ResumeCleanup(pool, files),
 		StageGithubHistory: GithubHistory(pool, gh, history),
 		StageGithubProfile: GithubProfile(pool, gh, time.Now),
+		StageAutoConfirm:   AutoConfirm(pool),
 	}
 }

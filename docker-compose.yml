@@ -95,14 +95,14 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/healthz || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   # Optional self-hosted browser for the live test fallback. Off by default; start with:
   #   docker compose --profile browser up -d
-  # Then set BROWSERLESS_CDP_URL=ws://browserless:3000 in .env. Plain Chrome only (no stealth/CAPTCHA/proxies).
+  # Then set BROWSERLESS_CDP_URL=ws://browserless:3000 in .env. Plain Chrome: no CAPTCHA solving (hosted /stealth has it).
   browserless:
     image: ghcr.io/browserless/chromium:v2.24.0
     profiles: ["browser"]

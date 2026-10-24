@@ -94,9 +94,37 @@ export interface CandidateSummary {
   id: string;
   label: string;
   role_level: RoleLevel;
+  /** Set when the candidate was uploaded under a role (a job opening). */
+  role_id?: string;
   coding_handles: Record<string, string>;
   status: string;
   created_at: string;
+}
+
+/** Checks a role can switch on or off (backend/internal/candidates/roles.go). Empty means every check. */
+export const ROLE_CHECKS = [
+  { value: "live_test", label: "Live test", hint: "Use each live project like a real person" },
+  { value: "code_review", label: "Code review and authorship", hint: "Read the code and who wrote it" },
+  { value: "coding_profiles", label: "Coding profiles", hint: "Codeforces, LeetCode (with replay pastes), CodeChef" },
+  { value: "linkedin", label: "LinkedIn", hint: "Check the LinkedIn profile exists and whose it is" },
+] as const;
+export type RoleCheck = (typeof ROLE_CHECKS)[number]["value"];
+
+/** A job opening: what the recruiter is hiring for, shared by every resume uploaded to it. */
+export interface JobRole {
+  id: string;
+  title: string;
+  job_description: string;
+  person_wanted: string;
+  skills: string[];
+  role_level: RoleLevel;
+  criteria: { name: string; description: string; weight: number }[] | null;
+  checks: Partial<Record<RoleCheck, boolean>>;
+  auto_confirm: boolean;
+  candidate_count: number;
+  created_at: string;
+  /** Only when one role is read. */
+  candidates?: CandidateSummary[];
 }
 
 /** One project as the resume reader found it, for the recruiter to confirm or fix. */
@@ -253,10 +281,25 @@ export interface CandidateReport {
   role_level: RoleLevel;
   has_gaps: boolean;
   time_saved: { manual_minutes_estimate: number; talnex_minutes: number; saved_minutes: number };
+  run?: RunUsage | null;
   projects: ReportProject[];
   coding_signals: CodingSignal[];
   flags: ReportFlag[];
   notes: string[];
+  /** True while some projects are still being checked: results so far. */
+  partial?: boolean;
+  /** The role the candidate was checked for, with each must-have skill and the working features that show it. */
+  role?: { title: string; skills: { skill: string; proven_by: string[] }[] } | null;
+  /** Questions to ask the candidate, each tied to its proof. Missing on reports made before the kit existed. */
+  interview_kit?: InterviewQuestion[];
+}
+
+/** One interview question from ai/talnex_ai/reports/interview_kit.py. A thing to talk about, never a verdict. */
+export interface InterviewQuestion {
+  kind: "coding" | "feature" | "flag" | "demo" | "skill";
+  question: string;
+  why: string;
+  proof: Record<string, string | null | undefined>;
 }
 
 // ---------- The hackathon proof card, overview and compare ----------
@@ -300,6 +343,17 @@ export interface AiOpinion {
   models: string[];
 }
 
+/** How long a check took and what it cost, from the jobs and the usage log. Model and browser costs are apart. */
+export interface RunUsage {
+  seconds: number;
+  finished: boolean;
+  cost_usd: number;
+  model_usd: number;
+  browser_usd: number;
+  model_calls: number;
+  browser_sessions: number;
+}
+
 export interface CardCheck {
   stage: string;
   status: string;
@@ -328,6 +382,7 @@ export interface HackathonCard {
   features: ReportFeature[];
   flags: ReportFlag[];
   checks: CardCheck[];
+  run?: RunUsage | null;
   ai_opinion: AiOpinion | null;
   who_built_what?: WhoBuiltWhatRow[] | null;
   has_gaps: boolean;
@@ -348,6 +403,9 @@ export interface OverviewProject {
   /** How many flags of each level: info, review, strong. */
   flags: Partial<Record<FlagLevel, number>>;
   report_ready: boolean;
+  /** The latest check: seconds from first job to last (so far while it runs), and its cost. Null if never checked. */
+  run_seconds?: number | null;
+  run_cost_usd?: number | null;
 }
 
 export interface EventOverview {

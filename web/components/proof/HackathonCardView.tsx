@@ -1,10 +1,12 @@
+import Link from "next/link";
+
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { WhoBuiltWhat } from "@/components/proof/WhoBuiltWhat";
 import { ProjectScore } from "@/components/scores/ProjectScore";
-import { BADGE_CLASS } from "@/lib/format";
-import { groupKindLabel } from "@/lib/hackathon-format";
+import { BADGE_CLASS, runLine } from "@/lib/format";
+import { checkRows, groupKindLabel } from "@/lib/hackathon-format";
 import { formatCoverage, formatScore } from "@/lib/report-format";
 import type { AiOpinion, HackathonCard, OpinionPart } from "@/lib/types";
 
@@ -59,7 +61,7 @@ function OpinionBox({ opinion }: { opinion: AiOpinion }) {
 }
 
 /** One hackathon project's proof card: scores with coverage, flags beside them, each claim with proof, and notes. */
-export function HackathonCardView({ card }: { card: HackathonCard }) {
+export function HackathonCardView({ card, tourHref }: { card: HackathonCard; tourHref?: string }) {
   const weighted = card.weighted_total;
 
   return (
@@ -87,6 +89,7 @@ export function HackathonCardView({ card }: { card: HackathonCard }) {
                 </a>
               )}
             </div>
+            {card.run && <p className="meta">{runLine(card.run)}</p>}
           </div>
           <ProjectScore talnex={card.talnex} />
         </div>
@@ -143,6 +146,14 @@ export function HackathonCardView({ card }: { card: HackathonCard }) {
             </div>
           )}
 
+          {card.features.length > 0 && tourHref && (
+            <div className="walkthrough__tour">
+            <Link className="button button--primary button--sm" href={tourHref}>
+              Walk me through it
+            </Link>
+            <span className="note">A chat beside the live site: the guide reads the code and shows how a feature was built.</span>
+          </div>
+          )}
           {card.features.length > 0 && <WalkthroughBox subject="project" subjectId={card.project_id} />}
         </div>
       </section>
@@ -159,13 +170,18 @@ export function HackathonCardView({ card }: { card: HackathonCard }) {
             </h2>
           </div>
           <ul className="panel__body plain-list stack stack--tight">
-            {card.checks.map((check, i) => (
-              <li key={`${check.stage}-${i}`} className="row">
-                <span className={BADGE_CLASS[check.status === "failed" ? "danger" : "neutral"]}>
-                  {check.status === "failed" ? "Could not finish" : "Skipped"}
+            {checkRows(card.checks, Boolean(card.links.repo)).map((row, i) => (
+              <li key={`${row.label}-${i}`} className="row">
+                <span className={BADGE_CLASS[row.status === "failed" ? "danger" : "neutral"]}>
+                  {row.status === "failed" ? "Could not finish" : "Skipped"}
                 </span>
-                <span>{check.stage.replace(/_/g, " ")}</span>
-                {check.reason && <span className="note">{check.reason}</span>}
+                <span>{row.label}</span>
+                {row.reason && <span className="note">{row.reason}</span>}
+                {row.stages && (
+                  <span className="note">
+                    ({row.stages.length} checks: {row.stages.join(", ")})
+                  </span>
+                )}
               </li>
             ))}
           </ul>

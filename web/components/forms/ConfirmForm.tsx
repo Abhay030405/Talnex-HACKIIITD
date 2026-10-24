@@ -46,7 +46,7 @@ export function ConfirmForm({ candidateId, found }: { candidateId: string; found
           <fieldset className="confirm-project fieldset" key={row.key}>
             <legend className="sr-only">Project {index + 1}</legend>
             <input type="hidden" name={`project.${row.key}.id`} defaultValue={row.project.id ?? ""} />
-            <div className="form-grid">
+            <div className="form-grid form-grid--wide">
               <Field label="Project name" htmlFor={`name-${row.key}`}>
                 <input
                   className="input"

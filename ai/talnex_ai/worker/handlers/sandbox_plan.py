@@ -139,7 +139,7 @@ def sandbox_plan(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     def checklist_for(claim: Claim):
         try:
             return claim.id, {"checklist": write_checklist(sv.model, claim.text, claim.claim_group, info.role_level,
-                                                           job_id=job.id, from_code=True).model_dump()}
+                                                           job_id=job.id, from_code=True, brief=info.brief).model_dump()}
         except Exception as exc:   # a claim without a checklist is still tested; its score is written from the evidence later
             log.warning("no checklist for claim %s: %s", claim.id, exc)
             return claim.id, None
