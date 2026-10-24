@@ -1,0 +1,69 @@
+---
+title: Live test engine
+description: How a claim becomes a plan, how the agent uses the site one safe step at a time, and how the result is proved.
+---
+
+## From claim to verdict
+
+1. **Claims** — what the resume, README, demo video or the organizer's criteria say the project does, as short testable
+   sentences, each in a group (Core, Logic, UI, Access, …).
+2. **Test plan** (`test_plan`) — the planner model writes steps and the expected result for each claim, plus a scoring
+   **checklist** written before any result is seen. With a role or event brief, the checklist prefers what the brief
+   asks for; it never changes whether a feature works.
+3. **Live test** (`live_test`) — the agent loop below runs every plan in a real remote browser.
+4. **Proof check** (`proof_check`) — an independent second model sees **only the screenshots and the expected result**,
+   never the first verdict. Nothing is "broken" until the [never-blame ladder](/docs/safety) passes.
+5. **Feature score** (`feature_score`) — the checklist is marked against the evidence: 0–10 per feature, judged by the
+   role level (a fresher is never marked on design), at a low temperature so repeat runs agree.
+
+## The agent loop
+
+<AgentLoop />
+
+- **One action per turn.** The model sees an accessibility snapshot of the page (and a picture only when the text is not
+  enough) and picks exactly one action: click, fill, press, select, upload, scroll, wait, navigate, `read_email`,
+  `read_sms`.
+- **Plain code checks every action before it runs.** It refuses anything unsafe (pay, delete, message real people,
+  change account settings) and any address the site never showed. A refusal ends the run as *blocked*, never *broken*.
+- **Every step is recorded**: a full-page screenshot, the network calls (method, address without its query string,
+  status, latency), failed requests, console and page errors, and a **leak scan** of console text and API answers
+  (keys, tokens, private keys, JWTs, `.env` lines, stack traces, many people's emails — stored masked, never in full).
+- **Limits**: about 40 actions and 240 seconds per plan, 3 tries per claim, 30 agent runs per project. Running out is
+  *blocked*.
+
+## Getting in: the login ladder
+
+The agent tries each way in, in order, and never breaks past a site's security:
+
+1. A test login given in the hackathon form.
+2. A guest or demo button.
+3. Sign up with TalNex's own inbox (AgentMail; a per-site password from `EMAIL_LOGIN_SECRET`); codes and links are read
+   with `read_email`.
+4. TalNex's own Google or GitHub session.
+5. Phone OTP with the team SIM (the SMS relay app), only when the site requires a phone.
+6. Otherwise **could not test**, with the reason — never counted against anyone.
+
+## The browser
+
+- A real Chrome in the cloud from **TinyFish Browser**, driven over CDP with Playwright by our own loop (not a
+  black-box agent), so every step is ours to check and prove.
+- If TinyFish is out of budget or down, the same test runs on **Browserless** (`FallbackBrowser`). On Browserless, a
+  CAPTCHA is solved and the test goes on; elsewhere it ends as *blocked*.
+- While a test runs, a CDP **screencast** streams about 2 frames a second to the live view (*Live screen*). Frames are
+  sent live only and never kept.
+- Spend is guarded: free **Fetch** first (is the site even alive?), paid browser sessions only then, and per-key budgets
+  stop a run before it overspends.
+
+## The sandbox track (repositories)
+
+For a repository, `sandbox_run` asks **sandboxd** for a fresh VM (a container from our own base image with CPU,
+memory and time limits, optional Postgres/Redis/Mongo beside it, no TalNex keys inside). The repo is built and started,
+its routes are found and tested (`route_discovery`, `sandbox_plan`, `sandbox_test`), its own tests run (`repo_tests`)
+and its code is reviewed (`code_review`). `sandbox_end` destroys the VM; the reaper removes any VM past its limit. AI
+features of a repo-only project are *reviewed from code, not run*, and labelled so.
+
+## Watching it live
+
+Every stage and step emits live events, saved in `live_events` (kept 7 days) and sent on `pg_notify('live')`. The Go
+API streams them to the website as Server-Sent Events, so the live view shows stages, a log line per action, the step
+screenshots and the live screen; opening it late replays what already happened.
