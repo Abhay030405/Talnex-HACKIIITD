@@ -16,6 +16,7 @@ from typing import Any, Callable, Optional
 from talnex_ai.llm.structured import ChatClient, StructuredError
 from talnex_ai.sandbox.stack_detect.bringup import BringUp, RunnableVm, bring_up
 from talnex_ai.sandbox.stack_detect.detect import RepoFacts, detect_recipe
+from talnex_ai.sandbox.stack_detect.envvalues import service_env
 from talnex_ai.sandbox.stack_detect.fix import propose_fix
 from talnex_ai.sandbox.stack_detect.gather import REPO_DIR, RepoUnreachable, clean_github_url, clone, read_facts
 from talnex_ai.sandbox.stack_detect.recipe import FULL_IMAGE, IMAGES, Recipe
@@ -57,7 +58,7 @@ def prepare_and_run(
     start_timeout_seconds: int = 90,
     job_id: Optional[str] = None,
 ) -> RunResult:
-    """`new_vm(image)` makes a fresh VM (it must have .exec, .request, .wait_for_port and .destroy).
+    """`new_vm(image, services=...)` makes a fresh VM (it must have .exec, .request, .wait_for_port and .destroy).
 
     The repo is cloned into the shared base image, which has git, Node and Python, and read there. If it turns out to
     need a different image (a stack with its own image), that VM is replaced by the right one. A VM is returned (alive)
@@ -89,15 +90,19 @@ def _run_in(vm, new_vm, model, url, build_timeout, start_timeout, job_id) -> Run
     if recipe.stack == "unknown":
         return _could_not_run(recipe.notes[0] if recipe.notes else "the stack could not be worked out", url=url, facts=facts, recipe=recipe)
 
-    if recipe.image != FULL_IMAGE:
-        # The repo needs another base image: start a VM from it, clone again, and let go of the first one.
+    # The first VM was made from the base image with no services. If the repo needs another image, or needs backing
+    # stores (postgres, redis...) started beside it, replace it with a VM that has them, and clone again.
+    if recipe.image != FULL_IMAGE or recipe.services:
         vm.destroy()
-        vm = new_vm(recipe.image)
+        vm = new_vm(recipe.image, services=list(recipe.services))
         try:
             clone(vm, url)
         except RepoUnreachable as exc:
             vm.destroy()
             return _could_not_run(f"repo not reachable: {exc}", url=url, facts=facts, recipe=recipe)
+        # Point the app at the real services instead of the harmless fakes.
+        if recipe.services:
+            recipe = recipe.model_copy(update={"env": {**recipe.env, **service_env(recipe.services)}})
 
     result = RunResult(status="could_not_run", url=url, recipe=recipe, facts=facts)
     first = bring_up(vm, recipe, build_timeout_seconds=build_timeout, start_timeout_seconds=start_timeout)

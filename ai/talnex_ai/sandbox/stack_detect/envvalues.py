@@ -52,3 +52,27 @@ def env_placeholders(example_text: str) -> dict[str, str]:
         if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
             env[key] = placeholder_for(key, value)
     return env
+
+
+# Connection settings for the backing stores the sandbox can start (host = the service's name on the private network).
+# These mirror sandboxd's ServiceCatalog; they replace the harmless fakes when a service is actually running beside the VM.
+SERVICE_ENV: dict[str, dict[str, str]] = {
+    "postgres": {
+        "DATABASE_URL": "postgres://talnex:talnex@postgres:5432/talnex",
+        "POSTGRES_URL": "postgres://talnex:talnex@postgres:5432/talnex",
+        "POSTGRES_HOST": "postgres", "POSTGRES_PORT": "5432", "POSTGRES_USER": "talnex",
+        "POSTGRES_PASSWORD": "talnex", "POSTGRES_DB": "talnex",
+        "PGHOST": "postgres", "PGPORT": "5432", "PGUSER": "talnex", "PGPASSWORD": "talnex", "PGDATABASE": "talnex",
+    },
+    "redis": {"REDIS_URL": "redis://redis:6379", "REDIS_HOST": "redis", "REDIS_PORT": "6379"},
+    "mongodb": {"MONGO_URL": "mongodb://mongodb:27017", "MONGODB_URI": "mongodb://mongodb:27017",
+                "MONGO_HOST": "mongodb", "MONGO_PORT": "27017"},
+}
+
+
+def service_env(services) -> dict[str, str]:
+    """Real connection settings for the services running beside the VM. Unknown services are ignored."""
+    env: dict[str, str] = {}
+    for service in services or ():
+        env.update(SERVICE_ENV.get(service, {}))
+    return env
