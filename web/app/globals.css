@@ -1803,6 +1803,82 @@ a.meta:hover {
   font-size: var(--text-sm);
 }
 
+/* A claim's test played back as a clip, ending on a verdict stamp over the last screenshot. */
+.proof-clip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.proof-clip__screen {
+  position: relative;
+  overflow: hidden;
+  border: var(--line) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.proof-clip__img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.proof-clip__stamp {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border: var(--line-thick) solid currentColor;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  transform: rotate(-6deg);
+  box-shadow: var(--shadow-lg);
+}
+
+.proof-clip__stamp--success {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.proof-clip__stamp--warning {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.proof-clip__stamp--danger {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.proof-clip__stamp--neutral,
+.proof-clip__stamp--action {
+  color: var(--color-text-muted);
+}
+
+.proof-clip__caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: calc(var(--text-base) * 3);
+}
+
+.proof-clip__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 /* A screenshot shows small and opens to full width on click. */
 .shot {
   margin-top: var(--space-2);
