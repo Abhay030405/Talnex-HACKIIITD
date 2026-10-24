@@ -28,3 +28,24 @@ export function weightedScore(
   const score = weights ? used.reduce((sum, p) => sum + p.weight * (p.average as number), 0) / weights : null;
   return { score: score === null ? null : Math.round(score * 10) / 10, parts };
 }
+
+/**
+ * A hackathon card's weighted total from its criterion group scores (0 to 100) and the event's weights as they are now.
+ * Same rule as the worker: unscored criteria are left out and the rest rescaled; weight_covered says how much counts.
+ */
+export function weightedFromGroups(
+  groups: { group: string; score: number | null }[],
+  criteria: { name: string; weight: number }[],
+): { score: number | null; weight_covered: number; criteria_used: number; criteria_total: number } {
+  const scoreOf = (name: string) => groups.find((g) => g.group.toLowerCase() === name.toLowerCase())?.score ?? null;
+  const total = criteria.reduce((sum, c) => sum + c.weight, 0);
+  const scored = criteria.filter((c) => scoreOf(c.name) !== null);
+  const used = scored.reduce((sum, c) => sum + c.weight, 0);
+  if (!scored.length || total <= 0) return { score: null, weight_covered: 0, criteria_used: 0, criteria_total: criteria.length };
+  return {
+    score: Math.round((scored.reduce((sum, c) => sum + c.weight * (scoreOf(c.name) as number), 0) / used) * 10) / 10,
+    weight_covered: Math.round((1000 * used) / total) / 10,
+    criteria_used: scored.length,
+    criteria_total: criteria.length,
+  };
+}

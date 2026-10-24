@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ApiError, apiFetch } from "@/lib/api";
-import { parseProjectForm } from "@/lib/event-form";
+import { parseCriteria, parseProjectForm } from "@/lib/event-form";
 
 export interface ProjectFormState {
   error?: string;
@@ -59,4 +59,31 @@ export async function runProjectAction(eventId: string, projectId: string): Prom
   }
   revalidatePath(eventPath(eventId));
   redirect(`${eventPath(eventId)}/projects/${encodeURIComponent(projectId)}?${outcome}`);
+}
+
+/** Replace a fixed-problem event's criteria and weights; every proof card re-scores from them at once. */
+export async function updateCriteriaAction(eventId: string, _previous: { error?: string; saved?: boolean }, form: FormData) {
+  const parsed = parseCriteria(form);
+  if (!parsed.ok) return { error: parsed.error };
+  if (parsed.value.length === 0) return { error: "Keep at least one criterion." };
+  try {
+    await apiFetch(`/v1/events/${encodeURIComponent(eventId)}/criteria`, { method: "PUT", body: { criteria: parsed.value } });
+  } catch (error) {
+    return { error: error instanceof ApiError && error.status < 500 ? error.message : "We could not save the criteria." };
+  }
+  revalidatePath(eventPath(eventId));
+  return { saved: true };
+}
+
+/** Ask TalNex one question about a team's proof card. */
+export async function askProjectAction(eventId: string, projectId: string, _previous: { error?: string }, form: FormData) {
+  const question = String(form.get("question") ?? "").trim();
+  if (!question) return { error: "Type a question first." };
+  try {
+    await apiFetch(`/v1/projects/${encodeURIComponent(projectId)}/ask`, { method: "POST", body: { question } });
+  } catch (error) {
+    return { error: error instanceof ApiError && error.status < 500 ? error.message : "We could not send the question." };
+  }
+  revalidatePath(`${eventPath(eventId)}/projects/${encodeURIComponent(projectId)}`);
+  return {};
 }

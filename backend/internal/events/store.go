@@ -228,3 +228,42 @@ func checksJSON(c map[string]bool) []byte {
 	b, _ := json.Marshal(c)
 	return b
 }
+
+// ValidateCriteria checks an edited criteria list with the same rules as event create.
+func ValidateCriteria(list []NewCriterion) ([]NewCriterion, error) {
+	n := NewEvent{Mode: "fixed_problem", Criteria: list}
+	err := n.validateCriteria()
+	return n.Criteria, err
+}
+
+// ErrNotFixedProblem means the event has no criteria to edit (an open-theme event).
+var ErrNotFixedProblem = errors.New("only a fixed_problem event has criteria")
+
+// ReplaceCriteria swaps an event's criteria for an edited list. Results stay; the weighted total re-scores from them.
+func (s *Store) ReplaceCriteria(ctx context.Context, eventID string, list []NewCriterion) ([]Criterion, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // a rollback after commit is a no-op
+	var mode string
+	if err := tx.QueryRow(ctx, `SELECT mode FROM events WHERE id = $1::uuid`, eventID).Scan(&mode); err != nil {
+		return nil, fmt.Errorf("read event: %w", err)
+	}
+	if mode != "fixed_problem" {
+		return nil, ErrNotFixedProblem
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM criteria WHERE event_id = $1::uuid`, eventID); err != nil {
+		return nil, err
+	}
+	for _, c := range list {
+		if _, err := tx.Exec(ctx, `INSERT INTO criteria (event_id, name, description, weight) VALUES ($1::uuid, $2, NULLIF($3, ''), $4)`,
+			eventID, c.Name, c.Description, c.Weight); err != nil {
+			return nil, fmt.Errorf("save criterion: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return s.criteria(ctx, eventID)
+}
