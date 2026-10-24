@@ -339,7 +339,12 @@ func (s *server) getWalkthrough(w http.ResponseWriter, r *http.Request) {
 // swapScreenshotKeys walks flow[], seen[] and missing[] proof refs and turns each screenshot "key" into a short-lived
 // "view_url", like the proof card. The key is always removed, so raw storage keys never leave the server.
 func (s *server) swapScreenshotKeys(ctx context.Context, answer map[string]any) {
-	for _, part := range []string{"flow", "seen", "missing"} {
+	s.swapAnswerKeys(ctx, answer, "flow", "seen", "missing")
+}
+
+// swapAnswerKeys does that for the named parts of an answer.
+func (s *server) swapAnswerKeys(ctx context.Context, answer map[string]any, parts ...string) {
+	for _, part := range parts {
 		items, _ := answer[part].([]any)
 		for _, it := range items {
 			item, _ := it.(map[string]any)

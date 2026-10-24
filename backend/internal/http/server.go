@@ -34,6 +34,8 @@ type Options struct {
 	Ready func(ctx context.Context) error
 	// Walkthrough limits the voice walkthrough questions (recording size, questions per day).
 	Walkthrough WalkthroughLimits
+	// Tour limits the guided tours (tours per project per day).
+	Tour TourLimits
 	// Live passes the worker's live events to viewers (docs/live_events.md). Nil turns the live view off.
 	Live *live.Hub
 }
@@ -96,6 +98,11 @@ func NewHandler(o Options) http.Handler {
 	private.HandleFunc("GET /v1/candidate-projects/{id}/walkthroughs", auth.RequireRole(auth.RoleRecruiter, s.listCandidateProjectWalkthroughs))
 	// Either kind of account; only the person who asked sees the answer.
 	private.HandleFunc("GET /v1/walkthroughs/{id}", s.getWalkthrough)
+	// Guided tour (architecture section 32): a chat beside the live site. Either kind of account; only the owner sees it.
+	private.HandleFunc("POST /v1/projects/{id}/tours", auth.RequireRole(auth.RoleOrganizer, s.startProjectTour))
+	private.HandleFunc("POST /v1/candidate-projects/{id}/tours", auth.RequireRole(auth.RoleRecruiter, s.startCandidateProjectTour))
+	private.HandleFunc("POST /v1/tours/{id}/messages", s.askTour)
+	private.HandleFunc("GET /v1/tours/{id}", s.getTour)
 	// Live view: what TalNex is doing right now on a project, a resume project, a candidate or a whole event.
 	private.HandleFunc("GET /v1/live/{kind}/{id}", s.getLive)
 	if o.EnableDevEndpoints {
