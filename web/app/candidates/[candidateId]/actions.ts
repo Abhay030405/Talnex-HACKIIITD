@@ -65,3 +65,17 @@ export async function deleteCandidateAction(candidateId: string): Promise<void> 
   }
   redirect(outcome ? `${candidatePath(candidateId)}/delete?error=${outcome}` : "/recruiter");
 }
+
+/** Test one resume project again, or read the coding profiles again; then watch it live. */
+export async function rerunAction(candidateId: string, what: { kind: "project"; projectId: string } | { kind: "coding" }) {
+  const path =
+    what.kind === "project"
+      ? `/v1/candidate-projects/${encodeURIComponent(what.projectId)}/rerun`
+      : `/v1/candidates/${encodeURIComponent(candidateId)}/rerun-coding`;
+  try {
+    await apiFetch(path, { method: "POST" });
+  } catch (error) {
+    return { error: error instanceof ApiError && error.status < 500 ? error.message : "We could not start it. Try again." };
+  }
+  redirect(`${candidatePath(candidateId)}/live`);
+}
