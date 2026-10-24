@@ -7,6 +7,7 @@ import {
   Briefcase,
   CalendarDays,
   LogOut,
+  Magnet,
   Plus,
   ShieldCheck,
   Trophy,
@@ -32,3 +33,4 @@ export const PlusIcon = wrap(Plus);
 export const UsersIcon = wrap(Users);
 export const CalendarIcon = wrap(CalendarDays);
 export const LogoutIcon = wrap(LogOut);
+export const MagnetIcon = wrap(Magnet);
