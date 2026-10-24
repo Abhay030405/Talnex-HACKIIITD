@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 
 import { SubmitButton } from "@/components/forms/SubmitButton";
+import { AskTalnex, type Ask, type CustomTest } from "@/components/proof/AskTalnex";
 import { HackathonCardView } from "@/components/proof/HackathonCardView";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { BADGE_CLASS } from "@/lib/format";
 import { projectStatus } from "@/lib/hackathon-format";
-import { getProject, getProjectCard } from "@/lib/project-card";
+import { apiFetch } from "@/lib/api";
+import { getEventOverview, getProject, getProjectCard } from "@/lib/project-card";
 import { requireRole } from "@/lib/session";
 import { tourPageUrl } from "@/lib/tour";
 
-import { runProjectAction } from "../../actions";
+import { askProjectAction, runProjectAction } from "../../actions";
 
 export const metadata: Metadata = { title: "Proof card" };
 
@@ -36,12 +38,29 @@ export default async function ProjectPage({
   const project = await getProject(projectId);
   if (!project || project.event_id !== eventId) notFound();
   const card = await getProjectCard(projectId);
+  const criteria = (await getEventOverview(eventId))?.event.criteria ?? [];
+  let asks: Ask[] = [];
+  if (card) {
+    try {
+      asks = await apiFetch<Ask[]>(`/v1/projects/${encodeURIComponent(projectId)}/asks`);
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+  }
+  let customTests: CustomTest[] = [];
+  if (card) {
+    try {
+      customTests = await apiFetch<CustomTest[]>(`/v1/projects/${encodeURIComponent(projectId)}/custom-tests`);
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+  }
   const status = projectStatus(project.status);
   const message = run ? RUN_MESSAGES[run] : undefined;
 
   return (
     <div className="stack">
-      <AutoRefresh active={status.running} />
+      <AutoRefresh active={status.running || [...asks, ...customTests].some((a) => a.status !== "done" && a.status !== "failed")} />
 
       <PageHeader
         title={project.team_name}
@@ -74,7 +93,21 @@ export default async function ProjectPage({
       )}
 
       {card ? (
-        <HackathonCardView card={card} tourHref={tourPageUrl("project", projectId, eventId)} />
+        <>
+          <AskTalnex
+            asks={asks}
+            customTests={customTests}
+            project={{
+              id: projectId,
+              name: project.team_name,
+              liveHref: `/events/${encodeURIComponent(eventId)}/projects/${encodeURIComponent(projectId)}/live`,
+              ask: askProjectAction.bind(null, eventId, projectId),
+              rerun: runProjectAction.bind(null, eventId, projectId),
+              criteriaHref: `/events/${encodeURIComponent(eventId)}#criteria`,
+            }}
+          />
+          <HackathonCardView card={card} criteria={criteria} tourHref={tourPageUrl("project", projectId, eventId)} />
+        </>
       ) : (
         <section className="panel" aria-labelledby="pending-title">
           <div className="panel__head">

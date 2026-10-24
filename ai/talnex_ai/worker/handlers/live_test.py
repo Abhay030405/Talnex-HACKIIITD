@@ -101,12 +101,30 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
                 add_flag(sv.pool, info.kind, info.id, "hidden_ai_instructions", "strong",
                          "Hidden text aimed at an AI checker was found on the live site", finding.as_flag_evidence())
 
+        def flag_leaks(record) -> None:
+            """One flag per kind of leak the browser saw (masked); a flag sits beside the score, never in it."""
+            found: dict[str, dict] = {}
+            for step in getattr(record, "steps", None) or []:
+                for leak in ((getattr(step, "devtools", None) or {}).get("leaks") or []):
+                    found.setdefault(leak["type"], leak)
+            for kind, leak in found.items():
+                level = "info" if leak.get("level") == "info" else "review"
+                what = "a server error trace" if kind == "stack_trace" else kind.replace("_", " ")
+                add_flag(sv.pool, info.kind, info.id, "leaked_secret", level,
+                         f"The live site showed {what} to any visitor ({leak['where']})",
+                         {"type": kind, "masked": leak["masked"], "where": leak["where"]})
+
         def run(p: TestPlan):
-            return run_plan(pool=sv.pool, store_files=sv.files, tinyfish=getattr(sv, "browser", None) or sv.tinyfish,
+            record = run_plan(pool=sv.pool, store_files=sv.files, tinyfish=getattr(sv, "browser", None) or sv.tinyfish,
                             client=sv.model, claim=claim,
                             plan=p, site_url=info.live_url, subject_id=info.id, limits=limits, runner_cfg=cfg.runner,
                             uploads_root=sv.uploads_root, way_in=way_in.instructions, mailbox=mailbox, smsbox=smsbox,
                             job_id=job_id, connect=sv.connect, on_hidden_text=on_hidden_text, on_event=ev)
+            try:
+                flag_leaks(record)
+            except Exception as err:  # a leak flag that cannot be saved never stops the test
+                log.warning("could not flag leaks for claim %s: %s", claim.id, err)
+            return record
 
         def alternate(p: TestPlan, _previous) -> TestPlan:
             fresh = plan_claim(sv.model, claim, site_url=info.live_url, avoid=p, only=p.test_type, job_id=job_id)

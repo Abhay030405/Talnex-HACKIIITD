@@ -116,6 +116,9 @@ class RunnerSettings:
     max_seconds: int
     snapshot_chars: int
     uploads_dir: str
+    screen_fps: float = 2.0     # live view: frames of the remote browser per second (0 turns the live screen off)
+    screen_quality: int = 50    # live view: JPEG quality of those frames
+    screen_width: int = 960     # live view: widest frame in pixels
     seconds_per_step: int = 60  # a longer plan gets more time: the limit is the larger of max_seconds and this per step
     model_free_steps: bool = True  # steps that name one clear action are done by plain code, with no model call
 
@@ -414,6 +417,9 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         seconds_per_step=env.whole("RUNNER_SECONDS_PER_STEP", 60),
         snapshot_chars=env.whole("RUNNER_SNAPSHOT_CHARS", 6000),
         model_free_steps=env.one_of("RUNNER_MODEL_FREE_STEPS", "1", ("0", "1")) == "1",
+        screen_fps=env.decimal("LIVE_SCREEN_FPS", 2.0, 0.0, 5.0),
+        screen_quality=env.whole("LIVE_SCREEN_QUALITY", 50),
+        screen_width=env.whole("LIVE_SCREEN_WIDTH", 960),
         uploads_dir=env.optional("TEST_FILES_DIR", "testdata"),
     )
     email = EmailSettings(

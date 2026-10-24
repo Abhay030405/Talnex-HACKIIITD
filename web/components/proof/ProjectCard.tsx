@@ -1,16 +1,27 @@
 import Link from "next/link";
 
+import { RerunButton } from "@/components/proof/RerunButton";
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { ProjectScore } from "@/components/scores/ProjectScore";
 import { BADGE_CLASS, formatDate } from "@/lib/format";
+import { networkSummary } from "@/lib/network";
 import { projectStatusInfo } from "@/lib/report-format";
 import type { ReportProject } from "@/lib/types";
 
 /** One resume project: status, score with coverage, flags beside it, each claim with its proof, and code history. */
-export function ProjectCard({ project, tourHref }: { project: ReportProject; tourHref?: string }) {
+export function ProjectCard({
+  project,
+  tourHref,
+  candidateId,
+}: {
+  project: ReportProject;
+  tourHref?: string;
+  candidateId?: string;
+}) {
   const status = projectStatusInfo(project.status);
+  const network = networkSummary(project.features);
   const originality = project.originality;
   const languages = Object.keys(originality?.languages ?? {});
 
@@ -23,6 +34,11 @@ export function ProjectCard({ project, tourHref }: { project: ReportProject; tou
           </h2>
           <div className="row">
             <span className={BADGE_CLASS[status.tone]}>{status.text}</span>
+            {candidateId && (
+              <RerunButton candidateId={candidateId} projectId={project.id}>
+                Re-test this project
+              </RerunButton>
+            )}
             {project.live_url && (
               <a className="meta" href={project.live_url} target="_blank" rel="noopener noreferrer">
                 Live site
@@ -34,6 +50,14 @@ export function ProjectCard({ project, tourHref }: { project: ReportProject; tou
               </a>
             )}
           </div>
+          {network && (
+            <p className="meta">
+              Network: {network.apiCalls} API calls
+              {network.averageMs !== null && `, average ${network.averageMs} ms, slowest ${network.slowestMs} ms`}
+              {`, ${network.errors} failed or error answers, ${network.consoleErrors} console errors`}
+              {network.leaks > 0 && <span className="network__bad">{`, ${network.leaks} leaked secrets (masked below)`}</span>}
+            </p>
+          )}
           {project.status !== "tested" && (
             <p className="note">
               {project.status_reason || "This project could not be tested."} This does not count against the candidate.

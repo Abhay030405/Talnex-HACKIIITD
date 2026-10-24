@@ -1,3 +1,4 @@
+import { CriteriaWeightsForm } from "@/components/forms/CriteriaWeightsForm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -200,6 +201,15 @@ export default async function EventPage({
             </>
           )}
         </dl>
+        {event.mode === "fixed_problem" && (
+          <details className="proof-viewer panel__body">
+            <summary>Change criteria or weights</summary>
+            <CriteriaWeightsForm
+              eventId={event.id}
+              criteria={criteria.map((c) => ({ name: c.name, description: c.description ?? "", weight: c.weight }))}
+            />
+          </details>
+        )}
       </section>
     </div>
   );

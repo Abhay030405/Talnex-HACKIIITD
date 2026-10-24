@@ -1,0 +1,1902 @@
+openapi: 3.1.0
+info:
+  title: TalNex API
+  version: 0.1.0
+  summary: The Go API behind the TalNex website, the MCP server and the phone SMS gateway.
+  description: |
+    TalNex opens a project's live link, uses it like a real person, and gives proof of what actually works.
+    This is the Go API the website calls (`backend/internal/http/server.go`).
+
+    **Sign-in.** Every `/v1` route except the SMS gateway and the dev live view needs `Authorization: Bearer` with a
+    short-lived token (see the `bearerAuth` scheme). Results are private to their owner: someone else's event,
+    project or candidate answers 404, exactly like one that does not exist, so nothing leaks.
+
+    **Errors** are JSON with one field, `error`, in plain words.
+
+    **Money.** `POST /v1/events/{id}/run`, `POST /v1/projects/{id}/run`, `POST /v1/candidates/{id}/confirm` and
+    `POST /v1/candidates/{id}/resume` start paid work (a browser agent and model calls).
+
+    A test (`backend/internal/http/openapi_test.go`) fails if a route registered in `server.go` is missing here.
+servers:
+  - url: '{origin}'
+    description: The TalNex API, by default on port 8080 (`API_PORT`). Change the address to point at another stack.
+    variables:
+      origin:
+        default: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Account
+    description: Who the token signs in as.
+  - name: Events
+    description: Organizer only. Hackathon events and starting their checks.
+  - name: Projects
+    description: Organizer only. The teams of an event.
+  - name: Proof
+    description: Organizer only. Proof cards, the event overview and "who built each feature best".
+  - name: Candidates
+    description: Recruiter only. Hiring roles, candidates, their resumes, confirmation, progress and the proof report.
+  - name: Walkthroughs
+    description: Ask how a feature of one project works. Answered from the code and the test results, never a score.
+  - name: Live
+    description: What TalNex is doing right now, as Server-Sent Events (`docs/live_events.md`).
+  - name: SMS gateway
+    description: The team phone forwards one-time codes it receives. No user token; checked by its gateway key.
+  - name: Health
+    description: Liveness and readiness checks for Docker and load balancers. No sign-in.
+  - name: Dev
+    description: |
+      **Dev only.** These routes exist only when the API runs with `ENABLE_DEV_ENDPOINTS=true` (local demos and
+      tests). They answer 404 in production.
+
+paths:
+  /healthz:
+    get:
+      operationId: healthz
+      tags: [Health]
+      summary: Is the API process up
+      description: Answers as long as the process runs. Does not check the database.
+      security: []
+      responses:
+        '200':
+          description: The API is up.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Status' }
+              example: { status: ok }
+
+  /readyz:
+    get:
+      operationId: readyz
+      tags: [Health]
+      summary: Can the API serve requests
+      description: Checks the services behind the API (the database and file storage) within 3 seconds.
+      security: []
+      responses:
+        '200':
+          description: Ready.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Status' }
+              example: { status: ready }
+        '503':
+          description: Something the API needs is not reachable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: not ready }
+
+  /v1/me:
+    get:
+      operationId: getMe
+      tags: [Account]
+      summary: Who am I
+      description: |
+        The account the token signs in as. The first call with a new email creates the account, with the token's role.
+        Use it to check a token works.
+      responses:
+        '200':
+          description: The signed-in account.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/RoleTaken' }
+
+  /v1/events:
+    post:
+      operationId: createEvent
+      tags: [Events]
+      summary: Create a hackathon event
+      description: |
+        Creates an event. Nothing is checked until teams are added and run. A `fixed_problem` event needs at least one
+        weighted criterion; an `open_theme` event has none.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewEvent' }
+      responses:
+        '201':
+          description: The new event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '400': { $ref: '#/components/responses/BadInput' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+    get:
+      operationId: listEvents
+      tags: [Events]
+      summary: List your events
+      description: Every event you own, newest first.
+      responses:
+        '200':
+          description: Your events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+
+  /v1/events/{id}:
+    get:
+      operationId: getEvent
+      tags: [Events]
+      summary: Get one event
+      parameters: [{ $ref: '#/components/parameters/EventId' }]
+      responses:
+        '200':
+          description: The event with its criteria.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/events/{id}/run:
+    post:
+      operationId: runEvent
+      tags: [Events]
+      summary: Check every new team of an event
+      description: |
+        **Spends money.** Starts the first check of every team that was never checked. Teams already checked are
+        skipped (run one again with `POST /v1/projects/{id}/run`).
+      parameters: [{ $ref: '#/components/parameters/EventId' }]
+      responses:
+        '202':
+          description: The checks were queued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventRunStarted' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/events/{id}/criteria:
+    put:
+      operationId: updateCriteria
+      tags: [Events]
+      summary: Change a fixed-problem event's criteria
+      description: |
+        Replaces the criteria and their weights. Only a `fixed_problem` event has criteria. Proof cards already made
+        are scored again with the new weights; nothing is tested again, so this costs nothing.
+      parameters: [{ $ref: '#/components/parameters/EventId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [criteria]
+              properties:
+                criteria:
+                  type: array
+                  minItems: 1
+                  items: { $ref: '#/components/schemas/NewCriterion' }
+      responses:
+        '200':
+          description: The saved criteria.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  criteria: { type: array, items: { $ref: '#/components/schemas/Criterion' } }
+        '400':
+          description: A criterion breaks a rule, or the event is open-theme.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: only a fixed_problem event has criteria }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/events/{id}/projects:
+    post:
+      operationId: createProject
+      tags: [Projects]
+      summary: Add a team to an event
+      description: Adds one team. Give at least one of the live site, the public repository or the demo video.
+      parameters: [{ $ref: '#/components/parameters/EventId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewProject' }
+      responses:
+        '201':
+          description: The new team.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '400': { $ref: '#/components/responses/BadInput' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      operationId: listProjects
+      tags: [Projects]
+      summary: List an event's teams
+      parameters: [{ $ref: '#/components/parameters/EventId' }]
+      responses:
+        '200':
+          description: The teams, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}:
+    get:
+      operationId: getProject
+      tags: [Projects]
+      summary: Get one team
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: The team, its links and its status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}/run:
+    post:
+      operationId: runProject
+      tags: [Projects]
+      summary: Check one team now, or again
+      description: '**Spends money.** Starts the next run of the check for this team.'
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '202':
+          description: The check was queued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectRunStarted' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: This team is still being checked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: this project is still being checked }
+
+  /v1/projects/{id}/ask:
+    post:
+      operationId: askProject
+      tags: [Walkthroughs]
+      summary: Ask TalNex about a team's proof card
+      description: |
+        Organizer only. A question about the team's results ("which claims could not be tested, and why?"), answered
+        from the proof card by one small model call. Read the answer with `GET /v1/projects/{id}/asks`.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/Ask' }
+      responses:
+        '202': { $ref: '#/components/responses/AskQueued' }
+        '400': { $ref: '#/components/responses/AskBad' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}/asks:
+    get:
+      operationId: listProjectAsks
+      tags: [Walkthroughs]
+      summary: Questions asked about a team's proof card
+      description: Organizer only. Newest first, each with its answer once done.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200': { $ref: '#/components/responses/AskList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}/custom-test:
+    post:
+      operationId: customTestProject
+      tags: [Walkthroughs]
+      summary: Run a custom test on a team's live site
+      description: |
+        **Spends money.** Organizer only. Ask TalNex to try one thing on the team's live site, described in your own
+        words ("add three todos, reload, check they are still there"). The agent plans it, runs it with a screenshot
+        per step and says what happened. The result never changes a score. Read it with
+        `GET /v1/projects/{id}/custom-tests`.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/CustomTest' }
+      responses:
+        '202': { $ref: '#/components/responses/AskQueued' }
+        '400': { $ref: '#/components/responses/CustomTestBad' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}/custom-tests:
+    get:
+      operationId: listProjectCustomTests
+      tags: [Walkthroughs]
+      summary: Custom tests run on a team's site
+      description: Organizer only. The latest 20, newest first, each with its result once done.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200': { $ref: '#/components/responses/CustomTestList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}/proof:
+    get:
+      operationId: getProjectProof
+      tags: [Proof]
+      summary: A team's proof card
+      description: |
+        Every claim with its verdict, score out of 10, reason and proof; group scores; red flags (beside the score,
+        never subtracted); the AI opinion (labelled, never part of the score); checks that did not run. Each proof
+        step's storage key is swapped for a short-lived `proof_url`.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: The proof card.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProofCard' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404':
+          description: Not found, not yours, or the card is not ready yet (`the proof card is not ready yet`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: the proof card is not ready yet }
+
+  /v1/events/{id}/overview:
+    get:
+      operationId: getEventOverview
+      tags: [Proof]
+      summary: Every team of an event at a glance
+      description: |
+        The organizer's dashboard: each team's status, TalNex score, coverage, weighted total, group scores and flag
+        counts. Ordered by team name, never by score: TalNex does not rank teams.
+      parameters: [{ $ref: '#/components/parameters/EventId' }]
+      responses:
+        '200':
+          description: The event and its teams.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventOverview' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/events/{id}/compare:
+    get:
+      operationId: getEventCompare
+      tags: [Proof]
+      summary: Who built each feature best
+      description: |
+        For each feature, up to three teams that built it best (never one winner, no ranking between features), the
+        best per group for open-theme events, and the pairs of teams whose code has the same shape. A copy pair is a
+        reason for a person to look; TalNex cannot tell who wrote the code first.
+      parameters: [{ $ref: '#/components/parameters/EventId' }]
+      responses:
+        '200':
+          description: The comparison. `ready` is false until every team's check has finished.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventCompare' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/roles:
+    post:
+      operationId: createRole
+      tags: [Candidates]
+      summary: Create a hiring role
+      description: |
+        A job opening that candidates sit under. With `auto_confirm` (on by default) the paid checks start by
+        themselves as soon as a candidate's resume is read.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewRole' }
+      responses:
+        '201':
+          description: The new role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '400': { $ref: '#/components/responses/BadInput' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+    get:
+      operationId: listRoles
+      tags: [Candidates]
+      summary: List your hiring roles
+      responses:
+        '200':
+          description: Your roles, each with its candidate count.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Role' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+
+  /v1/roles/{id}:
+    get:
+      operationId: getRole
+      tags: [Candidates]
+      summary: Get one role with its candidates
+      parameters:
+        - { name: id, in: path, required: true, description: The role id., schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The role and the candidates under it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateRole
+      tags: [Candidates]
+      summary: Change a hiring role
+      description: Replaces the role's details, criteria, checks and `auto_confirm` with the body. The owner only.
+      parameters:
+        - { name: id, in: path, required: true, description: The role id., schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewRole' }
+      responses:
+        '200':
+          description: The changed role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '400': { $ref: '#/components/responses/BadInput' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidates:
+    post:
+      operationId: createCandidate
+      tags: [Candidates]
+      summary: Add a candidate
+      description: |
+        Creates the candidate. Upload the resume next with `POST /v1/candidates/{id}/resume`. Leave `role_id` out (or
+        empty) for a candidate under no role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewCandidate' }
+      responses:
+        '201':
+          description: The new candidate.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Candidate' }
+        '400': { $ref: '#/components/responses/BadInput' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+    get:
+      operationId: listCandidates
+      tags: [Candidates]
+      summary: List your candidates
+      responses:
+        '200':
+          description: Your candidates with their status.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Candidate' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+
+  /v1/candidates/{id}:
+    get:
+      operationId: getCandidate
+      tags: [Candidates]
+      summary: Get one candidate
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      responses:
+        '200':
+          description: The candidate.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Candidate' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteCandidate
+      tags: [Candidates]
+      summary: Delete a candidate and their files
+      description: |
+        Deletes the candidate, the resume file, every result and screenshot for good. Cannot be undone. Refused while
+        a check is running.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      responses:
+        '204':
+          description: Deleted.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A check is still running.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: this check is still running; wait for it to finish }
+
+  /v1/candidates/{id}/resume:
+    post:
+      operationId: uploadResume
+      tags: [Candidates]
+      summary: Upload a candidate's resume
+      description: |
+        **Spends a little money** (one model call reads the resume). The PDF goes in the form field `resume`, up to
+        5 MB. The projects found wait for confirmation, unless the candidate's role has `auto_confirm`.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [resume]
+              properties:
+                resume:
+                  type: string
+                  format: binary
+                  description: The resume as a PDF file, at most 5 MB.
+      responses:
+        '202':
+          description: The resume is being read.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResumeAccepted' }
+        '400':
+          description: No file in `resume`, an unreadable file, or not a PDF.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: the resume must be a PDF file }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: This resume is still being read.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: this resume is still being read }
+        '413':
+          description: The file is larger than 5 MB.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: the resume file is larger than 5 MB }
+        '503':
+          description: Resume upload is switched off on this API (no file storage).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: resume upload is not available }
+
+  /v1/candidates/{id}/found:
+    get:
+      operationId: getFound
+      tags: [Candidates]
+      summary: What the resume reader found
+      description: The projects and coding profiles read from the resume, waiting for the recruiter to confirm or fix them.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      responses:
+        '200':
+          description: What was found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Found' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidates/{id}/confirm:
+    post:
+      operationId: confirmCandidate
+      tags: [Candidates]
+      summary: Confirm the projects and start the checks
+      description: |
+        **Spends money.** Sends the final list of projects (what was found, fixed or replaced) and coding profiles,
+        then starts checking them. Safe to send again if the first call failed half way.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Confirmation' }
+      responses:
+        '202':
+          description: The checks were queued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfirmStarted' }
+        '400': { $ref: '#/components/responses/BadInput' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The candidate is not waiting for confirmation (still reading, or already started).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: this check is not waiting for confirmation }
+
+  /v1/candidates/{id}/progress:
+    get:
+      operationId: getProgress
+      tags: [Candidates]
+      summary: Where a candidate's check stands
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      responses:
+        '200':
+          description: Each stage's state, for the candidate and per project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Progress' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidates/{id}/report:
+    get:
+      operationId: getReport
+      tags: [Candidates]
+      summary: A candidate's proof report
+      description: |
+        Each resume project's claims with verdicts, scores out of 10, reasons and proof; originality and code history;
+        coding-profile signals; flags; the time saved; an interview kit. Proof keys become short-lived `proof_url`s.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      responses:
+        '200':
+          description: The report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404':
+          description: Not found, not yours, or the report is not ready yet.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: the report is not ready yet }
+
+  /v1/candidates/{id}/rerun-coding:
+    post:
+      operationId: rerunCoding
+      tags: [Candidates]
+      summary: Read the coding profiles again
+      description: |
+        Reads the candidate's coding profiles (Codeforces, LeetCode, CodeChef) again, then rebuilds the report, which
+        waits for these checks. No project is tested again.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      responses:
+        '202':
+          description: Queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidate_id: { type: string, format: uuid }
+                  run: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The coding checks are still running.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: the coding checks are still running }
+
+  /v1/candidates/{id}/ask:
+    post:
+      operationId: askCandidate
+      tags: [Walkthroughs]
+      summary: Ask TalNex about a candidate's report
+      description: |
+        Recruiter only. A question about the candidate's proof report, answered from the report by one small model
+        call. Read the answer with `GET /v1/candidates/{id}/asks`.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      requestBody: { $ref: '#/components/requestBodies/Ask' }
+      responses:
+        '202': { $ref: '#/components/responses/AskQueued' }
+        '400': { $ref: '#/components/responses/AskBad' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidates/{id}/asks:
+    get:
+      operationId: listCandidateAsks
+      tags: [Walkthroughs]
+      summary: Questions asked about a candidate's report
+      description: Recruiter only. Newest first, each with its answer once done.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      responses:
+        '200': { $ref: '#/components/responses/AskList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidate-projects/{id}/rerun:
+    post:
+      operationId: rerunCandidateProject
+      tags: [Candidates]
+      summary: Test one resume project again
+      description: |
+        **Spends money.** Tests one project of a candidate's resume again; the report is rebuilt when it finishes.
+      parameters: [{ $ref: '#/components/parameters/CandidateProjectId' }]
+      responses:
+        '202':
+          description: Queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidate_project_id: { type: string, format: uuid }
+                  run: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: This project is still being checked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: this project is still being checked }
+
+  /v1/candidate-projects/{id}/custom-test:
+    post:
+      operationId: customTestCandidateProject
+      tags: [Walkthroughs]
+      summary: Run a custom test on a resume project's live site
+      description: |
+        **Spends money.** Recruiter only. Like the team version, for one project on a candidate's resume. The result
+        never changes a score. Read it with `GET /v1/candidate-projects/{id}/custom-tests`.
+      parameters: [{ $ref: '#/components/parameters/CandidateProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/CustomTest' }
+      responses:
+        '202': { $ref: '#/components/responses/AskQueued' }
+        '400': { $ref: '#/components/responses/CustomTestBad' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidate-projects/{id}/custom-tests:
+    get:
+      operationId: listCandidateProjectCustomTests
+      tags: [Walkthroughs]
+      summary: Custom tests run on a resume project
+      description: Recruiter only. The latest 20, newest first, each with its result once done.
+      parameters: [{ $ref: '#/components/parameters/CandidateProjectId' }]
+      responses:
+        '200': { $ref: '#/components/responses/CustomTestList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}/walkthroughs:
+    post:
+      operationId: askProjectWalkthrough
+      tags: [Walkthroughs]
+      summary: Ask about a hackathon team's project
+      description: |
+        Organizer only. Ask how a feature works, typed (JSON) or recorded (form field `audio`). The answer comes later:
+        read it with `GET /v1/walkthroughs/{id}`.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/Question' }
+      responses:
+        '202': { $ref: '#/components/responses/WalkthroughQueued' }
+        '400': { $ref: '#/components/responses/QuestionBad' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyQuestions' }
+    get:
+      operationId: listProjectWalkthroughs
+      tags: [Walkthroughs]
+      summary: Questions asked about a team's project
+      description: Organizer only. Every question asked about this project, newest first, with its answer when ready.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200':
+          description: The questions and answers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Walkthrough' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidate-projects/{id}/walkthroughs:
+    post:
+      operationId: askCandidateProjectWalkthrough
+      tags: [Walkthroughs]
+      summary: Ask about a project on a resume
+      description: |
+        Recruiter only. Like the team version, for one project of a candidate's resume. Read the answer with
+        `GET /v1/walkthroughs/{id}`.
+      parameters: [{ $ref: '#/components/parameters/CandidateProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/Question' }
+      responses:
+        '202': { $ref: '#/components/responses/WalkthroughQueued' }
+        '400': { $ref: '#/components/responses/QuestionBad' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyQuestions' }
+    get:
+      operationId: listCandidateProjectWalkthroughs
+      tags: [Walkthroughs]
+      summary: Questions asked about a resume project
+      description: Recruiter only. Every question asked about this resume project, newest first.
+      parameters: [{ $ref: '#/components/parameters/CandidateProjectId' }]
+      responses:
+        '200':
+          description: The questions and answers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Walkthrough' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/walkthroughs/{id}:
+    get:
+      operationId: getWalkthrough
+      tags: [Walkthroughs]
+      summary: One question and its answer
+      description: |
+        Either kind of account. Only the person who asked sees it. Poll while `status` is `queued` or `answering`.
+      parameters:
+        - { name: id, in: path, required: true, description: The question id from the ask call., schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The question, its status and the answer once `done`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Walkthrough' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Not found, or asked by someone else.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: question not found }
+
+  /v1/live/{kind}/{id}:
+    get:
+      operationId: getLive
+      tags: [Live]
+      summary: Watch a check live
+      description: |
+        A Server-Sent Events stream of what TalNex is doing on one subject. The owner only. For an `event` it streams
+        every team of the event; for a `candidate`, every project on the resume.
+
+        **Order.** First `event: replay.start`, then up to 400 saved events (oldest first), then
+        `event: replay.done`, then live events as they happen. A comment line `: ping` arrives every 15 seconds. A
+        reconnecting viewer gets a fresh replay, so start your list again at `replay.start`.
+
+        **Each event** is `event: KIND` and `data: JSON` with `v`, `at`, `kind`, `subject` (`kind`, `id`), `stage`,
+        `claim_id`, `job_id`, `run_number` and `data`. Storage keys in `data` become short-lived `proof_url` or
+        `proof_urls` links.
+
+        **Kinds** (`docs/live_events.md`):
+
+        | kind | when | data |
+        |---|---|---|
+        | `stage.started` | a pipeline stage starts | `try_number` |
+        | `stage.finished` | a stage ends | `seconds`, `skipped`, `reason` |
+        | `stage.failed` | a stage hit an error | `status` (retrying or failed), `error` |
+        | `claims.queued` | live testing starts for a subject | `total`, `todo`, `claims` (id, text) |
+        | `claim.started` | one claim starts | `text`, `group`, `importance`, `test_type`, `steps` |
+        | `ladder` | each rung of the never-blame ladder | `line` |
+        | `run.started` | a browser run starts | `try_number`, `test_type`, `steps`, `expected_result` |
+        | `reason` | the agent's reason for its next move | `step`, `text`, `looked_at_picture` |
+        | `step.record` | an action was done (screenshot taken) | `number`, `label`, `expected`, `observed`, `proof_url`, `box`, `url` |
+        | `step.result` | a plan step ended | `step`, `steps`, `result` (done, failed or blocked), `observed` |
+        | `run.outcome` | the run's own conclusion | `outcome`, `observed`, `stop_reason`, `actions` |
+        | `run.finished` | the browser closed | `outcome`, `reason`, `actions`, `cost_usd` |
+        | `check.started` | the blind proof check starts | `images` |
+        | `check` | the blind proof check answered | `outcome`, `seen`, `images` |
+        | `verdict` | a claim's final result was saved | `verdict`, `confidence`, `reason`, `proof_urls`, `second_check_agreed` |
+
+        A claim is never broken before its `verdict` event. The interactive playground cannot show a stream: use
+        `curl -N` or the MCP server's `watch_live`.
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          description: What to watch.
+          schema: { type: string, enum: [project, candidate_project, candidate, event] }
+        - { name: id, in: path, required: true, description: "The id of that project, resume project, candidate or event.", schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The event stream. It stays open until the viewer leaves.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events, one event per blank-line-separated block.
+              example: |
+                event: replay.start
+                data: {}
+
+                event: stage.started
+                data: {"v":1,"at":"2026-10-24T16:45:55.103Z","kind":"stage.started","stage":"precheck","subject":{"kind":"project","id":"b93b6f22-5c31-43db-bd4c-a41598568007"},"data":{"try_number":1}}
+
+                event: replay.done
+                data: {}
+
+                : ping
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Not yours, not found, or an unknown kind.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: unknown kind of subject }
+        '503':
+          description: The live view is switched off on this API.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /v1/sms/incoming:
+    post:
+      operationId: incomingSms
+      tags: [SMS gateway]
+      summary: The team phone forwards a text message
+      description: |
+        Called only by the SMS Relay phone app (`mobile/`) when the team SIM receives a one-time code during sign-up.
+        No user token: the phone sends the gateway key in `X-Gateway-Key`. Messages are personal data and are cleared
+        after a short time.
+      security:
+        - gatewayKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SmsMessage' }
+      responses:
+        '202':
+          description: Saved.
+        '400':
+          description: A missing, too long or badly formed field.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: from and body are required }
+        '401':
+          description: The gateway key is wrong.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: wrong gateway key }
+        '429':
+          description: Too many messages in a short time.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: "too many messages, slow down" }
+        '503':
+          description: Phone sign-up is switched off (no gateway key set on the API).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /v1/dev/selftest:
+    post:
+      operationId: startSelfTest
+      tags: [Dev]
+      summary: Start the queue self-test (dev only)
+      description: |
+        **Dev only** (`ENABLE_DEV_ENDPOINTS=true`). Starts a tiny Python, then Go, then Python pipeline on a random
+        target to prove the job queue works end to end. Costs nothing.
+      responses:
+        '202':
+          description: Started.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SelfTestStarted' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DevOff' }
+
+  /v1/dev/selftest/{target}:
+    get:
+      operationId: getSelfTest
+      tags: [Dev]
+      summary: Self-test status (dev only)
+      description: '**Dev only.** The jobs of one self-test, in order, with their status.'
+      parameters:
+        - { name: target, in: path, required: true, description: The target from the start call., schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The self-test's jobs (empty for an unknown target).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SelfTestJob' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/DevOff' }
+
+  /v1/dev/live:
+    get:
+      operationId: getDevLive
+      tags: [Dev]
+      summary: Every live event, no sign-in (dev only)
+      description: |
+        **Dev only, no sign-in.** Mission control for local demos: the same stream as `GET /v1/live/{kind}/{id}` but
+        for every subject at once.
+      security: []
+      responses:
+        '200':
+          description: The event stream.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/DevOff' }
+        '503':
+          description: The live view is switched off.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /v1/dev/live/view:
+    get:
+      operationId: getDevLiveView
+      tags: [Dev]
+      summary: The mission control page (dev only)
+      description: '**Dev only, no sign-in.** An HTML page that shows `GET /v1/dev/live` as panels per project.'
+      security: []
+      responses:
+        '200':
+          description: The page.
+          content:
+            text/html:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/DevOff' }
+
+  /v1/dev/live/names:
+    get:
+      operationId: getDevLiveNames
+      tags: [Dev]
+      summary: Names for live subjects (dev only)
+      description: '**Dev only, no sign-in.** Maps subject ids to the names people know them by, per kind.'
+      security: []
+      responses:
+        '200':
+          description: For each kind (project, candidate_project, candidate, event), id to name.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties: { type: string }
+              example: { project: { b93b6f22-5c31-43db-bd4c-a41598568007: TinyTools } }
+        '404': { $ref: '#/components/responses/DevOff' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        A JWT signed with HS256 and the API's `AUTH_SECRET`, exactly as the website signs it (`web/lib/token.ts`).
+        Header `alg: HS256, typ: JWT`. Claims:
+
+        - `email` (required): the account, trimmed and lower case. A new email creates the account.
+        - `name`: the person's name, or empty.
+        - `role`: `organizer` or `recruiter`. Organizer routes refuse a recruiter and the other way round (403).
+        - `iat`: when it was signed. `exp` (required): when it stops working; the website uses 120 seconds.
+
+        Signing with the shared secret is for the website, the MCP server and local testing. For the playground, the
+        docs site can mint a test token when run with `TALNEX_DOCS_DEV_TOKENS=true`.
+    gatewayKey:
+      type: apiKey
+      in: header
+      name: X-Gateway-Key
+      description: The SMS gateway key (`SMS_GATEWAY_KEY`) shared with the team phone. Only for the SMS route.
+
+  parameters:
+    EventId:
+      { name: id, in: path, required: true, description: The event id., schema: { type: string, format: uuid } }
+    ProjectId:
+      { name: id, in: path, required: true, description: The hackathon project (team) id., schema: { type: string, format: uuid } }
+    CandidateId:
+      { name: id, in: path, required: true, description: The candidate id., schema: { type: string, format: uuid } }
+    CandidateProjectId:
+      { name: id, in: path, required: true, description: The id of one project on a candidate's resume., schema: { type: string, format: uuid } }
+
+  requestBodies:
+    CustomTest:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [instruction]
+            properties:
+              instruction:
+                type: string
+                maxLength: 500
+                description: What to try on the live site, in plain words, up to 500 characters.
+                example: Add three todos, reload the page, and check they are still there.
+    Ask:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [question]
+            properties:
+              question:
+                type: string
+                maxLength: 1000
+                description: The question, up to 1000 characters.
+                example: Which claims could not be tested, and why?
+    Question:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [question]
+            properties:
+              question:
+                type: string
+                description: The question, for example how does the login work.
+                example: How does the login work?
+        multipart/form-data:
+          schema:
+            type: object
+            required: [audio]
+            properties:
+              audio:
+                type: string
+                format: binary
+                description: A recorded question (WebM, Ogg, MP4/M4A, WAV or MP3). Off when the API has no file storage.
+
+  responses:
+    WalkthroughQueued:
+      description: The question was queued.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/WalkthroughQueued' }
+    QuestionBad:
+      description: No question, too long, or a bad recording.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: question is required }
+    TooManyQuestions:
+      description: The daily limit of questions for this project is reached.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    AskQueued:
+      description: The question was queued; the answer usually takes a few seconds.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id: { type: string, format: uuid, description: The question's id. }
+    AskBad:
+      description: No question, or longer than 1000 characters.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: ask a question of up to 1000 characters }
+    CustomTestBad:
+      description: No description of the test, or longer than 500 characters.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: describe the test in up to 500 characters }
+    CustomTestList:
+      description: The custom tests, newest first (at most 20).
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/CustomTest' }
+    AskList:
+      description: The questions, newest first.
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/Ask' }
+    BadInput:
+      description: The body is missing, not valid JSON, has an unknown field, or breaks a rule. The message says which.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: "starts_at and ends_at are required, and ends_at must be after starts_at" }
+    Unauthorized:
+      description: No token, an expired token, or one not signed with this API's `AUTH_SECRET`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: sign in required }
+    WrongRole:
+      description: The route is for the other kind of account (organizer or recruiter).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: this page is for organizer accounts }
+    RoleTaken:
+      description: The token's role differs from the role this email already has.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: this email already has a recruiter account }
+    NotFound:
+      description: It does not exist, or it belongs to another account. The two look the same on purpose.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: event not found }
+    DevOff:
+      description: The dev routes are off (`ENABLE_DEV_ENDPOINTS` is not true).
+      content:
+        text/plain:
+          schema: { type: string }
+
+  schemas:
+    Error:
+      type: object
+      description: Every error, in plain words.
+      required: [error]
+      properties:
+        error: { type: string, description: "What went wrong, safe to show.", example: event not found }
+
+    Status:
+      type: object
+      properties:
+        status: { type: string, description: ok or ready. }
+
+    Me:
+      type: object
+      properties:
+        id: { type: string, format: uuid, description: The account id. }
+        email: { type: string, format: email, description: "The account's email, lower case.", example: organizer@talnex.test }
+
+    RoleLevel:
+      type: string
+      enum: [fresher, junior, mid, senior]
+      description: How features are scored. A fresher is not expected to build what a senior would.
+
+    Criterion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, description: The criterion's name., example: Core features }
+        description: { type: string, description: What the judges look for. }
+        weight: { type: number, description: "Its weight in the weighted total, above 0.", example: 3 }
+
+    NewCriterion:
+      type: object
+      additionalProperties: false
+      required: [name, weight]
+      properties:
+        name: { type: string, description: A unique name., example: Core features }
+        description: { type: string, description: What the judges look for., example: "The converter, todos and timer work" }
+        weight: { type: number, exclusiveMinimum: 0, description: Above 0., example: 3 }
+
+    Event:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, example: Campus Hack 2026 }
+        mode:
+          type: string
+          enum: [open_theme, fixed_problem]
+          description: open_theme reads each team's own features; fixed_problem scores everyone on the criteria.
+        role_level: { $ref: '#/components/schemas/RoleLevel' }
+        starts_at: { type: string, format: date-time, description: When the event started. Code from before it is flagged. }
+        ends_at: { type: string, format: date-time, description: When it ended. }
+        sponsor_tools: { type: array, items: { type: string }, description: Sponsor technology teams were asked to use. }
+        criteria:
+          type: [array, 'null']
+          items: { $ref: '#/components/schemas/Criterion' }
+          description: Fixed-problem events only.
+        created_at: { type: string, format: date-time }
+
+    NewEvent:
+      type: object
+      additionalProperties: false
+      required: [name, mode, starts_at, ends_at]
+      properties:
+        name: { type: string, description: Required., example: Campus Hack 2026 }
+        mode: { type: string, enum: [open_theme, fixed_problem], example: fixed_problem }
+        role_level: { allOf: [{ $ref: '#/components/schemas/RoleLevel' }], description: Default fresher. }
+        starts_at: { type: string, format: date-time, example: '2026-10-23T09:00:00Z' }
+        ends_at: { type: string, format: date-time, description: Must be after starts_at., example: '2026-10-24T18:00:00Z' }
+        sponsor_tools: { type: array, items: { type: string }, example: [] }
+        criteria:
+          type: array
+          items: { $ref: '#/components/schemas/NewCriterion' }
+          description: At least one for fixed_problem; none for open_theme.
+          example: [{ name: Core features, description: The main tools work, weight: 3 }, { name: Ease of use, description: '', weight: 1 }]
+        brief:
+          type: string
+          maxLength: 20000
+          description: The problem statement or theme the judges give. It reaches the test prompts as data, never as instructions.
+        checks:
+          type: object
+          description: Which checks run for this event, each true or false. Empty runs the usual checks.
+          additionalProperties: { type: boolean }
+
+    EventRunStarted:
+      type: object
+      properties:
+        started: { type: array, items: { type: string, format: uuid }, description: The teams whose first check was queued. }
+        skipped: { type: array, items: { type: string, format: uuid }, description: Teams already checked before. }
+
+    Project:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        team_name: { type: string, example: TinyTools }
+        video_url: { type: string, description: "The demo video, or empty." }
+        live_url: { type: string, description: "The live site, or empty.", example: https://talnex-honest.vercel.app }
+        repo_url: { type: string, description: "The public GitHub repository, or empty." }
+        test_login_ref: { type: string, description: "A name in TinyFish Vault for a test login, never a password." }
+        team_github_handles: { type: array, items: { type: string }, description: The team's GitHub accounts. }
+        status:
+          type: string
+          description: submitted, prechecking, reading, testing, checking, scoring, done, or done_with_gaps.
+          example: submitted
+        status_detail: { type: string, description: A plain-words note on the status. }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    NewProject:
+      type: object
+      additionalProperties: false
+      required: [team_name]
+      description: Give at least one of video_url, live_url or repo_url. Links must start with http:// or https://.
+      properties:
+        team_name: { type: string, example: TinyTools }
+        live_url: { type: string, example: https://talnex-honest.vercel.app }
+        repo_url: { type: string, example: '' }
+        video_url: { type: string, example: '' }
+        test_login_ref: { type: string, description: A TinyFish Vault name for a test login. Never a password. }
+        team_github_handles: { type: array, items: { type: string }, maxItems: 10, description: GitHub account names. }
+        abstract:
+          type: string
+          description: The team's own short description of what they built. It reaches the test prompts as data, never as instructions.
+
+    ProjectRunStarted:
+      type: object
+      properties:
+        project_id: { type: string, format: uuid }
+        run: { type: integer, description: The run number that was queued (1 for the first check)., example: 2 }
+
+    Verdict:
+      type: [string, 'null']
+      enum: [works, partly_works, broken, could_not_test, reviewed_from_code, null]
+      description: |
+        works, partly_works, broken (only after the never-blame ladder), could_not_test (left out of the score, never
+        counts against anyone), reviewed_from_code (read, not run; capped at 7 out of 10).
+
+    ProofStep:
+      type: object
+      properties:
+        step: { type: integer }
+        action: { type: string, description: What the agent did. }
+        observed: { type: [string, 'null'], description: What was on screen afterwards. }
+        kind: { type: string, enum: [screen, http, command], description: "A screenshot, a saved request, or a command's output." }
+        test_type: { type: [string, 'null'] }
+        track: { type: [string, 'null'], description: live or sandbox. }
+        proof_url: { type: string, description: A short-lived link to the proof file. Missing when there is none. }
+
+    Feature:
+      type: object
+      description: One claim and what happened when it was tested.
+      properties:
+        claim_id: { type: string, format: uuid }
+        text: { type: string, example: "Convert between USD, EUR, GBP and INR." }
+        group: { type: [string, 'null'], description: "Access, Core, Logic, Reliability, a criterion, or other." }
+        importance: { type: number }
+        testable: { type: boolean }
+        untestable_reason: { type: [string, 'null'] }
+        verdict: { $ref: '#/components/schemas/Verdict' }
+        confidence: { type: [string, 'null'], enum: [high, medium, low, disagree, null] }
+        reason: { type: [string, 'null'], description: "Why, in plain words." }
+        score10: { type: [number, 'null'], description: The feature's score out of 10; null when not tested. }
+        score_reason: { type: [string, 'null'] }
+        proof: { type: array, items: { $ref: '#/components/schemas/ProofStep' } }
+        code_review: { type: [object, 'null'], description: "For claims reviewed from code, not run." }
+        authorship: { type: [object, 'null'], description: Which GitHub account wrote the code behind it. }
+
+    Flag:
+      type: object
+      description: A red flag. Shown beside the score, never subtracted from it.
+      properties:
+        type: { type: string, example: built_before_event }
+        level: { type: string, enum: [info, review, strong] }
+        reason: { type: string }
+
+    TalnexScore:
+      type: object
+      properties:
+        score10: { type: [number, 'null'], description: The TalNex score out of 10 over the features that were tested., example: 9.6 }
+        coverage: { type: number, description: Percent of features that could be scored., example: 100 }
+        features_scored: { type: integer }
+        features_total: { type: integer }
+        low_coverage: { type: boolean, description: True when too little could be tested to lean on the score. }
+        confidence: { type: [string, 'null'] }
+
+    CardGroup:
+      type: object
+      properties:
+        group: { type: string }
+        kind: { type: string, description: "standard, backend, other or criterion." }
+        score: { type: [number, 'null'] }
+        coverage: { type: number }
+        confidence: { type: [string, 'null'] }
+        claims_used: { type: integer }
+        low_coverage: { type: boolean }
+
+    ProofCard:
+      type: object
+      description: The hackathon proof card, built by the project_report stage.
+      properties:
+        version: { type: integer }
+        project_id: { type: string, format: uuid }
+        generated_at: { type: string, format: date-time }
+        team_name: { type: string, example: TinyTools }
+        status: { type: string }
+        links:
+          type: object
+          properties:
+            video: { type: [string, 'null'] }
+            live: { type: [string, 'null'] }
+            repo: { type: [string, 'null'] }
+        event: { type: object, description: "The event's id, name, mode, role level and dates." }
+        criteria: { type: array, items: { $ref: '#/components/schemas/NewCriterion' } }
+        talnex: { $ref: '#/components/schemas/TalnexScore' }
+        weighted_total:
+          type: [object, 'null']
+          description: Fixed-problem events only, always shown with its label.
+          properties:
+            score: { type: [number, 'null'] }
+            weight_covered: { type: number }
+            criteria_used: { type: integer }
+            criteria_total: { type: integer }
+            label: { type: string }
+        groups: { type: array, items: { $ref: '#/components/schemas/CardGroup' } }
+        features: { type: array, items: { $ref: '#/components/schemas/Feature' } }
+        flags: { type: array, items: { $ref: '#/components/schemas/Flag' } }
+        checks:
+          type: array
+          description: Checks and what became of them (for example a stage that could not run, and why).
+          items:
+            type: object
+            properties:
+              stage: { type: string }
+              status: { type: string }
+              reason: { type: [string, 'null'] }
+        ai_opinion:
+          type: [object, 'null']
+          description: UI and innovation opinion. Always labelled "AI opinion, not tested proof"; never part of a score.
+        who_built_what: { type: [array, 'null'], items: { type: object } }
+        has_gaps: { type: boolean, description: True when something could not be tested; the card says what and why. }
+        notes: { type: array, items: { type: string } }
+
+    EventOverview:
+      type: object
+      properties:
+        event: { $ref: '#/components/schemas/Event' }
+        projects:
+          type: array
+          description: Ordered by team name, never by score.
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              team_name: { type: string }
+              status: { type: string }
+              has_video: { type: boolean }
+              has_live: { type: boolean }
+              has_repo: { type: boolean }
+              talnex_score10: { type: [number, 'null'] }
+              coverage: { type: [number, 'null'] }
+              weighted_total: { type: [number, 'null'] }
+              groups:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    group: { type: string }
+                    score: { type: [number, 'null'] }
+                    coverage: { type: number }
+                    low_coverage: { type: boolean }
+              flags:
+                type: object
+                description: How many flags of each level (info, review, strong).
+                additionalProperties: { type: integer }
+              report_ready: { type: boolean }
+              run_seconds: { type: [number, 'null'], description: How long the latest check took. }
+              run_cost_usd: { type: [number, 'null'], description: What the latest check cost. }
+
+    BestTeam:
+      type: object
+      description: One of up to three teams that built a feature best.
+      properties:
+        project_id: { type: string, format: uuid }
+        team_name: { type: string }
+        claim_id: { type: string }
+        claim_text: { type: string }
+        verdict: { $ref: '#/components/schemas/Verdict' }
+        confidence: { type: [string, 'null'] }
+        feature_score: { type: [number, 'null'] }
+        reason: { type: [string, 'null'] }
+        proof_urls: { type: array, items: { type: string } }
+        label: { type: [string, 'null'] }
+
+    EventCompare:
+      type: object
+      properties:
+        ready: { type: boolean, description: False until every team's check has finished. }
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              best_teams: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/BestTeam' } }
+        group_bests:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              best_teams: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/BestTeam' } }
+        copy_pairs:
+          type: array
+          items:
+            type: object
+            properties:
+              team_a: { type: object, properties: { id: { type: string }, name: { type: string } } }
+              team_b: { type: object, properties: { id: { type: string }, name: { type: string } } }
+              shared_pct: { type: number, description: How much of the code has the same shape. }
+              level: { type: [string, 'null'], enum: [info, review, strong, null] }
+              matching_files: { description: The files that look alike. }
+        notes: { type: array, items: { type: string } }
+
+    RoleCriterion:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        weight: { type: number, exclusiveMinimum: 0 }
+
+    NewRole:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, example: Backend intern }
+        job_description: { type: string }
+        person_wanted: { type: string, description: "The kind of person wanted, in the recruiter's words." }
+        skills: { type: array, items: { type: string } }
+        role_level: { $ref: '#/components/schemas/RoleLevel' }
+        criteria: { type: array, items: { $ref: '#/components/schemas/RoleCriterion' } }
+        checks:
+          type: object
+          description: Which checks to run (live_test, code_review, coding_profiles, linkedin), each true or false.
+          additionalProperties: { type: boolean }
+        auto_confirm: { type: boolean, description: Start the paid checks as soon as a resume is read. Default true. }
+
+    Role:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        job_description: { type: string }
+        person_wanted: { type: string }
+        skills: { type: array, items: { type: string } }
+        role_level: { $ref: '#/components/schemas/RoleLevel' }
+        criteria: { type: array, items: { $ref: '#/components/schemas/RoleCriterion' } }
+        checks: { type: object, additionalProperties: { type: boolean } }
+        auto_confirm: { type: boolean }
+        candidate_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        candidates: { type: array, items: { $ref: '#/components/schemas/Candidate' }, description: Only on GET of one role. }
+
+    Candidate:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string, description: A label; no real name needed. }
+        role_level: { $ref: '#/components/schemas/RoleLevel' }
+        role_id: { type: string, format: uuid, description: "The role the candidate sits under, when any." }
+        coding_handles: { type: object, additionalProperties: { type: string } }
+        status: { type: string, description: For example new, reading, awaiting_confirmation, checking, done. }
+        created_at: { type: string, format: date-time }
+
+    NewCandidate:
+      type: object
+      additionalProperties: false
+      properties:
+        label: { type: string, example: Candidate 12 }
+        role_level: { allOf: [{ $ref: '#/components/schemas/RoleLevel' }], description: Default fresher. }
+        coding_handles:
+          type: object
+          description: Handles on codeforces, leetcode or codechef.
+          additionalProperties: { type: string }
+          example: { codeforces: tourist }
+        role_id: { type: string, description: "A role id, or empty for none." }
+
+    ResumeAccepted:
+      type: object
+      properties:
+        candidate_id: { type: string, format: uuid }
+        run: { type: integer }
+
+    FoundProject:
+      type: object
+      properties:
+        id: { type: string, format: uuid, description: Set for a project the reader found; leave out for a new one. }
+        name: { type: string, example: TinyTools }
+        live_url: { type: string }
+        repo_url: { type: string }
+        video_url: { type: string }
+        bullets: { type: array, items: { type: string }, description: Read only. The resume lines it came from. }
+
+    Found:
+      type: object
+      properties:
+        status: { type: string, example: awaiting_confirmation }
+        status_detail: { type: string }
+        role_level: { $ref: '#/components/schemas/RoleLevel' }
+        projects: { type: array, items: { $ref: '#/components/schemas/FoundProject' } }
+        coding_handles: { type: object, additionalProperties: { type: string } }
+        coding_links: { type: object, additionalProperties: { type: string } }
+
+    Confirmation:
+      type: object
+      additionalProperties: false
+      properties:
+        projects: { type: array, items: { $ref: '#/components/schemas/FoundProject' }, description: The final list to check. }
+        coding_profiles:
+          type: object
+          description: Site to handle or profile link. An empty value removes that profile.
+          additionalProperties: { type: string }
+
+    ConfirmStarted:
+      type: object
+      properties:
+        candidate_id: { type: string, format: uuid }
+        run: { type: integer }
+        projects: { type: integer, description: How many projects will be checked. }
+
+    ProgressStage:
+      type: object
+      properties:
+        name: { type: string, example: resume_read }
+        state: { type: string, enum: [waiting, running, retrying, done, failed] }
+        note: { type: string }
+
+    Progress:
+      type: object
+      properties:
+        status: { type: string }
+        status_detail: { type: string }
+        stages: { type: array, items: { $ref: '#/components/schemas/ProgressStage' } }
+        projects:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              stages: { type: array, items: { $ref: '#/components/schemas/ProgressStage' } }
+        report_ready: { type: boolean }
+
+    Report:
+      type: object
+      description: The recruiter proof report.
+      properties:
+        version: { type: integer }
+        candidate_id: { type: string, format: uuid }
+        generated_at: { type: string, format: date-time }
+        role_level: { $ref: '#/components/schemas/RoleLevel' }
+        has_gaps: { type: boolean }
+        time_saved:
+          type: object
+          properties:
+            manual_minutes_estimate: { type: number }
+            talnex_minutes: { type: number }
+            saved_minutes: { type: number }
+        projects:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              live_url: { type: [string, 'null'] }
+              repo_url: { type: [string, 'null'] }
+              status: { type: string, enum: [tested, could_not_test, no_live_link] }
+              status_reason: { type: string }
+              talnex: { oneOf: [{ $ref: '#/components/schemas/TalnexScore' }, { type: 'null' }] }
+              features: { type: array, items: { $ref: '#/components/schemas/Feature' } }
+              flags: { type: array, items: { $ref: '#/components/schemas/Flag' } }
+              originality:
+                type: [object, 'null']
+                description: Whether the repository was found, when it was created and pushed, forks and languages.
+        coding_signals:
+          type: array
+          items:
+            type: object
+            properties:
+              site: { type: string }
+              signal: { type: string }
+              weight: { type: string, description: "not_suspicious, medium or strong." }
+              contest: { type: [string, 'null'] }
+              evidence: { type: object }
+        flags: { type: array, items: { $ref: '#/components/schemas/Flag' } }
+        notes: { type: array, items: { type: string } }
+        interview_kit:
+          type: array
+          description: Questions to ask, each tied to its proof. Things to talk about, never verdicts.
+          items:
+            type: object
+            properties:
+              kind: { type: string, enum: [coding, feature, flag, demo] }
+              question: { type: string }
+              why: { type: string }
+              proof: { type: object }
+
+    Ask:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        question: { type: string }
+        status: { type: string, enum: [queued, running, retrying, done, failed] }
+        result:
+          type: object
+          description: Once done, `answer` (plain words) and `action` (a suggested next step, or null). Empty before.
+          properties:
+            answer: { type: string }
+            action: { type: [object, 'null'] }
+        asked_at: { type: string, format: date-time }
+
+    CustomTest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        instruction: { type: string, description: The test as the reviewer described it. }
+        status: { type: string, enum: [queued, running, retrying, done, failed] }
+        result:
+          type: object
+          description: Empty until done. Never part of any score.
+          properties:
+            verdict: { $ref: '#/components/schemas/Verdict' }
+            observed: { type: string, description: What the agent saw happen. }
+            expected: { type: string, description: What the planned test expected. }
+            steps:
+              type: array
+              items:
+                type: object
+                properties:
+                  action: { type: string }
+                  observed: { type: [string, 'null'] }
+                  proof_url: { type: string, description: A short-lived link to the step's screenshot. }
+        asked_at: { type: string, format: date-time }
+
+    WalkthroughQueued:
+      type: object
+      properties:
+        id: { type: string, format: uuid, description: Read the answer with this id. }
+        status: { type: string, const: queued }
+
+    Walkthrough:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [queued, answering, done, failed] }
+        question: { type: [string, 'null'] }
+        answer:
+          type: [object, 'null']
+          description: |
+            Once done: the claim it is about, the flow sentences and what was seen, each with proof (code lines,
+            screenshots as short-lived view_url links, steps), what was not found in the code, and a spoken version.
+        error: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        answered_at: { type: [string, 'null'], format: date-time }
+
+    SmsMessage:
+      type: object
+      required: [from, body]
+      properties:
+        from: { type: string, description: The sender's number. }
+        body: { type: string, description: The message text. }
+        received_at: { type: string, format: date-time, description: "When the phone got it (ISO 8601, not in the future)." }
+        device: { type: string, description: Which phone sent it. }
+
+    SelfTestStarted:
+      type: object
+      properties:
+        target: { type: string, format: uuid }
+        started_jobs: { type: array, items: { type: string } }
+
+    SelfTestJob:
+      type: object
+      properties:
+        job_type: { type: string }
+        runner: { type: string, description: go or python. }
+        status: { type: string }
+        tries: { type: integer }
+        error: { type: string }

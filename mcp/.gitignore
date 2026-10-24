@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+docs/node_modules/
+docs/.next/
+docs/.source/
+docs/out/
+docs/next-env.d.ts
+# API reference pages, generated from backend/api/openapi.yaml before every dev and build
+docs/content/docs/api-reference/*/
+docs/*.tsbuildinfo

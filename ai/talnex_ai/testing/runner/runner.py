@@ -21,8 +21,9 @@ from talnex_ai.llm.structured import ChatClient, StructuredError
 from talnex_ai.safety.site_rules import RunLimits, ensure_can_run, next_try_number
 from talnex_ai.settings import RunnerSettings
 from talnex_ai.storage import Store
-from talnex_ai.storage.keys import screen_key
+from talnex_ai.storage.keys import screen_key, live_screen_key
 from talnex_ai.testing.runner import driver as driver_module
+from talnex_ai.testing.runner import screencast
 from talnex_ai.testing.runner import store
 from talnex_ai.testing.runner.executor import ExecConfig, ExecResult, MailboxLike, Outcome, SmsBoxLike, execute_plan
 from talnex_ai.tinyfish.budget import BudgetExceeded
@@ -71,13 +72,20 @@ def run_plan(
     job_id: Optional[str] = None,
     connect: Connector = driver_module.connect,
     on_event: Optional[Callable[..., None]] = None,
+    record_as: Optional[str] = None,
 ) -> RunRecord:
-    """Run one plan. Raises LimitReached when a run limit is hit (nothing is created then)."""
-    if claim.id is None:
-        raise ValueError("the claim must be saved before it can be tested")
-    ensure_can_run(pool, claim.id, limits)
-    try_number = next_try_number(pool, claim.id) or 1
-    run_id = store.create_run(pool, claim.id, try_number, plan.test_type, method="browser")
+    """Run one plan. Raises LimitReached when a run limit is hit (nothing is created then).
+
+    `record_as` is a one-off test (Ask TalNex): no run or step rows are written, so it can never change a result
+    or a score; its screenshots and live screen are kept under that id instead."""
+    if record_as is None:
+        if claim.id is None:
+            raise ValueError("the claim must be saved before it can be tested")
+        ensure_can_run(pool, claim.id, limits)
+        try_number = next_try_number(pool, claim.id) or 1
+        run_id = store.create_run(pool, claim.id, try_number, plan.test_type, method="browser")
+    else:
+        try_number, run_id = 1, record_as
 
     def tell(kind: str, **data) -> None:
         if on_event is not None:
@@ -104,6 +112,13 @@ def run_plan(
             log.warning("could not save screenshot %s: %s", key, err)
             return None
 
+    live_key = live_screen_key(subject_id, run_id)
+
+    def publish_screen(jpeg: bytes) -> None:
+        """One live-view frame: the newest picture overwrites the last, and the view is told to fetch it."""
+        store_files.put_bytes(live_key, jpeg, "image/jpeg")
+        tell("screen.frame", proof_key=live_key)
+
     config = ExecConfig(runner_cfg.max_actions, runner_cfg.max_actions_per_step, runner_cfg.max_seconds,
                         runner_cfg.snapshot_chars, runner_cfg.seconds_per_step, runner_cfg.model_free_steps)
     try:
@@ -115,17 +130,25 @@ def run_plan(
             with tinyfish.open_session(site_url, job_id=job_id) as session:
                 account = session.account
                 with connect(session.cdp_url) as driver:
-                    reach = getattr(driver, "reach", None)
-                    if reach is not None and attempt < REACH_ATTEMPTS and not reach(site_url):
-                        log.info("the browser could not connect (try %d of %d); starting a fresh one",
-                                 attempt, REACH_ATTEMPTS)
-                        reached = False
-                    else:
-                        result = execute_plan(
-                            client, driver, plan, claim_text=claim.text, site_url=site_url, cfg=config,
-                            uploads_root=uploads_root, save_proof=save_proof, way_in=way_in, mailbox=mailbox,
-                            smsbox=smsbox, on_hidden_text=on_hidden_text, job_id=job_id,
-                            on_event=(lambda kind, **data: tell(kind, **data)) if on_event else None)
+                    live = None
+                    if on_event is not None:
+                        live = screencast.start(driver, publish_screen, fps=runner_cfg.screen_fps,
+                                                quality=runner_cfg.screen_quality, width=runner_cfg.screen_width)
+                    try:
+                        reach = getattr(driver, "reach", None)
+                        if reach is not None and attempt < REACH_ATTEMPTS and not reach(site_url):
+                            log.info("the browser could not connect (try %d of %d); starting a fresh one",
+                                     attempt, REACH_ATTEMPTS)
+                            reached = False
+                        else:
+                            result = execute_plan(
+                                client, driver, plan, claim_text=claim.text, site_url=site_url, cfg=config,
+                                uploads_root=uploads_root, save_proof=save_proof, way_in=way_in, mailbox=mailbox,
+                                smsbox=smsbox, on_hidden_text=on_hidden_text, job_id=job_id,
+                                on_event=(lambda kind, **data: tell(kind, **data)) if on_event else None)
+                    finally:
+                        if live is not None:
+                            live.stop()
             # The session's cost is only known once it has closed, so it's counted here, for every attempt.
             cost += session.cost_usd or 0.0
             if reached:
@@ -140,11 +163,12 @@ def run_plan(
         log.exception("test run %s crashed", run_id)
         problem = f"the test run hit a problem on our side: {type(err).__name__}"
     finally:
-        try:
-            store.add_steps(pool, run_id, result.records if result else [])
-            store.finish_run(pool, run_id, db_outcome)
-        except Exception:
-            log.exception("could not save run %s", run_id)
+        if record_as is None:
+            try:
+                store.add_steps(pool, run_id, result.records if result else [])
+                store.finish_run(pool, run_id, db_outcome)
+            except Exception:
+                log.exception("could not save run %s", run_id)
 
     if result is None:
         tell("run.finished", outcome="blocked", reason=problem, actions=0, cost_usd=cost or None)

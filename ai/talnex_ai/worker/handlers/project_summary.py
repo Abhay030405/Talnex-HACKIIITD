@@ -39,10 +39,13 @@ def project_summary(job: Job, ctx: JobContext) -> Mapping[str, Any]:
         waiting = conn.execute(
             """SELECT count(*) FROM candidate_projects cp
                 WHERE cp.candidate_id = %s::uuid AND cp.id <> %s::uuid
+                  AND (EXISTS (SELECT 1 FROM jobs j2 WHERE j2.pipeline = 'recruiter' AND j2.target_type = 'candidate_project'
+                                  AND j2.target_id = cp.id AND j2.run_number = %s)
+                       OR NOT EXISTS (SELECT 1 FROM jobs j3 WHERE j3.pipeline = 'recruiter' AND j3.target_id = cp.id))
                   AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.pipeline = 'recruiter' AND j.job_type = 'project_summary'
                                      AND j.target_type = 'candidate_project' AND j.target_id = cp.id
                                      AND j.run_number = %s AND j.status IN ('running', 'done'))""",
-            (candidate_id, job.target_id, job.run_number)).fetchone()[0]
+            (candidate_id, job.target_id, job.run_number, job.run_number)).fetchone()[0]
         if waiting == 0:
             conn.execute("UPDATE candidates SET status = 'reporting', status_detail = NULL, updated_at = now() "
                          "WHERE id = %s::uuid AND status NOT IN ('done', 'done_with_gaps', 'failed')", (candidate_id,))

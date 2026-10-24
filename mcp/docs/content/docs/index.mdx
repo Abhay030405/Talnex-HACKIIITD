@@ -1,0 +1,45 @@
+---
+title: Introduction
+description: Use TalNex from your AI assistant. Create checks, watch them live and read proof cards by asking.
+---
+
+**TalNex is an AI agent that opens a project's live link, uses it like a real person, and gives proof of what
+actually works.** The TalNex MCP server puts that inside Claude Code, Claude Desktop, Gemini CLI or any other
+[MCP](https://modelcontextprotocol.io) client.
+
+## What you can ask
+
+**Organizers** running a hackathon:
+
+- "Create a fixed-problem event with these two criteria, and add these teams."
+- "What would checking every team cost?" (you get a preview and an estimate; nothing starts)
+- "Start it." (only with your go-ahead: checks spend money)
+- "Watch it live for a minute." (stages, each claim's status, the agent's latest actions and reasons)
+- "Show TinyTools' proof card." / "Which teams built each feature best?"
+
+**Recruiters** checking a candidate:
+
+- "Add a candidate from this resume PDF." / "What projects did TalNex find?"
+- "Confirm them and start the checks." / "How far along is it?" / "Show the report."
+
+## How it works
+
+The server runs on your computer. The assistant starts it and talks to it over stdio. It calls only the TalNex Go
+API, signed as one person, so you only ever see your own events and candidates.
+
+<RequestFlow />
+
+## What it promises
+
+- **Nothing that spends money starts without `confirm: true`.** Without it, you get a preview and an estimate.
+- **"Could not test" never counts against anyone**, and a claim is never shown as broken before its verdict.
+- **No ranking and no single winner.** Comparisons show up to three teams per feature.
+- **Errors come back in plain words**, never a stack trace.
+
+<Cards>
+  <Card title="Quick start" href="/docs/quick-start" description="Build it and ask your first question in five minutes." />
+  <Card title="Connect and test it yourself" href="/docs/connect" description="Claude Code, Claude Desktop and Gemini CLI, step by step." />
+  <Card title="Tools reference" href="/docs/tools" description="All 19 tools, what they take and which account can use them." />
+  <Card title="Architecture" href="/docs/architecture" description="The request flow and the check pipeline." />
+  <Card title="API reference" href="/docs/api-reference" description="Every Go API route, with code samples and a Try-it playground." />
+</Cards>

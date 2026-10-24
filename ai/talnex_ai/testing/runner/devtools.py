@@ -9,6 +9,8 @@ from __future__ import annotations
 from typing import Optional
 from urllib.parse import urlsplit, urlunsplit
 
+from talnex_ai.safety.leaks import scan
+
 SLOW_MS = 2000          # an API call slower than this is noted as slow
 MAX_ITEMS = 15          # per list, so a chatty page cannot bloat a step record
 MAX_TEXT = 200
@@ -37,6 +39,7 @@ class DevtoolsWatch:
         self.failed: list[dict] = []
         self.console: list[str] = []
         self.crashes: list[str] = []
+        self.leaks: list[dict] = []
 
     @staticmethod
     def _add(items: list, item) -> None:
@@ -65,6 +68,12 @@ class DevtoolsWatch:
     def console_message(self, kind: str, text: str) -> None:
         if kind in ("error", "warning"):
             self._add(self.console, f"[{kind}] {text[:MAX_TEXT]}")
+        self.found_leaks("console", scan(text[:20000]))
+
+    def found_leaks(self, where: str, findings: list[dict]) -> None:
+        """Masked leaks (safety/leaks): the secret itself never reaches the step record."""
+        for f in findings:
+            self._add(self.leaks, {**f, "where": where[:MAX_TEXT]})
 
     def page_error(self, text: str) -> None:
         self._add(self.crashes, text[:MAX_TEXT])
@@ -74,7 +83,7 @@ class DevtoolsWatch:
         A request still in flight stays pending and belongs to the next step."""
         out = {
             "api_calls": self.api, "error_responses": self.errors, "failed_requests": self.failed,
-            "console_errors": self.console, "page_errors": self.crashes,
+            "console_errors": self.console, "page_errors": self.crashes, "leaks": self.leaks,
             "slow_api_calls": sum(1 for c in self.api if c.get("ms", 0) >= SLOW_MS),
         }
         self._reset()

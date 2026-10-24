@@ -2,6 +2,7 @@
 package events
 
 import (
+	"encoding/json"
 	"context"
 	"errors"
 	"fmt"
@@ -54,11 +55,17 @@ type NewEvent struct {
 	EndsAt       time.Time      `json:"ends_at"`
 	SponsorTools []string       `json:"sponsor_tools"`
 	Criteria     []NewCriterion `json:"criteria"`
+	// Brief is the problem statement or theme judges give; it reaches the test prompts as data.
+	Brief  string          `json:"brief"`
+	Checks map[string]bool `json:"checks"`
 }
 
 // Validate returns a plain-words problem with the input, or nil.
 func (n *NewEvent) Validate() error {
 	n.Name = strings.TrimSpace(n.Name)
+	if len([]rune(n.Brief)) > 20000 {
+		return errors.New("the brief is longer than 20000 characters")
+	}
 	if n.Name == "" {
 		return errors.New("name is required")
 	}
@@ -134,9 +141,10 @@ func (s *Store) Create(ctx context.Context, ownerID string, n NewEvent) (Event, 
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // a rollback after commit is a no-op
 	e, err := scan(tx.QueryRow(ctx, `
-		INSERT INTO events (owner_id, name, mode, role_level, starts_at, ends_at, sponsor_tools)
-		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7)
-		RETURNING `+columns, ownerID, n.Name, n.Mode, n.RoleLevel, n.StartsAt, n.EndsAt, n.SponsorTools))
+		INSERT INTO events (owner_id, name, mode, role_level, starts_at, ends_at, sponsor_tools, brief, checks)
+		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, coalesce($9::jsonb, '{}'))
+		RETURNING `+columns, ownerID, n.Name, n.Mode, n.RoleLevel, n.StartsAt, n.EndsAt, n.SponsorTools,
+		strings.TrimSpace(n.Brief), checksJSON(n.Checks)))
 	if err != nil {
 		return Event{}, fmt.Errorf("create event: %w", err)
 	}
@@ -210,4 +218,52 @@ func (s *Store) List(ctx context.Context, ownerID string) ([]Event, error) {
 		out = append(out, e)
 	}
 	return out, rows.Err()
+}
+
+// checksJSON stores the chosen checks; nil means every check.
+func checksJSON(c map[string]bool) []byte {
+	if len(c) == 0 {
+		return nil
+	}
+	b, _ := json.Marshal(c)
+	return b
+}
+
+// ValidateCriteria checks an edited criteria list with the same rules as event create.
+func ValidateCriteria(list []NewCriterion) ([]NewCriterion, error) {
+	n := NewEvent{Mode: "fixed_problem", Criteria: list}
+	err := n.validateCriteria()
+	return n.Criteria, err
+}
+
+// ErrNotFixedProblem means the event has no criteria to edit (an open-theme event).
+var ErrNotFixedProblem = errors.New("only a fixed_problem event has criteria")
+
+// ReplaceCriteria swaps an event's criteria for an edited list. Results stay; the weighted total re-scores from them.
+func (s *Store) ReplaceCriteria(ctx context.Context, eventID string, list []NewCriterion) ([]Criterion, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // a rollback after commit is a no-op
+	var mode string
+	if err := tx.QueryRow(ctx, `SELECT mode FROM events WHERE id = $1::uuid`, eventID).Scan(&mode); err != nil {
+		return nil, fmt.Errorf("read event: %w", err)
+	}
+	if mode != "fixed_problem" {
+		return nil, ErrNotFixedProblem
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM criteria WHERE event_id = $1::uuid`, eventID); err != nil {
+		return nil, err
+	}
+	for _, c := range list {
+		if _, err := tx.Exec(ctx, `INSERT INTO criteria (event_id, name, description, weight) VALUES ($1::uuid, $2, NULLIF($3, ''), $4)`,
+			eventID, c.Name, c.Description, c.Weight); err != nil {
+			return nil, fmt.Errorf("save criterion: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return s.criteria(ctx, eventID)
 }

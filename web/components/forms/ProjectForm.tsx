@@ -43,6 +43,10 @@ export function ProjectForm({ eventId }: { eventId: string }) {
         </Field>
       </div>
 
+      <Field label="Abstract (optional)" htmlFor="abstract" hint="The team's short description of what they built.">
+        <textarea className="input textarea" id="abstract" name="abstract" rows={3} maxLength={4000} aria-describedby="abstract-hint" />
+      </Field>
+
       <Field
         label="Repository"
         htmlFor="repo_url"

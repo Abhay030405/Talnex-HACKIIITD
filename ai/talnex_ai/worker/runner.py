@@ -23,6 +23,28 @@ log = logging.getLogger("talnex.worker")
 SAVE_TRIES = 3  # a finished job's result is worth a couple of retries: it may have cost real money
 
 
+
+# Which role check each stage belongs to (the recruiter picks checks on the new-role form). Stages not listed always run.
+STAGE_CHECK = {"live_test": "live_test", "code_review": "code_review", "authorship_read": "code_review",
+               "codechef": "coding_profiles", "leetcode": "coding_profiles", "leetcode_replay": "coding_profiles"}
+
+
+def check_turned_off(pool, job) -> "str | None":
+    """The role check that turns this stage off for its candidate, or None. An empty checks set means every check."""
+    check = STAGE_CHECK.get(job.type)
+    queries = {
+        "candidate": "SELECT r.checks FROM candidates c JOIN roles r ON r.id = c.role_id WHERE c.id = %s::uuid",
+        "candidate_project": "SELECT r.checks FROM candidate_projects cp JOIN candidates c ON c.id = cp.candidate_id "
+                             "JOIN roles r ON r.id = c.role_id WHERE cp.id = %s::uuid",
+        "project": "SELECT e.checks FROM projects p JOIN events e ON e.id = p.event_id WHERE p.id = %s::uuid",
+    }
+    if check is None or job.target_type not in queries:
+        return None
+    with pool.connection() as conn:
+        row = conn.execute(queries[job.target_type], (job.target_id,)).fetchone()
+    checks = (row[0] if row else None) or {}
+    return check if checks and checks.get(check) is False else None
+
 class Worker:
     def __init__(
         self,
@@ -100,7 +122,8 @@ class Worker:
         events = for_job(self.pool, job) if self.live_events else NullEmitter()
         events.emit("stage.started", try_number=job.tries)
         try:
-            result = handler(job, ctx)
+            off = check_turned_off(self.pool, job) if self.pool is not None else None
+            result = {"skipped": True, "reason": f"not run: {off} was not chosen for this role"} if off else handler(job, ctx)
             ctx.check()  # a result that arrives after the time limit doesn't count
             if result is None:
                 result = {}

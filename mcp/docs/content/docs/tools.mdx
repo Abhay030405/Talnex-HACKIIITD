@@ -1,0 +1,52 @@
+---
+title: Tools reference
+description: All 19 tools, what they take, which account may use them and which API route they call.
+---
+
+Every tool checks its input before anything is sent. Bad input comes back as a clear message naming the field (for
+example `event_id` must be an id, `seconds` at most 120). A tool meant for the other kind of account is refused
+before any call, with the setting to change. API errors come back as the API's own words.
+
+**Money and deleting:** `run_project`, `run_event`, `confirm_candidate` and `delete_candidate` only act with
+`confirm: true` (and `create_candidate` too, under a role that starts checks by itself). Without it they return a
+preview and an estimate and change nothing.
+
+## Anyone
+
+| Tool | Input | Does | API |
+|---|---|---|---|
+| `who_am_i` | none | The account and role this server acts as | `GET /v1/me` |
+| `ask_project` | `kind` (`project` or `candidate_project`), `project_id`, `question` (3–500 characters), `wait_seconds` (0–120, default 60) | Asks how a feature works. The answer comes from the code and the test results, never a score | `POST /v1/{projects or candidate-projects}/{id}/walkthroughs`, then `GET /v1/walkthroughs/{id}` |
+| `watch_live` | `kind` (`project`, `candidate_project`, `candidate`, `event`), `id`, `seconds` (1–120, default 20) | Replays the saved events, keeps watching, then returns a digest. See [Live events](/docs/live-events) | `GET /v1/live/{kind}/{id}` (SSE) |
+
+## Organizer
+
+| Tool | Input | Does | API |
+|---|---|---|---|
+| `list_events` | none | Your events: id, name, type, role level, dates | `GET /v1/events` |
+| `get_event` | `event_id` | The event and every team: status, TalNex score, coverage, weighted total, flag counts, run time and cost. Listed by name, never ranked | `GET /v1/events/{id}/overview` |
+| `create_event` | `name`, `mode` (`open_theme` or `fixed_problem`), `starts_at`, `ends_at`, optional `role_level`, `sponsor_tools`, `criteria` (`name`, `description`, `weight`) | Creates an event. Nothing is checked yet | `POST /v1/events` |
+| `add_project` | `event_id`, `team_name`, at least one of `live_url`, `repo_url`, `video_url`, optional `team_github_handles` | Adds one team | `POST /v1/events/{id}/projects` |
+| `run_project` | `project_id`, `confirm` | **Confirm needed.** Checks one team now (or again). Preview: the team's links and the estimate | `GET /v1/projects/{id}`; with confirm `POST /v1/projects/{id}/run` |
+| `run_event` | `event_id`, `confirm` | **Confirm needed.** Checks every team not checked yet. Preview: which teams, which are already done, and the estimate | `GET /v1/events/{id}/overview`; with confirm `POST /v1/events/{id}/run` |
+| `get_proof_card` | `project_id` | The proof card: every claim with its verdict, score out of 10, reason and proof; group scores; flags (beside the score); the AI opinion (labelled, not proof); checks that did not run; time and cost | `GET /v1/projects/{id}/proof` |
+| `compare_event` | `event_id` | For each feature, up to three teams that built it best (never one winner), and pairs whose code looks shared | `GET /v1/events/{id}/compare` |
+
+## Recruiter
+
+| Tool | Input | Does | API |
+|---|---|---|---|
+| `list_roles` | none | Your hiring roles; `auto_confirm` roles start checks as soon as a resume is read | `GET /v1/roles` |
+| `list_candidates` | none | Your candidates and their status | `GET /v1/candidates` |
+| `create_candidate` | `resume_path` (a PDF on this computer, up to 5 MB), optional `label`, `role_level`, `role_id`, `coding_handles`, `confirm` | Adds a candidate and uploads the resume. TalNex reads it (one small model call) and lists the projects it found. Under an `auto_confirm` role, **confirm needed** | `POST /v1/candidates`, then `POST /v1/candidates/{id}/resume` |
+| `get_found_projects` | `candidate_id` | The projects and coding profiles read from the resume | `GET /v1/candidates/{id}/found` |
+| `confirm_candidate` | `candidate_id`, optional `projects` (up to 8: `name`, links), `coding_profiles`, `confirm` | **Confirm needed.** Confirms the projects (what was found, unless you pass others) and starts the checks | `GET .../found`; with confirm `POST /v1/candidates/{id}/confirm` |
+| `get_progress` | `candidate_id` | Where each stage stands, per project | `GET /v1/candidates/{id}/progress` |
+| `get_report` | `candidate_id` | The proof report: claims, verdicts, scores, originality, code history, coding-profile signals, time saved, cost | `GET /v1/candidates/{id}/report` |
+| `delete_candidate` | `candidate_id`, `confirm` | **Confirm needed.** Deletes the candidate, the resume file, results and screenshots for good | `DELETE /v1/candidates/{id}` |
+
+## Estimates
+
+From earlier runs: about **$0.10–0.15 and 5 minutes per project** of about seven claims, with projects running side
+by side. Previews show this multiplied by the number of projects. It is an estimate, not a quote. The real cost
+depends on how many claims each project has, and `get_event` shows what each run really cost.
