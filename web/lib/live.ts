@@ -302,6 +302,18 @@ export function reduceLive(state: LiveState, kind: string, ev: LiveEvent): LiveS
   };
 }
 
+// The last stage of each kind of check: once it has ended and nothing else runs, the check is finished.
+const FINAL_STAGES = new Set(["project_report", "candidate_report", "ai_opinion"]);
+
+/** One short word for a panel's header: what runs now, "finished", "stopped", or "waiting" between stages. */
+export function panelStatus(s: LiveSubject): string {
+  if (s.current) return s.current;
+  if (s.stages.length === 0) return "";
+  if (s.stages.some(([, state]) => state === "failed")) return "stopped: a stage failed";
+  if (s.stages.some(([name, state]) => FINAL_STAGES.has(name) && (state === "done" || state === "skipped"))) return "finished";
+  return "waiting";
+}
+
 /** How many claims of a subject are in each state, for its panel header. */
 export function tally(s: LiveSubject): { total: number; works: number; broken: number; other: number; testing: number } {
   const t = { total: s.claimOrder.length, works: 0, broken: 0, other: 0, testing: 0 };

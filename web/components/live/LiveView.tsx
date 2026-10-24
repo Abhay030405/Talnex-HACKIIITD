@@ -15,6 +15,7 @@ import {
   type LiveKind,
   type LiveState,
   type LiveSubject,
+  panelStatus,
 } from "@/lib/live";
 
 type Action = { type: "event"; kind: string; event: LiveEvent } | { type: "reset" };
@@ -123,10 +124,12 @@ function SubjectPanel({
           <h2 className="live-panel__name">{name}</h2>
         )}
         <span className={s.current ? "live-panel__stage live-panel__stage--running" : "live-panel__stage"}>
-          {s.current || (s.stages.length ? "waiting" : "")}
+          {panelStatus(s)}
         </span>
       </div>
 
+      {/* Event-level checks (copying, comparison, AI opinion) have no claims or screens: only stages and the log. */}
+      {s.kind !== "event" && (
       <div className="live-panel__counts">
         <span>claims {t.total}</span>
         <span className="live-count--works">works {t.works}</span>
@@ -135,6 +138,7 @@ function SubjectPanel({
         <span>testing {t.testing}</span>
         <span>actions {s.actions}</span>
       </div>
+      )}
 
       {s.stages.length > 0 && (
         <ul className="live-stages">
@@ -147,31 +151,35 @@ function SubjectPanel({
       )}
 
       <div className={focused ? "live-panel__body live-panel__body--focus" : "live-panel__body"}>
-        <div className="live-panel__screen">
-          <Shot shot={s.shot} />
-          {s.label && <p className="live-panel__label">{s.label}</p>}
-          {s.reason && <p className="live-panel__reason">“{s.reason}”</p>}
-          {focused && s.url && <p className="live-panel__url">{s.url}</p>}
-        </div>
+        {s.kind !== "event" && (
+          <>
+            <div className="live-panel__screen">
+              <Shot shot={s.shot} />
+              {s.label && <p className="live-panel__label">{s.label}</p>}
+              {s.reason && <p className="live-panel__reason">“{s.reason}”</p>}
+              {focused && s.url && <p className="live-panel__url">{s.url}</p>}
+            </div>
 
-        <ul className="live-claims">
-          {s.claimOrder.length === 0 && <li className="live-claim">No claims yet.</li>}
-          {s.claimOrder.map((cid, n) => {
-            const c = s.claims[cid];
-            return (
-              <li key={cid} className={`live-claim live-claim--${c.status}`}>
-                <span className="live-claim__text">
-                  <span className="live-claim__no">#{n + 1}</span> {c.text || "A claim"}
-                </span>
-                <span className="live-claim__status">
-                  {claimWord(c.status)}
-                  {c.confidence ? ` · ${c.confidence}` : ""}
-                </span>
-                {focused && c.reason && <span className="live-claim__reason">{c.reason}</span>}
-              </li>
-            );
-          })}
-        </ul>
+            <ul className="live-claims">
+              {s.claimOrder.length === 0 && <li className="live-claim">No claims yet.</li>}
+              {s.claimOrder.map((cid, n) => {
+                const c = s.claims[cid];
+                return (
+                  <li key={cid} className={`live-claim live-claim--${c.status}`}>
+                    <span className="live-claim__text">
+                      <span className="live-claim__no">#{n + 1}</span> {c.text || "A claim"}
+                    </span>
+                    <span className="live-claim__status">
+                      {claimWord(c.status)}
+                      {c.confidence ? ` · ${c.confidence}` : ""}
+                    </span>
+                    {focused && c.reason && <span className="live-claim__reason">{c.reason}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
 
         <ol className={focused ? "live-log live-log--focus" : "live-log"} reversed>
           {log
