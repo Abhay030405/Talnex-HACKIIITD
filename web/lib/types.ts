@@ -241,6 +241,10 @@ export interface ReportFeature {
   code_review?: CodeReview | null;
   /** Who wrote the code behind this claim. Missing on reports made before authorship existed. */
   authorship?: Authorship | null;
+  /** What TalNex planned to check, written before testing. */
+  checklist?: string[];
+  /** True when the checklist was written with the recruiter's role brief. */
+  checked_for_role?: boolean;
 }
 
 export interface ReportFlag {
@@ -284,6 +288,8 @@ export interface CodingSignal {
   signal: string;
   weight: "not_suspicious" | "medium" | "strong" | string;
   contest: string | null;
+  /** The contest problem, for per-problem signals such as a LeetCode paste. */
+  problem?: string | null;
   evidence: Record<string, unknown>;
 }
 

@@ -2050,6 +2050,24 @@ a.meta:hover {
   font-family: var(--font-sans);
 }
 
+/* A LeetCode paste: what was pasted, when, and how it compares with nearby contestants. */
+.paste-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.paste-card__code {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre;
+}
+
 /* The interview kit: numbered questions, each with why it is worth asking. */
 .interview-kit {
   display: flex;

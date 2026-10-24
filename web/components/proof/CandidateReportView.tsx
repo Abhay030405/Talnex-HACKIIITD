@@ -7,6 +7,7 @@ import { RerunButton } from "@/components/proof/RerunButton";
 import { StatTile } from "@/components/ui/StatTile";
 import { BADGE_CLASS, formatCost, formatDate, formatDuration } from "@/lib/format";
 import { SITE_NAMES, evidenceFacts, reportSummary, signalWeightInfo } from "@/lib/report-format";
+import { pasteCard, replaySummary } from "@/lib/leetcode-format";
 import { weightedScore } from "@/lib/role-score";
 import type { CandidateReport } from "@/lib/types";
 
@@ -121,6 +122,40 @@ export function CandidateReportView({
             </p>
             {report.coding_signals.map((signal, i) => {
               const weight = signalWeightInfo(signal.weight);
+              const summary = replaySummary(signal);
+              if (summary)
+                return (
+                  <p className="note" key={`${signal.site}-${signal.signal}-${i}`}>
+                    {summary}
+                  </p>
+                );
+              const paste = pasteCard(signal);
+              if (paste)
+                return (
+                  <div className="signal paste-card" key={`${signal.site}-${signal.signal}-${i}`}>
+                    <div className="row">
+                      <strong>{paste.title}</strong>
+                      <span className={BADGE_CLASS[weight.tone]}>{weight.text}</span>
+                    </div>
+                    <ul className="report-list">
+                      {paste.lines.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                    {paste.reason && <p className="note">{paste.reason}</p>}
+                    {paste.snippet && (
+                      <details className="proof-viewer">
+                        <summary>What was pasted</summary>
+                        <pre className="paste-card__code">{paste.snippet}</pre>
+                      </details>
+                    )}
+                    {paste.link && (
+                      <a className="meta" href={paste.link} target="_blank" rel="noopener noreferrer">
+                        {paste.linkText}
+                      </a>
+                    )}
+                  </div>
+                );
               const facts = evidenceFacts(signal.evidence);
               return (
                 <div className="signal" key={`${signal.site}-${signal.signal}-${i}`}>
