@@ -170,3 +170,23 @@ const STATUS_WORDS: Record<string, string> = {
 export function statusWords(status: string): string {
   return STATUS_WORDS[status] ?? "Working on it.";
 }
+
+export interface ClipFrame {
+  url: string;
+  caption: string;
+  seen: string | null;
+}
+
+/** A claim's run as a short clip: its screenshots in order, ending on the verdict. */
+export interface ProofClipData {
+  frames: ClipFrame[];
+  stamp: { text: string; tone: Tone };
+}
+
+/** The clip for one claim, or null when fewer than two screenshots were saved (nothing to play). */
+export function proofClip(steps: ProofStep[], verdict: Verdict | null): ProofClipData | null {
+  const frames = steps
+    .filter((s) => s.kind === "screen" && s.proof_url)
+    .map((s) => ({ url: s.proof_url as string, caption: `Step ${s.step}: ${s.action}`, seen: s.observed }));
+  return frames.length < 2 ? null : { frames, stamp: verdictInfo(verdict) };
+}
