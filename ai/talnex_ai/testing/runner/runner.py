@@ -48,6 +48,7 @@ class RunRecord:
     session_account: Optional[str]  # which TinyFish key paid for it
     cost_usd: Optional[float]
     vision_used: bool
+    parts: tuple[str, ...] = ()     # the run's mark for each plan check, when the plan had checks
 
 
 def run_plan(
@@ -104,7 +105,7 @@ def run_plan(
             return None
 
     config = ExecConfig(runner_cfg.max_actions, runner_cfg.max_actions_per_step, runner_cfg.max_seconds,
-                        runner_cfg.snapshot_chars)
+                        runner_cfg.snapshot_chars, runner_cfg.seconds_per_step)
     try:
         # A remote browser sometimes can't connect at all (a tunnel error on our side). That says nothing
         # about the site, so the start page is loaded first and, if the browser couldn't connect, a fresh
@@ -152,4 +153,4 @@ def run_plan(
     tell("run.finished", outcome=result.outcome, reason=result.stop_reason, actions=result.actions_used,
          cost_usd=round(cost, 6) if cost else None)
     return RunRecord(run_id, try_number, result.outcome, result.observed, result.records, result.stop_reason,
-                     account, cost or None, result.vision_used)
+                     account, cost or None, result.vision_used, result.parts)

@@ -1,0 +1,316 @@
+{
+  "when": "2026-10-24 14:27 UTC",
+  "runs": [
+    {
+      "index": 1,
+      "subject_id": "e9aabb54-d08b-4fe9-bcaf-25ea7bf97949",
+      "finished": true,
+      "seconds": 555.5097657000297,
+      "cost_usd": 0.09459,
+      "talnex": 47.0,
+      "coverage": 83.3,
+      "flags": [],
+      "claims": {
+        "The About page explains what CaptionIt is": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 7.9,
+          "reason": "7.9/10 for fresher: + About page reachable from the site; Page states what CaptionIt does - Page names who it is for or its purpose ? not checked: Page loads directly by its own URL; Still shows the explanation after reload"
+        },
+        "The landing page has a link that opens the try page": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + visible link on landing page to try page; clicking the link opens the try page ? not checked: link works after page reload; link works when opened in a new tab"
+        },
+        "The try page has a photo picker and a Write my caption button": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 3.3,
+          "reason": "3.3/10 for fresher: + photo picker opens and accepts a chosen image; chosen photo is shown back before submitting - Write my caption button produces a caption for that photo; caption clearly relates to the picked photo ? not checked: non-image or odd file i..."
+        },
+        "Upload a photo and CaptionIt writes a caption describing it": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 2.5,
+          "reason": "2.5/10 for fresher: + photo upload actually accepted and shown - caption text appears for the uploaded photo; caption describes what is in the photo ? not checked: empty or failed upload handled without hanging; caption still there after page reload"
+        },
+        "Choose a photo and press Write my caption, and the caption appears under the photo": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + photo can be chosen and shown on the page; Write my caption button triggers caption generation - caption text appears under the photo; button disabled or ignored until a photo is chosen ? not checked: caption matches the chosen photo's c..."
+        },
+        "Captions can be translated into other languages": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "subject_id": "c763a8ce-95a3-4bdf-8a42-32f565578164",
+      "finished": true,
+      "seconds": 273.3357473000069,
+      "cost_usd": 0.07444,
+      "talnex": 43.0,
+      "coverage": 83.3,
+      "flags": [],
+      "claims": {
+        "The About page explains what CaptionIt is": {
+          "verdict": "could_not_test",
+          "confidence": "disagree",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "The landing page has a link that opens the try page": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + visible link on landing page; link opens the try page ? not checked: link works after page reload; link works when opened in new tab"
+        },
+        "The try page has a photo picker and a Write my caption button": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + photo picker accepts a chosen image; Write my caption button present and clickable - caption generated from the picked photo; caption appears on the page after clicking ? not checked: non-image or oversized file rejected gracefully; stat..."
+        },
+        "Upload a photo and CaptionIt writes a caption describing it": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 2.5,
+          "reason": "2.5/10 for fresher: + photo upload actually accepted - caption text appears after upload; caption describes the uploaded photo ? not checked: empty or missing upload handled; still works after page reload"
+        },
+        "Choose a photo and press Write my caption, and the caption appears under the photo": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + photo selection actually loads the chosen image; Write my caption button triggers caption generation - caption text appears under the photo; no photo selected: clear message, no caption ? not checked: caption relates to the photo content..."
+        },
+        "Captions can be translated into other languages": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        }
+      }
+    },
+    {
+      "index": 3,
+      "subject_id": "386b4731-2903-4416-89c3-e7df57433baf",
+      "finished": true,
+      "seconds": 297.23224109999137,
+      "cost_usd": 0.08302,
+      "talnex": 39.0,
+      "coverage": 100.0,
+      "flags": [],
+      "claims": {
+        "The About page explains what CaptionIt is": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 4.0,
+          "reason": "4/10 for fresher: + About page reachable from the site; Page loads directly by its own URL - States what CaptionIt does; Describes who it is for or its purpose"
+        },
+        "The landing page has a link that opens the try page": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Visible link on landing page; Link opens the try page ? not checked: Works after page reload; Works with direct URL entry"
+        },
+        "The try page has a photo picker and a Write my caption button": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 3.3,
+          "reason": "3.3/10 for fresher: + Photo picker opens and accepts a chosen image; Chosen photo is shown before submitting - Write my caption button produces a caption; Caption matches the chosen photo's content ? not checked: Non-image or corrupt file handled gracefully..."
+        },
+        "Upload a photo and CaptionIt writes a caption describing it": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 2.5,
+          "reason": "2.5/10 for fresher: + photo upload actually accepted and processed - caption text appears after upload; caption describes what is in the photo ? not checked: still works after page reload"
+        },
+        "Choose a photo and press Write my caption, and the caption appears under the photo": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + Photo can be chosen and previewed; Write my caption button triggers caption - Caption appears under the photo ? not checked: Caption matches the chosen photo; Button disabled until a photo is chosen (capped at 5: it only partly works)"
+        },
+        "Captions can be translated into other languages": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        }
+      }
+    }
+  ],
+  "analysis": {
+    "app": "fake_claim",
+    "runs": 3,
+    "claims": [
+      {
+        "claim": "The About page explains what CaptionIt is",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "could_not_test",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          7.9,
+          4.0
+        ],
+        "score_spread": 3.9
+      },
+      {
+        "claim": "The landing page has a link that opens the try page",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "The try page has a photo picker and a Write my caption button",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          3.3,
+          5.0,
+          3.3
+        ],
+        "score_spread": 1.7
+      },
+      {
+        "claim": "Upload a photo and CaptionIt writes a caption describing it",
+        "control": false,
+        "expected": "broken",
+        "verdicts": [
+          "partly_works",
+          "partly_works",
+          "partly_works"
+        ],
+        "majority": "partly_works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 3,
+        "feature_scores": [
+          2.5,
+          2.5,
+          2.5
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Choose a photo and press Write my caption, and the caption appears under the photo",
+        "control": false,
+        "expected": "broken",
+        "verdicts": [
+          "partly_works",
+          "partly_works",
+          "partly_works"
+        ],
+        "majority": "partly_works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 3,
+        "feature_scores": [
+          5.0,
+          5.0,
+          5.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Captions can be translated into other languages",
+        "control": true,
+        "expected": "broken",
+        "verdicts": [
+          "could_not_test",
+          "broken",
+          "broken"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0,
+          0.0
+        ],
+        "score_spread": 0.0
+      }
+    ],
+    "pairs": {
+      "correct": 10,
+      "wrong": 6,
+      "unconfirmed": 2,
+      "total": 18
+    },
+    "accuracy": 55.6,
+    "talnex_scores": [
+      47.0,
+      43.0,
+      39.0
+    ],
+    "talnex_spread": 8.0,
+    "flags_per_run": [
+      0,
+      0,
+      0
+    ],
+    "seconds_per_run": [
+      556,
+      273,
+      297
+    ],
+    "cost_per_run": [
+      0.0946,
+      0.0744,
+      0.083
+    ],
+    "checks": {
+      "every run finished": true,
+      "no wrong verdicts": false,
+      "every claim steady (same verdict in 2 of 3 runs)": true,
+      "majority verdict is the expected one for every claim": false,
+      "TalNex score spread within 10 points": true,
+      "no unexpected red flags": true
+    },
+    "passed": false
+  }
+}

@@ -48,6 +48,15 @@ class PlanStep(_Shape):
     expected: str = Field(min_length=3, description="What should be on screen afterwards")
 
 
+class Check(_Shape):
+    """One part of a claim that the test must show: what must be visible, and the claim's own words it proves."""
+
+    text: str = Field(min_length=3, max_length=240, description="What must be visible if this part of the claim is true")
+    quote: str = Field(default="", max_length=240, description="The words of the claim this part proves, copied exactly")
+    # True: something the claim promises the visitor gets. False: a step on the way to it (open a page, choose a photo).
+    promise: bool = True
+
+
 class TestPlan(_Shape):
     """The steps to check one claim in one way, and what should happen at the end."""
 
@@ -57,6 +66,8 @@ class TestPlan(_Shape):
     test_type: TestType
     steps: list[PlanStep] = Field(min_length=1, max_length=12)
     expected_result: str = Field(min_length=3)
+    # The claim split into the parts it promises (main tests). Older plans have none and are judged as a whole.
+    checks: list[Check] = Field(default_factory=list, max_length=5)
 
 
 class StepRecord(_Shape):

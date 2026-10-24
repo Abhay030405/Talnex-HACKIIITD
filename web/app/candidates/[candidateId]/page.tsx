@@ -65,7 +65,15 @@ export default async function CandidatePage({
 
   return (
     <div className="stack">
-      <PageHeader title={candidate.label || "Unnamed candidate"} back={{ href: "/recruiter", label: "All candidates" }}>
+      <PageHeader
+        title={candidate.label || "Unnamed candidate"}
+        back={{ href: "/recruiter", label: "All candidates" }}
+        actions={
+          <Link href={`${path}/live`} className="button button--ghost">
+            Watch live
+          </Link>
+        }
+      >
         <div className="row">
           <span className={BADGE_CLASS[badge.tone]}>{badge.text}</span>
           <span className="badge badge--neutral">Judged as {roleLabel(candidate.role_level)}</span>

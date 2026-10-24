@@ -101,6 +101,15 @@
   --open-box: 2rem;
   --name-max: 14rem;
   --transition: 160ms ease;
+
+  /* Live view */
+  --live-panel-min: 24rem;
+  --live-claims-height: 15rem;
+  --live-log-height: 13rem;
+  --live-log-height-focus: 34rem;
+  --live-shot-min: 9rem;
+  --live-ring-width: 3;
+  --live-time-width: 4.6rem;
 }
 
 /* ---------- Base ---------- */
@@ -2131,4 +2140,378 @@ a.walkthrough__ref {
   font-size: var(--text-xs);
   letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
+}
+
+/* ---------- Live view: what TalNex is doing right now, one panel per project ---------- */
+
+.live {
+  min-width: 0;
+}
+
+.live__meter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.live__stat strong {
+  margin-left: var(--space-1);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.live__connection {
+  margin-right: auto;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.live__connection--live {
+  color: var(--color-success);
+}
+
+.live__connection--connecting,
+.live__connection--reconnecting {
+  color: var(--color-warning);
+}
+
+.live__back {
+  width: fit-content;
+}
+
+.live__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--live-panel-min)), 1fr));
+  gap: var(--space-4);
+}
+
+.live-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.live-panel--focus {
+  border-color: var(--color-border-strong);
+}
+
+.live-panel__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--line) solid var(--color-border);
+  background: var(--color-surface-soft);
+}
+
+.live-panel__name {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  text-align: left;
+}
+
+.live-panel__open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.live-panel__open:hover {
+  text-decoration: underline;
+}
+
+.live-panel__stage {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  white-space: nowrap;
+}
+
+.live-panel__stage--running {
+  color: var(--color-text);
+}
+
+.live-panel__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--line) solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.live-count--works {
+  color: var(--color-success);
+}
+
+.live-count--broken {
+  color: var(--color-danger);
+}
+
+.live-count--other {
+  color: var(--color-warning);
+}
+
+.live-stages {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  overflow-x: auto;
+  list-style: none;
+  border-bottom: var(--line) solid var(--color-border);
+}
+
+.live-stage {
+  padding: var(--space-1) var(--space-2);
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  white-space: nowrap;
+}
+
+.live-stage--running {
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+.live-stage--done {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-muted);
+}
+
+.live-stage--skipped {
+  border-style: dashed;
+}
+
+.live-stage--failed {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.live-stage--retrying {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.live-panel__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.live-panel__body--focus {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.live-panel__screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-right: var(--line) solid var(--color-border);
+}
+
+.live-panel__label {
+  font-size: var(--text-sm);
+}
+
+.live-panel__reason {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.live-panel__url {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  overflow-wrap: anywhere;
+}
+
+.live-shot {
+  position: relative;
+  overflow: hidden;
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+}
+
+.live-shot--empty {
+  display: grid;
+  place-items: center;
+  min-height: var(--live-shot-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+}
+
+.live-shot__img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.live-shot__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.live-shot__ring {
+  fill: none;
+  stroke: var(--color-warning);
+  stroke-width: var(--live-ring-width);
+  vector-effect: non-scaling-stroke;
+}
+
+.live-claims {
+  margin: 0;
+  padding: 0;
+  max-height: var(--live-claims-height);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.live-panel--focus .live-claims {
+  max-height: none;
+}
+
+.live-claim {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--line) solid var(--color-border);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.live-claim__text {
+  overflow-wrap: anywhere;
+}
+
+.live-claim__status {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+}
+
+.live-claim__reason {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.live-claim--queued .live-claim__status {
+  color: var(--color-text-faint);
+}
+
+.live-claim--testing .live-claim__status {
+  color: var(--color-text);
+}
+
+.live-claim--works .live-claim__status {
+  color: var(--color-success);
+}
+
+.live-claim--partly_works .live-claim__status,
+.live-claim--could_not_test .live-claim__status,
+.live-claim--reviewed_from_code .live-claim__status {
+  color: var(--color-warning);
+}
+
+.live-claim--broken .live-claim__status {
+  color: var(--color-danger);
+}
+
+.live-log {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+  max-height: var(--live-log-height);
+  overflow-y: auto;
+  list-style: none;
+  border-top: var(--line) solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.live-log--focus {
+  max-height: var(--live-log-height-focus);
+}
+
+.live-log__line {
+  display: grid;
+  grid-template-columns: var(--live-time-width) auto minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-bottom: var(--line) solid var(--color-surface-soft);
+  color: var(--color-text-muted);
+}
+
+.live-log__at {
+  color: var(--color-text-faint);
+}
+
+.live-log__label {
+  color: var(--color-text);
+}
+
+.live-log__text {
+  overflow-wrap: anywhere;
+}
+
+.live-log__line--plain .live-log__label {
+  color: var(--color-text);
+}
+
+.live-log__line--reason .live-log__text {
+  font-style: italic;
+}
+
+.live-log__line--works .live-log__label {
+  color: var(--color-success);
+}
+
+.live-log__line--partly .live-log__label,
+.live-log__line--unknown .live-log__label {
+  color: var(--color-warning);
+}
+
+.live-log__line--broken .live-log__label,
+.live-log__line--failed .live-log__label {
+  color: var(--color-danger);
+}
+
+@media (max-width: 40rem) {
+  .live-panel__body,
+  .live-panel__body--focus {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-panel__screen {
+    border-right: 0;
+    border-bottom: var(--line) solid var(--color-border);
+  }
 }

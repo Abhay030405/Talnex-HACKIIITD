@@ -1,0 +1,45 @@
+{
+  "app": "partly_works",
+  "description": "NoteBox: adding and searching notes work; pinning does nothing and an empty title is not refused.",
+  "url": "https://talnex-partly-works.vercel.app",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "Add a note with a title and see it in the list",
+      "group": "Core",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "Type in the search box and the list narrows to the matching notes",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Pin a note so it moves to the top of the list with a Pinned label",
+      "group": "Core",
+      "importance": 2,
+      "expected": "broken"
+    },
+    {
+      "text": "Adding a note with an empty title shows a clear message and adds nothing",
+      "group": "Reliability",
+      "importance": 2,
+      "expected": "broken"
+    }
+  ],
+  "controls": [
+    {
+      "text": "Export the notes as a PDF file",
+      "group": "Core",
+      "importance": 1,
+      "expected": "broken"
+    }
+  ],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}
