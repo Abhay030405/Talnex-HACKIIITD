@@ -69,6 +69,7 @@ def run_plan(
     on_hidden_text: Optional[Callable[[list[str]], None]] = None,
     job_id: Optional[str] = None,
     connect: Connector = driver_module.connect,
+    on_event: Optional[Callable[..., None]] = None,
 ) -> RunRecord:
     """Run one plan. Raises LimitReached when a run limit is hit (nothing is created then)."""
     if claim.id is None:
@@ -76,6 +77,16 @@ def run_plan(
     ensure_can_run(pool, claim.id, limits)
     try_number = next_try_number(pool, claim.id) or 1
     run_id = store.create_run(pool, claim.id, try_number, plan.test_type, method="browser")
+
+    def tell(kind: str, **data) -> None:
+        if on_event is not None:
+            try:
+                on_event(kind, run_id=run_id, **data)
+            except Exception as err:  # watching must never change what's being watched
+                log.warning("live event %s failed: %s", kind, err)
+
+    tell("run.started", try_number=try_number, test_type=plan.test_type, steps=len(plan.steps),
+         expected_result=plan.expected_result)
 
     result: Optional[ExecResult] = None
     account: Optional[str] = None
@@ -112,7 +123,8 @@ def run_plan(
                         result = execute_plan(
                             client, driver, plan, claim_text=claim.text, site_url=site_url, cfg=config,
                             uploads_root=uploads_root, save_proof=save_proof, way_in=way_in, mailbox=mailbox,
-                            smsbox=smsbox, on_hidden_text=on_hidden_text, job_id=job_id)
+                            smsbox=smsbox, on_hidden_text=on_hidden_text, job_id=job_id,
+                            on_event=(lambda kind, **data: tell(kind, **data)) if on_event else None)
             # The session's cost is only known once it has closed, so it's counted here, for every attempt.
             cost += session.cost_usd or 0.0
             if reached:
@@ -134,7 +146,10 @@ def run_plan(
             log.exception("could not save run %s", run_id)
 
     if result is None:
+        tell("run.finished", outcome="blocked", reason=problem, actions=0, cost_usd=cost or None)
         return RunRecord(run_id, try_number, "blocked", problem or "the test could not run", [], problem, account,
                          cost or None, False)
+    tell("run.finished", outcome=result.outcome, reason=result.stop_reason, actions=result.actions_used,
+         cost_usd=round(cost, 6) if cost else None)
     return RunRecord(run_id, try_number, result.outcome, result.observed, result.records, result.stop_reason,
                      account, cost or None, result.vision_used)

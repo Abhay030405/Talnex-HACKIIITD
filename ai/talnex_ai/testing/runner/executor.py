@@ -115,6 +115,7 @@ def execute_plan(
     on_hidden_text: Optional[Callable[[list[str]], None]] = None,
     clock: Callable[[], float] = time.monotonic,
     job_id: Optional[str] = None,
+    on_event: Optional[Callable[..., None]] = None,
 ) -> ExecResult:
     site_host = urlparse(site_url if "//" in site_url else "https://" + site_url).hostname or ""
     started = clock()
@@ -126,10 +127,19 @@ def execute_plan(
     scanned_urls: set[str] = set()              # each page is asked for its hidden text once
     seen_text: list[str] = []                   # every page seen so far: addresses in it are ones a visitor could follow
 
+    def tell(kind: str, **data) -> None:
+        """Report progress to the live view. Watching must never change what's being watched."""
+        if on_event is not None:
+            try:
+                on_event(kind, **data)
+            except Exception as err:
+                log.warning("live event %s failed: %s", kind, err)
+
     def finish(outcome: Outcome, observed: str, reason: Optional[str] = None) -> ExecResult:
+        tell("run.outcome", outcome=outcome, observed=observed, stop_reason=reason, actions=used["actions"])
         return ExecResult(outcome, observed, records, used["actions"], used["vision"], reason)
 
-    def record(action: str, expected: Optional[str], observed: Optional[str]) -> None:
+    def record(action: str, expected: Optional[str], observed: Optional[str], box: Optional[dict] = None) -> None:
         """Save a step record with a screenshot of the page as it is right now."""
         number = len(records) + 1
         try:
@@ -139,6 +149,8 @@ def execute_plan(
             shot = b""
         records.append(StepRecord(step_number=number, kind="screen", action=action, expected=expected,
                                   observed=observed, proof_key=save_proof(number, shot) if shot else None))
+        tell("step.record", number=number, label=action, expected=expected, observed=observed,
+             proof_key=records[-1].proof_key, box=box, url=driver.url())
 
     def note_last(observed: str) -> None:
         if records and observed:
@@ -192,6 +204,8 @@ def execute_plan(
                           title=driver.title(), snapshot=snapshot, last_error=last_error, test_files=test_files),
                 lambda text: parse_model(Decision, text), job_id=job_id, images=images,
             )
+            if decision.thought:
+                tell("reason", step=index, text=decision.thought, looked_at_picture=bool(images))
 
             if decision.step_result is not None:
                 observed = decision.observed or decision.thought
@@ -199,6 +213,7 @@ def execute_plan(
                     note_last(observed)
                 else:
                     record(f"Look: {step.action}", step.expected, observed)
+                tell("step.result", step=index, steps=len(plan.steps), result=decision.step_result, observed=observed)
                 if decision.step_result == "blocked":
                     history.append(f"Step {index} blocked: {observed}")
                     return finish("blocked", observed or "the test was blocked", "blocked by the site")
@@ -249,7 +264,7 @@ def execute_plan(
                               "result from what is shown")
             if last_error:
                 label = f"{label} (did not work: {last_error})"
-            record(label, step.expected, last_error)
+            record(label, step.expected, last_error, box=None if last_error else getattr(driver, "last_box", None))
             history.append(label)
             send_picture = last_error is not None
 
