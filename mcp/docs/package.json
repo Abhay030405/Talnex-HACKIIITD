@@ -1,0 +1,32 @@
+{
+  "name": "talnex-mcp-docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Documentation site for the TalNex MCP server (Next.js + Fumadocs, static export)",
+  "scripts": {
+    "dev": "next dev --port 3100",
+    "build": "next build",
+    "start": "npx serve out",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "npm run typecheck"
+  },
+  "dependencies": {
+    "@xyflow/react": "12.12.0",
+    "fumadocs-core": "16.17.8",
+    "fumadocs-mdx": "15.4.10",
+    "fumadocs-ui": "16.17.8",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/mdx": "2.0.14",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "postcss": "8.5.31",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2"
+  }
+}
