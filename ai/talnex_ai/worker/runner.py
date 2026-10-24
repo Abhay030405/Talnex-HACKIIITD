@@ -15,6 +15,7 @@ from typing import Any, Mapping, Optional
 from psycopg_pool import ConnectionPool
 
 from talnex_ai.db import jobs as queue
+from talnex_ai.live import NullEmitter, for_job
 from talnex_ai.worker.registry import Handler, JobContext, JobTimeout
 
 log = logging.getLogger("talnex.worker")
@@ -33,8 +34,10 @@ class Worker:
         concurrency: int = 5,
         poll_seconds: float = 5.0,
         retry_delay_seconds: int = 30,
+        live_events: bool = True,
     ):
         self.pool = pool
+        self.live_events = live_events  # send stage events to the live view (docs/live_events.md)
         self.database_url = database_url
         self.handlers = dict(handlers)
         self.worker_id = worker_id
@@ -94,6 +97,8 @@ class Worker:
             return
 
         ctx = JobContext(job, self.pool)
+        events = for_job(self.pool, job) if self.live_events else NullEmitter()
+        events.emit("stage.started", try_number=job.tries)
         try:
             result = handler(job, ctx)
             ctx.check()  # a result that arrives after the time limit doesn't count
@@ -102,12 +107,15 @@ class Worker:
             if not isinstance(result, Mapping):
                 raise TypeError(f"handler returned {type(result).__name__}, expected a dict")
         except JobTimeout as err:
-            self._fail(worker, job, str(err))
+            events.emit("stage.failed", status=self._fail(worker, job, str(err)), error=str(err))
             return
         except Exception as err:  # one handler's failure must never stop the worker
-            self._fail(worker, job, f"{type(err).__name__}: {err}\n{traceback.format_exc(limit=8)}")
+            status = self._fail(worker, job, f"{type(err).__name__}: {err}\n{traceback.format_exc(limit=8)}")
+            events.emit("stage.failed", status=status, error=f"{type(err).__name__}: {err}")
             return
         self._complete(worker, job, result, ctx)
+        events.emit("stage.finished", seconds=round(time.monotonic() - ctx.started, 1),
+                    skipped=bool(result.get("skipped")), reason=result.get("reason"))
 
     def _complete(self, worker: str, job: queue.Job, result: Mapping[str, Any], ctx: JobContext) -> None:
         for attempt in range(1, SAVE_TRIES + 1):
@@ -124,12 +132,15 @@ class Worker:
                      time.monotonic() - ctx.started, len(added))
             return
 
-    def _fail(self, worker: str, job: queue.Job, message: str) -> None:
+    def _fail(self, worker: str, job: queue.Job, message: str) -> Optional[str]:
+        """Record a failure. Returns the job's new status (retrying or failed), or None if it couldn't be saved."""
         try:
             status = queue.fail_job(self.pool, job.id, worker, message, self.retry_delay_seconds)
             log.warning("job failed id=%s type=%s now=%s: %s", job.id, job.type, status, message.splitlines()[0])
+            return status
         except Exception:
             log.exception("could not record the failure of job %s", job.id)
+            return None
 
     # ---- wake-up signal ----
 

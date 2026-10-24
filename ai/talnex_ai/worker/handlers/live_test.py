@@ -19,6 +19,7 @@ from psycopg_pool import ConnectionPool
 from talnex_ai.claims.store import load_claims
 from talnex_ai.db.jobs import Job
 from talnex_ai.formats import Claim, Result, TestPlan
+from talnex_ai.live import Emitter, NullEmitter
 from talnex_ai.login.ladder import build_way_in
 from talnex_ai.safety.hidden_instructions.rendered import orders_in_hidden_text
 from talnex_ai.safety.site_rules import LimitReached, RunLimits
@@ -65,20 +66,29 @@ def extra_plans(plans: Sequence[TestPlan], how_many: int) -> list[TestPlan]:
     return chosen[:max(0, how_many)]
 
 
-def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any], job_id: Optional[str]) -> str:
+def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any], job_id: Optional[str],
+              events: Any = None) -> str:
     """Test one claim and save its result. Returns the verdict. Never raises: our problems are "could not test".
 
     `sv` is the shared services object (worker/services.py): pool, cfg, model, tinyfish, files, connect,
-    uploads_root, mailbox_for and smsbox_for."""
+    uploads_root, mailbox_for and smsbox_for. `events` streams progress to the live view."""
+    ev = (events or NullEmitter()).child(claim_id=claim.id)
+
+    def finish(result: Result) -> str:
+        save_result(sv.pool, result)
+        ev.emit("verdict", verdict=result.verdict, confidence=result.confidence, reason=result.reason,
+                proof_keys=result.proof_keys[:4], second_check_agreed=result.second_check_agreed)
+        return result.verdict
+
     try:
         if "error" in saved:
-            save_result(sv.pool, could_not_test(claim.id, f"no test could be written for this claim ({saved['error']})"))
-            return "could_not_test"
+            return finish(could_not_test(claim.id, f"no test could be written for this claim ({saved['error']})"))
         all_plans = [TestPlan.model_validate(p) for p in saved.get("plans", [])]
         plan = choose_plan(all_plans)
         if plan is None:
-            save_result(sv.pool, could_not_test(claim.id, "no test was planned for this claim"))
-            return "could_not_test"
+            return finish(could_not_test(claim.id, "no test was planned for this claim"))
+        ev.emit("claim.started", text=claim.text, group=claim.claim_group, importance=claim.importance,
+                test_type=plan.test_type, steps=[s.action for s in plan.steps])
 
         cfg = sv.cfg
         way_in = build_way_in(info.live_host, cfg.email, cfg.phone.number)
@@ -95,7 +105,7 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
             return run_plan(pool=sv.pool, store_files=sv.files, tinyfish=sv.tinyfish, client=sv.model, claim=claim,
                             plan=p, site_url=info.live_url, subject_id=info.id, limits=limits, runner_cfg=cfg.runner,
                             uploads_root=sv.uploads_root, way_in=way_in.instructions, mailbox=mailbox, smsbox=smsbox,
-                            job_id=job_id, connect=sv.connect, on_hidden_text=on_hidden_text)
+                            job_id=job_id, connect=sv.connect, on_hidden_text=on_hidden_text, on_event=ev)
 
         def alternate(p: TestPlan, _previous) -> TestPlan:
             fresh = plan_claim(sv.model, claim, site_url=info.live_url, avoid=p, only=p.test_type, job_id=job_id)
@@ -104,13 +114,17 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
             return fresh[0]
 
         def check(record, p: TestPlan):
-            return check_proof(sv.model, sv.files, claim_text=claim.text, expected_result=p.expected_result,
-                               proof_keys=[s.proof_key for s in record.steps], job_id=job_id)
+            ev.emit("check.started", images=min(4, sum(1 for s in record.steps if s.proof_key)))
+            found = check_proof(sv.model, sv.files, claim_text=claim.text, expected_result=p.expected_result,
+                                proof_keys=[s.proof_key for s in record.steps], job_id=job_id)
+            ev.emit("check", outcome=found.outcome, seen=found.seen, images=found.images_used)
+            return found
 
         deps = LadderDeps(fetch=lambda url: sv.tinyfish.fetch([url])[0], run=run, alternate=alternate, check=check,
-                          wait_seconds=cfg.limits.sleeping_host_wait_seconds)
+                          wait_seconds=cfg.limits.sleeping_host_wait_seconds,
+                          on_trace=lambda line: ev.emit("ladder", line=line))
         result = to_result(claim.id, judge_claim(plan, info.live_url, deps))
-        save_result(sv.pool, result)
+        finish(result)
         if result.verdict in ("works", "partly_works"):
             # The main test passed, so extra checks are only evidence for the score: they never change the verdict.
             for extra in extra_plans(all_plans, cfg.limits.extra_tests_per_claim):
@@ -124,14 +138,21 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
         return result.verdict
     except Exception as err:  # a problem on our side is never the project's fault
         log.exception("testing claim %s hit a problem", claim.id)
-        save_result(sv.pool, could_not_test(claim.id, f"the test hit a problem on our side ({type(err).__name__})"))
-        return "could_not_test"
+        return finish(could_not_test(claim.id, f"the test hit a problem on our side ({type(err).__name__})"))
 
 
 def live_test_subject(sv: Any, info: SubjectInfo, claims: Sequence[Claim], precheck: Mapping[str, Any],
                  plans: Mapping[str, Any], since: datetime, job_id: Optional[str],
-                 seconds_left=lambda: float("inf")) -> dict[str, Any]:
-    """Test every claim of one subject, a few at a time."""
+                 seconds_left=lambda: float("inf"), events: Any = None) -> dict[str, Any]:
+    """Test every claim of one subject, a few at a time, streaming progress to the live view."""
+    if events is None:
+        events = Emitter(sv.pool, info.kind, info.id, job_id=job_id, stage="live_test")
+
+    def skip(claim: Claim, why: str) -> str:
+        save_result(sv.pool, could_not_test(claim.id, why))
+        events.child(claim_id=claim.id).emit("verdict", verdict="could_not_test", confidence="low", reason=why)
+        return "could_not_test"
+
     reason: Optional[str] = None
     if not info.live_url:
         reason = "no live link was given"
@@ -142,17 +163,18 @@ def live_test_subject(sv: Any, info: SubjectInfo, claims: Sequence[Claim], prech
     if reason:
         for claim in claims:
             if not has_result_since(sv.pool, claim.id, since):
-                save_result(sv.pool, could_not_test(claim.id, f"not tested: {reason}"))
+                skip(claim, f"not tested: {reason}")
         return {"skipped": True, "reason": reason}
 
     claim_plans = plans.get("claims", {})
     todo = [c for c in claims if not has_result_since(sv.pool, c.id, since)]
 
+    events.emit("claims.queued", total=len(claims), todo=len(todo), claims=[{"id": c.id, "text": c.text} for c in todo])
+
     def work(claim: Claim) -> str:
         if seconds_left() < MIN_SECONDS_TO_START_A_CLAIM:
-            save_result(sv.pool, could_not_test(claim.id, "not tested: the stage ran out of time"))
-            return "could_not_test"
-        return judge_one(sv, info, claim, claim_plans.get(claim.id, {"error": "no plan was saved"}), job_id)
+            return skip(claim, "not tested: the stage ran out of time")
+        return judge_one(sv, info, claim, claim_plans.get(claim.id, {"error": "no plan was saved"}), job_id, events)
 
     with ThreadPoolExecutor(max_workers=max(1, min(sv.cfg.tinyfish.parallel_runs, len(todo) or 1))) as threads:
         verdicts = list(threads.map(work, todo))

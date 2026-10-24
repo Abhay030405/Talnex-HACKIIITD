@@ -9,7 +9,7 @@ import logging
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Protocol
+from typing import Iterator, Optional, Protocol
 
 from talnex_ai.testing.runner.actions import Action, Click, Fill, Navigate, Press, Scroll, Select, Target, Upload, Wait
 
@@ -40,6 +40,7 @@ class PlaywrightDriver:
 
     def __init__(self, page) -> None:
         self.page = page
+        self.last_box: Optional[dict] = None  # where the last action touched the page, for the live view
 
     def url(self) -> str:
         return self.page.url
@@ -95,7 +96,22 @@ class PlaywrightDriver:
             return self.page.get_by_placeholder(target.name).first
         return self.page.get_by_text(target.name).first
 
+    def _box_of(self, target: Target) -> Optional[dict]:
+        """The element's position on the full page (so it lines up with the full-page screenshot). Never raises."""
+        try:
+            box = self._find(target).bounding_box(timeout=1500)
+            scroll_x, scroll_y = self.page.evaluate("[window.scrollX, window.scrollY]")
+            if not box:
+                return None
+            return {"x": round(box["x"] + scroll_x), "y": round(box["y"] + scroll_y),
+                    "w": round(box["width"]), "h": round(box["height"])}
+        except Exception:
+            return None
+
     def perform(self, action: Action, uploads_root: Path) -> None:
+        self.last_box = None
+        if isinstance(action, (Click, Fill, Select, Upload)):
+            self.last_box = self._box_of(action.target)
         try:
             if isinstance(action, Navigate):
                 url = action.url if "//" in action.url else "https://" + action.url

@@ -35,6 +35,7 @@ class LadderDeps:
     check: Callable[[RunRecord, TestPlan], ProofCheck]    # the independent look at the screenshots
     sleep: Callable[[float], None] = time.sleep
     wait_seconds: int = 60
+    on_trace: Optional[Callable[[str], None]] = None  # each rung as it happens, for the live view
 
 
 @dataclass
@@ -57,35 +58,43 @@ def judge_claim(plan: TestPlan, site_url: str, deps: LadderDeps) -> LadderResult
     runs: list[RunRecord] = []
     checks: list[ProofCheck] = []
 
+    def say(line: str) -> None:
+        trace.append(line)
+        if deps.on_trace is not None:
+            try:
+                deps.on_trace(line)
+            except Exception as err:  # watching must never change what's being watched
+                log.warning("ladder trace event failed: %s", err)
+
     def could_not_test(reason: str) -> LadderResult:
-        trace.append(f"Stopped: {reason}")
+        say(f"Stopped: {reason}")
         return LadderResult(Decision("could_not_test", "low", reason), None, runs, checks, trace, _keys(*runs[-1:]))
 
     def judged(evidence: Evidence, deciding: list[RunRecord], check: ProofCheck, note: str = "") -> LadderResult:
         decision = decide(evidence)
         if note and decision.verdict != "could_not_test":
             decision = Decision(decision.verdict, decision.confidence, f"{note}; {decision.reason}")
-        trace.append(f"Result: {decision.verdict} ({decision.confidence}): {decision.reason}")
+        say(f"Result: {decision.verdict} ({decision.confidence}): {decision.reason}")
         return LadderResult(decision, evidence, runs, checks, trace, _keys(*deciding), check.outcome == evidence.agent)
 
     def checked(run: RunRecord, run_plan: TestPlan, label: str) -> ProofCheck:
         check = deps.check(run, run_plan)
         checks.append(check)
-        trace.append(f"{label}: {check.outcome}")
+        say(f"{label}: {check.outcome}")
         return check
 
     # 1. Did the page load at all?
     page = deps.fetch(site_url)
     if not page.ok:
         return could_not_test(f"the page did not load ({page.error_code or 'no answer'}), so nothing could be tried")
-    trace.append("Step 1: the page loads")
+    say("Step 1: the page loads")
 
     try:
         first = deps.run(plan)
     except LimitReached as err:
         return could_not_test(f"a run limit was reached ({err})")
     runs.append(first)
-    trace.append(f"Try 1: {first.outcome}")
+    say(f"Try 1: {first.outcome}")
     if first.outcome == "blocked":
         return could_not_test(first.stop_reason or first.observed or "the test was blocked")
     if first.outcome in ("works", "partly_works"):
@@ -95,7 +104,7 @@ def judge_claim(plan: TestPlan, site_url: str, deps: LadderDeps) -> LadderResult
 
     # The first try failed. Climb the ladder before blaming anyone.
     # 2. Wait in case the site was asleep, then make sure it's awake.
-    trace.append(f"Step 2: waiting {deps.wait_seconds}s in case the site was asleep")
+    say(f"Step 2: waiting {deps.wait_seconds}s in case the site was asleep")
     deps.sleep(deps.wait_seconds)
     page = deps.fetch(site_url)
     if not page.ok:
@@ -111,7 +120,7 @@ def judge_claim(plan: TestPlan, site_url: str, deps: LadderDeps) -> LadderResult
         log.warning("second try could not be prepared: %s", err)
         return could_not_test("a second, different try could not be prepared")
     runs.append(second)
-    trace.append(f"Try 2 (a different way): {second.outcome}")
+    say(f"Try 2 (a different way): {second.outcome}")
     if second.outcome == "blocked":
         return could_not_test(second.stop_reason or second.observed or "the second try was blocked")
     if second.outcome in ("works", "partly_works"):
