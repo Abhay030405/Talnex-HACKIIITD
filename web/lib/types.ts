@@ -1,6 +1,28 @@
 // Shapes the Go API sends and receives, checked against backend/internal/{auth,events,projects,candidates}.
 // The report, proof card, authorship and walkthrough shapes are added with the pages that show them.
 
+// ---------- Jobs ----------
+
+/** One job of a check, for the jobs panel (backend/internal/http/jobs.go). */
+export interface JobRow {
+  id: string;
+  pipeline: string;
+  stage: string;
+  target_type: "candidate" | "candidate_project" | "project" | "event";
+  target_id: string;
+  /** The resume project's name, for jobs about a resume project. */
+  project?: string;
+  run: number;
+  status: "queued" | "running" | "retrying" | "done" | "failed";
+  tries: number;
+  max_tries: number;
+  created_at: string;
+  updated_at: string;
+  seconds: number;
+  error?: string;
+  result?: Record<string, unknown>;
+}
+
 // ---------- Roles ----------
 
 /** Who an account is. One role per account, set by the sign-in door used first (backend/internal/auth). */

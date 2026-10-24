@@ -1,5 +1,6 @@
 import { AskTalnex, type Ask, type CustomTest } from "@/components/proof/AskTalnex";
-import type { JobRole } from "@/lib/types";
+import { JobsPanel } from "@/components/proof/JobsPanel";
+import type { JobRole, JobRow } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect, unstable_rethrow } from "next/navigation";
@@ -75,6 +76,12 @@ export default async function CandidatePage({
     );
     customTests = lists.flat();
   }
+  let jobs: JobRow[] = [];
+  try {
+    jobs = await apiFetch<JobRow[]>(`/v1/candidates/${encodeURIComponent(candidateId)}/jobs`);
+  } catch (error) {
+    unstable_rethrow(error);
+  }
   let criteria: { name: string; weight: number }[] = [];
   if (candidate.role_id) {
     try {
@@ -138,6 +145,8 @@ export default async function CandidatePage({
       </section>
 
       {progress && (!report || !isFinishedStatus(status)) && <ProgressPanel progress={progress} />}
+
+      <JobsPanel jobs={jobs} liveHref={`${path}/live`} />
 
       {report ? (
         <>

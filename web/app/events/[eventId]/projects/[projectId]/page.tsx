@@ -5,6 +5,8 @@ import { notFound, unstable_rethrow } from "next/navigation";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { AskTalnex, type Ask, type CustomTest } from "@/components/proof/AskTalnex";
 import { HackathonCardView } from "@/components/proof/HackathonCardView";
+import { JobsPanel } from "@/components/proof/JobsPanel";
+import type { JobRow } from "@/lib/types";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { BADGE_CLASS } from "@/lib/format";
@@ -54,6 +56,12 @@ export default async function ProjectPage({
       unstable_rethrow(error);
     }
   }
+  let jobs: JobRow[] = [];
+  try {
+    jobs = await apiFetch<JobRow[]>(`/v1/projects/${encodeURIComponent(projectId)}/jobs`);
+  } catch (error) {
+    unstable_rethrow(error);
+  }
   const status = projectStatus(project.status);
   const message = run ? RUN_MESSAGES[run] : undefined;
 
@@ -90,6 +98,8 @@ export default async function ProjectPage({
           {message.text}
         </p>
       )}
+
+      <JobsPanel jobs={jobs} liveHref={`/events/${encodeURIComponent(eventId)}/projects/${encodeURIComponent(projectId)}/live`} />
 
       {card ? (
         <>

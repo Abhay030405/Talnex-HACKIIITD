@@ -1992,6 +1992,19 @@ a.meta:hover {
   cursor: pointer;
 }
 
+/* The jobs panel: one group per project and pipeline, each with its run picker and job table. */
+.jobs-panel__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.jobs-panel__run {
+  width: auto;
+  padding: var(--space-1) var(--space-2);
+}
+
 .proof-viewer__steps {
   display: flex;
   flex-direction: column;
