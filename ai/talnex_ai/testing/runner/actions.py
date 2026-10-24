@@ -9,6 +9,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Annotated, Literal, Optional, Union
+
+from pydantic import BeforeValidator
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -85,6 +87,12 @@ class ReadEmail(_Shape):
     type: Literal["read_email"]
 
 
+class FreshStart(_Shape):
+    """Clear this browser's cookies and saved data and reload, like a brand-new visitor. Lets a test check what a
+    signed-out or first-time visitor sees. Only our own test browser is touched."""
+    type: Literal["fresh_start"]
+
+
 class ReadSms(_Shape):
     """Wait for the text the site just sent to the team phone and get its code. Done by the runner: the
     model never reads the text itself, only the code found in it."""
@@ -93,17 +101,17 @@ class ReadSms(_Shape):
 
 
 Action = Annotated[
-    Union[Navigate, Click, Fill, Press, Select, Upload, Wait, Scroll, ReadEmail, ReadSms], Field(discriminator="type")
+    Union[Navigate, Click, Fill, Press, Select, Upload, Wait, Scroll, ReadEmail, ReadSms, FreshStart], Field(discriminator="type")
 ]
 
 
 class Decision(_Shape):
     """One turn of the agent: either the next action, or the result of the current plan step."""
 
-    thought: str = Field(default="", max_length=400)
+    thought: Annotated[str, BeforeValidator(lambda v: v[:400] if isinstance(v, str) else v)] = ""
     action: Optional[Action] = None
     step_result: Optional[Literal["done", "failed", "blocked"]] = None
-    observed: str = Field(default="", max_length=400)
+    observed: Annotated[str, BeforeValidator(lambda v: v[:400] if isinstance(v, str) else v)] = ""
 
     @model_validator(mode="after")
     def _exactly_one(self) -> "Decision":
@@ -137,6 +145,8 @@ def describe(action: Action) -> str:
         return "Read the verification email"
     if isinstance(action, ReadSms):
         return "Read the verification text message"
+    if isinstance(action, FreshStart):
+        return "Start fresh as a new visitor (cookies and saved data cleared)"
     return f"Scroll {action.direction}"
 
 

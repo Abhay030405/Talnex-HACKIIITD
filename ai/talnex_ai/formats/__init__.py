@@ -4,6 +4,7 @@ They're defined once, here. Every model answer is checked against them before an
 saved, so a malformed answer fails loudly instead of turning into a made-up result.
 """
 from talnex_ai.formats.models import (
+    Check,
     Claim,
     ClaimSource,
     Confidence,
@@ -20,7 +21,7 @@ from talnex_ai.formats.models import (
 from talnex_ai.formats.parse import FormatError, parse_json_block, parse_list, parse_model
 
 __all__ = [
-    "Claim", "ClaimSource", "Confidence", "FormatError", "PlanStep", "Result", "RoleLevel",
+    "Check", "Claim", "ClaimSource", "Confidence", "FormatError", "PlanStep", "Result", "RoleLevel",
     "StepKind", "StepRecord", "TestPlan", "TestType", "Track", "Verdict",
     "parse_json_block", "parse_list", "parse_model",
 ]

@@ -1,0 +1,236 @@
+{
+  "when": "2026-10-24 13:49 UTC",
+  "runs": [
+    {
+      "index": 1,
+      "subject_id": "d956cca6-f237-4abc-8b01-7932ff422233",
+      "finished": true,
+      "seconds": 474.42583859997103,
+      "cost_usd": 0.14501,
+      "talnex": 83.0,
+      "coverage": 100.0,
+      "flags": [],
+      "claims": {
+        "Submitting an empty todo shows a message and leaves the list unchanged": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + empty submit shows a visible message; list stays unchanged after empty submit ? not checked: whitespace-only input also rejected; message clears on next valid submit"
+        },
+        "Typing an empty, non-numeric or negative amount into the converter shows a clear error message instead of a converted value": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Empty amount shows an error, not a result; Error message is clear and specific ? not checked: Non-numeric text shows an error, not a result; Negative amount shows an error, not a result"
+        },
+        "Once inside as a guest, the page shows both a currency converter and a todo list": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + guest can reach the page without signing in; currency converter visible on the page - conversion gives correct result for input ? not checked: both tools usable at the same time; empty or odd input handled without breaking (capped at 5: ..."
+        },
+        "The converter changes an amount between US dollars, euros, British pounds and Indian rupees": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + converts between all four named currencies; result updates when currency pair is changed ? not checked: conversion uses current exchange rates; result updates when amount is changed"
+        },
+        "A todo can be added, marked as done and deleted, and the list shows how many todos are still open": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Adding a todo shows it in the list; Marking a todo done changes its shown state ? not checked: Empty or whitespace-only todo is rejected; List and count survive a page reload"
+        },
+        "The todo list can be downloaded as a PDF file": {
+          "verdict": "broken",
+          "confidence": "high",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Anyone can enter as a guest and use the tools without signing up or giving an email address": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + tools usable without any sign-up step; no email or account prompt before use ? not checked: guest session persists across page reloads; tools still work after clearing cookies"
+        },
+        "Todos are still in the list after the page is reloaded": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Added todo survives a page reload; Reload shows the same items, not duplicates ? not checked: Completed state survives reload; Deleted todo stays gone after reload"
+        }
+      }
+    }
+  ],
+  "analysis": {
+    "app": "honest",
+    "runs": 1,
+    "claims": [
+      {
+        "claim": "Anyone can enter as a guest and use the tools without signing up or giving an email address",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Once inside as a guest, the page shows both a currency converter and a todo list",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "partly_works"
+        ],
+        "majority": "partly_works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 1,
+        "feature_scores": [
+          5.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "The converter changes an amount between US dollars, euros, British pounds and Indian rupees",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Typing an empty, non-numeric or negative amount into the converter shows a clear error message instead of a converted value",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "A todo can be added, marked as done and deleted, and the list shows how many todos are still open",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Todos are still in the list after the page is reloaded",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Submitting an empty todo shows a message and leaves the list unchanged",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "The todo list can be downloaded as a PDF file",
+        "control": true,
+        "expected": "broken",
+        "verdicts": [
+          "broken"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0
+        ],
+        "score_spread": 0.0
+      }
+    ],
+    "pairs": {
+      "correct": 7,
+      "wrong": 1,
+      "unconfirmed": 0,
+      "total": 8
+    },
+    "accuracy": 87.5,
+    "talnex_scores": [
+      83.0
+    ],
+    "talnex_spread": 0.0,
+    "flags_per_run": [
+      0
+    ],
+    "seconds_per_run": [
+      474
+    ],
+    "cost_per_run": [
+      0.145
+    ],
+    "checks": {
+      "every run finished": true,
+      "no wrong verdicts": false,
+      "every claim steady (same verdict in 1 of 1 runs)": true,
+      "majority verdict is the expected one for every claim": false,
+      "TalNex score spread within 10 points": true,
+      "no unexpected red flags": true
+    },
+    "passed": false
+  }
+}

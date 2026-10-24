@@ -1,0 +1,188 @@
+{
+  "when": "2026-10-24 13:47 UTC",
+  "runs": [
+    {
+      "index": 1,
+      "subject_id": "c7c2d6fa-d42d-473b-90a1-ebbe45b4e945",
+      "finished": true,
+      "seconds": 324.29629269998986,
+      "cost_usd": 0.07289,
+      "talnex": 16.0,
+      "coverage": 83.3,
+      "flags": [],
+      "claims": {
+        "The try page has a photo picker and a Write my caption button": {
+          "verdict": "could_not_test",
+          "confidence": "disagree",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Upload a photo and CaptionIt writes a caption describing it": {
+          "verdict": "broken",
+          "confidence": "high",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Choose a photo and press Write my caption, and the caption appears under the photo": {
+          "verdict": "broken",
+          "confidence": "high",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Captions can be translated into other languages": {
+          "verdict": "broken",
+          "confidence": "high",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "The landing page has a link that opens the try page": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + visible link on landing page to try page; clicking the link opens the try page ? not checked: link works after page reload; link works when opened in a new tab"
+        },
+        "The About page explains what CaptionIt is": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 4.0,
+          "reason": "4/10 for fresher: + About page reachable from the site; Page loads directly by its own URL - States what CaptionIt does; Explains who it is for or its purpose ? not checked: Still shows content after a reload"
+        }
+      }
+    }
+  ],
+  "analysis": {
+    "app": "fake_claim",
+    "runs": 1,
+    "claims": [
+      {
+        "claim": "The About page explains what CaptionIt is",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          4.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "The landing page has a link that opens the try page",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "The try page has a photo picker and a Write my caption button",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Upload a photo and CaptionIt writes a caption describing it",
+        "control": false,
+        "expected": "broken",
+        "verdicts": [
+          "broken"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Choose a photo and press Write my caption, and the caption appears under the photo",
+        "control": false,
+        "expected": "broken",
+        "verdicts": [
+          "broken"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Captions can be translated into other languages",
+        "control": true,
+        "expected": "broken",
+        "verdicts": [
+          "broken"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 1,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0
+        ],
+        "score_spread": 0.0
+      }
+    ],
+    "pairs": {
+      "correct": 5,
+      "wrong": 0,
+      "unconfirmed": 1,
+      "total": 6
+    },
+    "accuracy": 83.3,
+    "talnex_scores": [
+      16.0
+    ],
+    "talnex_spread": 0.0,
+    "flags_per_run": [
+      0
+    ],
+    "seconds_per_run": [
+      324
+    ],
+    "cost_per_run": [
+      0.0729
+    ],
+    "checks": {
+      "every run finished": true,
+      "no wrong verdicts": true,
+      "every claim steady (same verdict in 1 of 1 runs)": true,
+      "majority verdict is the expected one for every claim": false,
+      "TalNex score spread within 10 points": true,
+      "no unexpected red flags": true
+    },
+    "passed": false
+  }
+}

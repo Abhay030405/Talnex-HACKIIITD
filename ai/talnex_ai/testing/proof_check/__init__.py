@@ -10,8 +10,11 @@ from typing import Literal, Optional, Protocol, Sequence
 from pydantic import BaseModel, ConfigDict, Field
 
 from talnex_ai.formats import FormatError, parse_model
-from talnex_ai.llm.prompts.proof_checker import SYSTEM, user
+from talnex_ai.llm.prompts.proof_checker import PARTS_SYSTEM, SYSTEM, parts_user, user
+from talnex_ai.scoring.claim_points import outcome_from_parts
+from talnex_ai.testing.checks import PartMark, numbered, read_marks
 from talnex_ai.llm.structured import ChatClient, ask_json
+from talnex_ai.testing.scope import unchanged_value
 
 log = logging.getLogger("talnex.proof")
 
@@ -46,14 +49,37 @@ class ProofCheck:
     seen: str
     screenshot_clear: bool
     images_used: int
+    parts: tuple[str, ...] = ()  # one mark per plan check, when the plan had checks
 
 
-def _parse(text: str) -> _Answer:
+class _PartsAnswer(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+    checks: list[PartMark] = Field(min_length=1)
+    seen: str = Field(min_length=1, max_length=600)
+    screenshot_clear: bool = True
+
+
+def _parse_parts(text: str, claim_text: str, count: int) -> tuple[tuple[str, ...], _PartsAnswer]:
+    answer = parse_model(_PartsAnswer, text)
+    marks = read_marks(answer.checks, count)
+    for m in answer.checks:
+        start = unchanged_value(claim_text, m.note) if m.status == "seen" else None
+        if start:
+            raise FormatError(f'check {m.n} is marked seen, but its note describes a starting value ("{start}"). Mark it '
+                              "not_seen, unless the pictures show it changing: then say how it changed.")
+    return marks, answer
+
+
+def _parse(text: str, claim_text: str = "") -> _Answer:
     answer = parse_model(_Answer, text)
     contradiction = _SAYS_FAILED.search(answer.seen)
     if answer.outcome == "works" and contradiction:
         raise FormatError(f'the outcome is works, but "seen" says "{contradiction.group(0)}". '
                           "Make the outcome agree with what the pictures show.")
+    start = unchanged_value(claim_text, answer.seen) if answer.outcome == "works" else None
+    if start:
+        raise FormatError(f'the outcome is works, but the value you describe ("{start}") is still at its starting point. '
+                          "Answer partly_works or broken, unless the pictures show it changing: then say how it changed.")
     return answer
 
 
@@ -121,6 +147,7 @@ def check_proof(
     notes: Sequence[str] = (),
     job_id: Optional[str] = None,
     max_images: int = MAX_IMAGES,
+    checks: Sequence = (),
 ) -> ProofCheck:
     """Look at the last few screenshots of a run and say whether the expected result is visible.
 
@@ -134,6 +161,14 @@ def check_proof(
     if not pictures:
         return ProofCheck("blocked", "there were no screenshots to look at", False, 0)
 
-    answer = ask_json(client, "proof_checker", SYSTEM, user(claim_text, expected_result, len(pictures), notes), _parse,
+    if checks:
+        marks, found = ask_json(client, "proof_checker", PARTS_SYSTEM,
+                                parts_user(claim_text, numbered(checks), len(pictures), notes),
+                                lambda text: _parse_parts(text, claim_text, len(checks)),
+                                job_id=job_id, images=pictures, temperature=0.0)
+        return ProofCheck(outcome_from_parts(marks, [getattr(c, "promise", True) for c in checks]), found.seen,
+                          found.screenshot_clear, len(pictures), marks)
+    answer = ask_json(client, "proof_checker", SYSTEM, user(claim_text, expected_result, len(pictures), notes),
+                      lambda text: _parse(text, claim_text),
                       job_id=job_id, images=pictures, temperature=0.0)
     return ProofCheck(answer.outcome, answer.seen, answer.screenshot_clear, len(pictures))

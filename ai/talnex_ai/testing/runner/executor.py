@@ -19,11 +19,13 @@ from typing import Any, Callable, Literal, Optional, Protocol
 from urllib.parse import urlparse
 
 from talnex_ai.formats import StepRecord, TestPlan, parse_model
-from talnex_ai.llm.prompts.runner import FINAL_SYSTEM, STEP_SYSTEM, final_user, step_user
+from talnex_ai.llm.prompts.runner import STEP_SYSTEM, step_user
+# The final look is the judging layer; it lives in judge.py. The names are kept here for older imports.
+from talnex_ai.testing.runner.judge import INCOMPLETE, _final, _final_parts, final_look  # noqa: F401
 from talnex_ai.llm.structured import ChatClient, ask_json
 from talnex_ai.login.email.extract import EmailHint
 from talnex_ai.testing.runner.actions import (
-    Decision, FinalVerdict, Navigate, ReadEmail, ReadSms, Scroll, describe, looks_like_captcha, seen_address,
+    Decision, Navigate, ReadEmail, ReadSms, Scroll, describe, looks_like_captcha, seen_address,
     unsafe_reason,
 )
 from talnex_ai.testing.runner.driver import ActionError, PageDriver
@@ -53,6 +55,7 @@ class ExecConfig:
     max_actions_per_step: int = 6
     max_seconds: int = 240
     snapshot_chars: int = 6000
+    seconds_per_step: int = 60  # the run's limit grows with the plan: max(max_seconds, steps x seconds_per_step)
 
 
 @dataclass
@@ -63,6 +66,7 @@ class ExecResult:
     actions_used: int = 0
     vision_used: bool = False
     stop_reason: Optional[str] = None  # set when the outcome is "blocked"
+    parts: tuple[str, ...] = ()        # one mark per plan check, when the plan had checks
 
 
 def trim(text: str, limit: int) -> str:
@@ -72,12 +76,18 @@ def trim(text: str, limit: int) -> str:
     return text[:limit].rsplit("\n", 1)[0] + "\n[...rest of the page cut...]"
 
 
+# Only real test inputs can be uploaded: pictures, documents and plain data files. A README describing the
+# folder once went in as a "photo".
+UPLOADABLE = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".txt", ".csv", ".json", ".docx", ".mp3", ".wav", ".mp4"}
+
+
 def list_test_files(uploads_root: Path) -> list[str]:
     """The test files that really exist (paths relative to the test files folder, forward slashes)."""
     root = Path(uploads_root) / "known_answers"
     if not root.is_dir():
         return []
-    return sorted(p.relative_to(uploads_root).as_posix() for p in root.rglob("*") if p.is_file())[:30]
+    return sorted(p.relative_to(uploads_root).as_posix() for p in root.rglob("*")
+                  if p.is_file() and p.suffix.lower() in UPLOADABLE and not p.name.lower().startswith("readme"))[:30]
 
 
 def _read_code(kind: str, box: Optional[Any], since: datetime) -> tuple[Optional[str], Optional[str]]:
@@ -119,6 +129,7 @@ def execute_plan(
 ) -> ExecResult:
     site_host = urlparse(site_url if "//" in site_url else "https://" + site_url).hostname or ""
     started = clock()
+    time_limit = max(cfg.max_seconds, cfg.seconds_per_step * len(plan.steps))  # longer plans get more time
     messages_since = datetime.now(timezone.utc) - CLOCK_SLACK
     records: list[StepRecord] = []
     history: list[str] = []
@@ -176,8 +187,8 @@ def execute_plan(
         acted_in_step = False
 
         while True:
-            if clock() - started > cfg.max_seconds:
-                record("Stopped: out of time", None, f"the run passed its {cfg.max_seconds}s limit")
+            if clock() - started > time_limit:
+                record("Stopped: out of time", None, f"the run passed its {time_limit}s limit")
                 return finish("blocked", "the test ran out of time", "ran out of time")
             if used["actions"] >= cfg.max_actions:
                 record("Stopped: too many actions", None, f"the run passed {cfg.max_actions} actions")
@@ -273,11 +284,9 @@ def execute_plan(
     snapshot = trim(driver.snapshot(), cfg.snapshot_chars)
     if looks_like_captcha(snapshot):
         return finish("blocked", "a human check (CAPTCHA) stopped the test", "a human check appeared")
-    verdict = ask_json(
-        client, "agent", FINAL_SYSTEM,
-        final_user(claim=claim_text, expected_result=plan.expected_result, history=history, url=driver.url(),
-                   snapshot=snapshot),
-        lambda text: parse_model(FinalVerdict, text), job_id=job_id,
-    )
-    record("Final check", plan.expected_result, verdict.observed)
-    return finish(verdict.verdict, verdict.observed, "blocked" if verdict.verdict == "blocked" else None)
+    look = final_look(client, plan, claim_text=claim_text, history=history, url=driver.url(), snapshot=snapshot,
+                      job_id=job_id)
+    record("Final check", plan.expected_result, look.observed)
+    done = finish(look.outcome, look.observed, look.stop_reason)
+    done.parts = look.parts
+    return done

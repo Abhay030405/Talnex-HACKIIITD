@@ -1,0 +1,395 @@
+{
+  "when": "2026-10-24 15:09 UTC",
+  "runs": [
+    {
+      "index": 1,
+      "subject_id": "4102b7b3-dbe0-4483-a8aa-72f7212a5c1f",
+      "finished": true,
+      "seconds": 663.5486064999714,
+      "cost_usd": 0.15431,
+      "talnex": 86.0,
+      "coverage": 100.0,
+      "flags": [],
+      "claims": {
+        "Anyone can enter as a guest and use the tools without signing up or giving an email address": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + tools usable without any sign-up step; no email or account prompt before use ? not checked: guest session persists across page reloads; tools still work after clearing cookies"
+        },
+        "Once inside as a guest, the page shows both a currency converter and a todo list": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Guest access without login or signup; Currency converter visible after entering as guest ? not checked: Conversion result matches entered amount and rates; Added todo items appear and persist after reload"
+        },
+        "The converter changes an amount between US dollars, euros, British pounds and Indian rupees": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 8.5,
+          "reason": "8.5/10 for fresher: + All four currencies selectable as source and target; Converted amount shown after entering a value - Empty or non-numeric amount handled without breaking ? not checked: Zero and negative amounts produce a sensible result; Still works a..."
+        },
+        "Typing an empty, non-numeric or negative amount into the converter shows a clear error message instead of a converted value": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Empty amount shows an error, not a result; Non-numeric text shows an error, not a result ? not checked: Valid amount still converts after an error; Error persists correctly after page reload"
+        },
+        "A todo can be added, marked as done and deleted, and the list shows how many todos are still open": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Adding a todo shows it in the list; Marking a todo done changes its shown state ? not checked: Empty or whitespace-only todo is rejected; List and count survive a page reload"
+        },
+        "Todos are still in the list after the page is reloaded": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Todos survive a full page reload; Added todo appears in list after reload ? not checked: Todos survive closing and reopening the browser; Completed/checked state persists after reload"
+        },
+        "Submitting an empty todo shows a message and leaves the list unchanged": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Empty submission shows a visible message; List stays unchanged after empty submit ? not checked: Whitespace-only input also rejected; Message clears on next valid submit"
+        },
+        "The todo list can be downloaded as a PDF file": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "subject_id": "569e3123-2f88-486a-adc4-46088b09fc34",
+      "finished": true,
+      "seconds": 489.3588495000149,
+      "cost_usd": 0.16699,
+      "talnex": 89.0,
+      "coverage": 100.0,
+      "flags": [],
+      "claims": {
+        "Anyone can enter as a guest and use the tools without signing up or giving an email address": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Tools usable without any sign-up step; No email or account prompt before use ? not checked: Tools still work after clearing cookies"
+        },
+        "Once inside as a guest, the page shows both a currency converter and a todo list": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + guest access reaches the page; currency converter visible on page ? not checked: converter handles odd or empty input; todo list handles empty and long entries"
+        },
+        "The converter changes an amount between US dollars, euros, British pounds and Indian rupees": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + all four currencies selectable both ways; converted amount shown for chosen pair ? not checked: correct rate applied per currency pair; zero and negative amounts handled"
+        },
+        "Typing an empty, non-numeric or negative amount into the converter shows a clear error message instead of a converted value": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Empty amount shows an error, not a result; Non-numeric text shows an error, not a result ? not checked: Valid amount still converts after an error; Error persists correctly after page reload"
+        },
+        "A todo can be added, marked as done and deleted, and the list shows how many todos are still open": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Adding a todo shows it in the list; Marking a todo done changes its visible state ? not checked: Empty or whitespace-only todo is rejected; List and count survive a page reload"
+        },
+        "Todos are still in the list after the page is reloaded": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Added todo still present after reload ? not checked: Multiple todos all survive reload; Completed state survives reload"
+        },
+        "Submitting an empty todo shows a message and leaves the list unchanged": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Empty submission shows a visible message; Message names the empty-input problem ? not checked: Whitespace-only input also rejected; Message clears on next valid submission"
+        },
+        "The todo list can be downloaded as a PDF file": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        }
+      }
+    },
+    {
+      "index": 3,
+      "subject_id": "3919fb05-35f5-4803-bec6-cef9590c8709",
+      "finished": true,
+      "seconds": 402.26864449999994,
+      "cost_usd": 0.14494,
+      "talnex": 87.0,
+      "coverage": 87.5,
+      "flags": [],
+      "claims": {
+        "Anyone can enter as a guest and use the tools without signing up or giving an email address": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Tools usable without any sign-up step; No email or account prompt before use ? not checked: Guest session persists across page reloads; Tools still work after closing and reopening"
+        },
+        "Once inside as a guest, the page shows both a currency converter and a todo list": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + guest can reach the page without signing in; currency converter visible on the page ? not checked: converter accepts an amount and shows a result; todo item can be added and appears in the list"
+        },
+        "The converter changes an amount between US dollars, euros, British pounds and Indian rupees": {
+          "verdict": "could_not_test",
+          "confidence": "disagree",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Typing an empty, non-numeric or negative amount into the converter shows a clear error message instead of a converted value": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Empty amount shows an error, not a result; Non-numeric text shows an error, not a result ? not checked: Error clears when a valid amount is entered; Error persists after reload with bad input"
+        },
+        "A todo can be added, marked as done and deleted, and the list shows how many todos are still open": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Adding a todo shows it in the list; Marking a todo done visibly changes its state ? not checked: Empty or whitespace-only todo is rejected; State survives a page reload"
+        },
+        "Todos are still in the list after the page is reloaded": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Added todo survives a page reload ? not checked: Completed state survives a page reload; Deleted todo stays gone after reload"
+        },
+        "Submitting an empty todo shows a message and leaves the list unchanged": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Empty submission shows a visible message; List stays unchanged after empty submit ? not checked: Whitespace-only input treated as empty; Message clears on next valid submit"
+        },
+        "The todo list can be downloaded as a PDF file": {
+          "verdict": "broken",
+          "confidence": "low",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        }
+      }
+    }
+  ],
+  "analysis": {
+    "app": "honest",
+    "runs": 3,
+    "claims": [
+      {
+        "claim": "Anyone can enter as a guest and use the tools without signing up or giving an email address",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Once inside as a guest, the page shows both a currency converter and a todo list",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "The converter changes an amount between US dollars, euros, British pounds and Indian rupees",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "could_not_test"
+        ],
+        "majority": "works",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          8.5,
+          10.0
+        ],
+        "score_spread": 1.5
+      },
+      {
+        "claim": "Typing an empty, non-numeric or negative amount into the converter shows a clear error message instead of a converted value",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "A todo can be added, marked as done and deleted, and the list shows how many todos are still open",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Todos are still in the list after the page is reloaded",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Submitting an empty todo shows a message and leaves the list unchanged",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "The todo list can be downloaded as a PDF file",
+        "control": true,
+        "expected": "broken",
+        "verdicts": [
+          "broken",
+          "broken",
+          "broken"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "score_spread": 0.0
+      }
+    ],
+    "pairs": {
+      "correct": 23,
+      "wrong": 0,
+      "unconfirmed": 1,
+      "total": 24
+    },
+    "accuracy": 95.8,
+    "talnex_scores": [
+      86.0,
+      89.0,
+      87.0
+    ],
+    "talnex_spread": 3.0,
+    "flags_per_run": [
+      0,
+      0,
+      0
+    ],
+    "seconds_per_run": [
+      664,
+      489,
+      402
+    ],
+    "cost_per_run": [
+      0.1543,
+      0.167,
+      0.1449
+    ],
+    "checks": {
+      "every run finished": true,
+      "no wrong verdicts": true,
+      "every claim steady (same verdict in 2 of 3 runs)": true,
+      "majority verdict is the expected one for every claim": true,
+      "TalNex score spread within 10 points": true,
+      "no unexpected red flags": true
+    },
+    "passed": true
+  }
+}

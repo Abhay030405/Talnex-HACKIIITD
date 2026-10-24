@@ -17,10 +17,14 @@ def claim(text, group="Core", importance=3, testable=True, cid="c1"):
                  untestable_reason=None if testable else "a measurement")
 
 
-def plan(test_type, expected="a list of egg recipes is shown", action="search for TalNex test egg"):
-    return {"test_type": test_type, "steps": [{"action": "open the site", "expected": "the home page"},
-                                             {"action": action, "expected": expected}],
-            "expected_result": expected}
+def plan(test_type, expected="a list of egg recipes is shown", action="search for TalNex test egg", quote=""):
+    """A plan as the model would send it. Main plans (normal, access) carry checks quoting their claim."""
+    out = {"test_type": test_type, "steps": [{"action": "open the site", "expected": "the home page"},
+                                            {"action": action, "expected": expected}],
+           "expected_result": expected}
+    if test_type in ("normal", "access"):
+        out["checks"] = [{"text": expected, "quote": quote}]
+    return out
 
 
 @dataclass
@@ -86,7 +90,7 @@ def test_safe_and_concrete_text_passes():
 
 
 def test_plans_come_back_in_order_with_the_claim_id():
-    model = FakePlanner({"plans": [plan("repeat"), plan("bad_input", "a polite error is shown"), plan("normal"),
+    model = FakePlanner({"plans": [plan("repeat"), plan("bad_input", "a polite error is shown"), plan("normal", quote="Search recipes by ingredient"),
                                    plan("access")]})
     plans = plan_claim(model, claim("Search recipes by ingredient", cid="c9"), site_url="https://r.test")
     assert [p.test_type for p in plans] == ["normal", "repeat", "bad_input"]  # the unasked "access" plan is dropped
@@ -95,8 +99,8 @@ def test_plans_come_back_in_order_with_the_claim_id():
 
 
 def test_a_risky_plan_gets_one_repair_then_fails():
-    risky = {"plans": [plan("normal", action="click Checkout and pay")]}
-    model = FakePlanner(risky, {"plans": [plan("normal")]})
+    risky = {"plans": [plan("normal", action="click Checkout and pay", quote="Browse the shop")]}
+    model = FakePlanner(risky, {"plans": [plan("normal", quote="Browse the shop")]})
     assert plan_claim(model, claim("Browse the shop", importance=1), site_url="https://s.test")[0].test_type == "normal"
     assert "not allowed" in model.prompts[1][1]
     with pytest.raises(StructuredError):
@@ -104,11 +108,12 @@ def test_a_risky_plan_gets_one_repair_then_fails():
 
 
 def test_hedged_and_missing_plans_are_sent_back():
-    model = FakePlanner({"plans": [plan("normal", expected="a share link is shown, or confirmed absent")]},
-                        {"plans": [plan("normal", expected="a share link is shown")]})
+    model = FakePlanner({"plans": [plan("normal", expected="a share link is shown, or confirmed absent", quote="Share a list")]},
+                        {"plans": [plan("normal", expected="a share link is shown", quote="Share a list")]})
     plan_claim(model, claim("Share a list", importance=1), site_url="https://s.test")
     assert "would pass whatever happens" in model.prompts[1][1]
-    model = FakePlanner({"plans": [plan("normal")]}, {"plans": [plan("normal"), plan("repeat")]})
+    model = FakePlanner({"plans": [plan("normal", quote="Share a list")]},
+                        {"plans": [plan("normal", quote="Share a list"), plan("repeat")]})
     plan_claim(model, claim("Share a list"), site_url="https://s.test")
     assert "no plan was given for test type(s): repeat" in model.prompts[1][1]
 
@@ -137,7 +142,7 @@ def test_planning_a_subject_records_failures_without_stopping():
                 return Reply("not json at all")
             if role == "claim_reader":
                 return Reply(json.dumps(CHECKLIST))
-            return Reply(json.dumps({"plans": [plan("normal")]}))
+            return Reply(json.dumps({"plans": [plan("normal", quote="Dark mode")]}))
 
     result = plan_subject(OneBadClaim(), info, [good, bad], "j1")
     assert result["site_url"] == "https://r.test"

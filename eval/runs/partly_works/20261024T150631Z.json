@@ -1,0 +1,275 @@
+{
+  "when": "2026-10-24 15:06 UTC",
+  "runs": [
+    {
+      "index": 1,
+      "subject_id": "d4ab5800-8b05-4095-81a2-23daf56605ff",
+      "finished": true,
+      "seconds": 423.3595620000269,
+      "cost_usd": 0.12605,
+      "talnex": 56.0,
+      "coverage": 80.0,
+      "flags": [],
+      "claims": {
+        "Add a note with a title and see it in the list": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Note with title appears in list after adding; Title text shown matches what was typed ? not checked: Note persists in list after page reload; Empty or blank title is rejected or handled"
+        },
+        "Type in the search box and the list narrows to the matching notes": {
+          "verdict": "works",
+          "confidence": "low",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + typing in the search box narrows the visible list ? not checked: only notes matching the typed text remain shown; clearing the search box restores the full list"
+        },
+        "Pin a note so it moves to the top of the list with a Pinned label": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Adding a note with an empty title shows a clear message and adds nothing": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Export the notes as a PDF file": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "subject_id": "1257fb6b-2049-4227-9c19-0eb1905995d2",
+      "finished": true,
+      "seconds": 513.3808003999875,
+      "cost_usd": 0.09408,
+      "talnex": 56.0,
+      "coverage": 80.0,
+      "flags": [],
+      "claims": {
+        "Add a note with a title and see it in the list": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Note with title appears in list after adding; Title text shown matches what was typed ? not checked: Empty title is rejected or handled; Note persists in list after page reload"
+        },
+        "Type in the search box and the list narrows to the matching notes": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Typing in the search box narrows the visible list; Only notes matching the typed text remain shown ? not checked: Matching is case-insensitive; Clearing the box restores the full list"
+        },
+        "Pin a note so it moves to the top of the list with a Pinned label": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Adding a note with an empty title shows a clear message and adds nothing": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Export the notes as a PDF file": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        }
+      }
+    },
+    {
+      "index": 3,
+      "subject_id": "fae15e90-de5e-4343-bc1b-19407e91b205",
+      "finished": true,
+      "seconds": 438.30482860002667,
+      "cost_usd": 0.09841,
+      "talnex": 50.0,
+      "coverage": 60.0,
+      "flags": [],
+      "claims": {
+        "Add a note with a title and see it in the list": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + note appears in list after adding; title is shown as entered ? not checked: note persists after page reload; empty title is rejected or handled"
+        },
+        "Type in the search box and the list narrows to the matching notes": {
+          "verdict": "could_not_test",
+          "confidence": "disagree",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Pin a note so it moves to the top of the list with a Pinned label": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Adding a note with an empty title shows a clear message and adds nothing": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Export the notes as a PDF file": {
+          "verdict": "broken",
+          "confidence": "low",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        }
+      }
+    }
+  ],
+  "analysis": {
+    "app": "partly_works",
+    "runs": 3,
+    "claims": [
+      {
+        "claim": "Add a note with a title and see it in the list",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Type in the search box and the list narrows to the matching notes",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "could_not_test"
+        ],
+        "majority": "works",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Pin a note so it moves to the top of the list with a Pinned label",
+        "control": false,
+        "expected": "broken",
+        "verdicts": [
+          "broken",
+          "broken",
+          "could_not_test"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0,
+          0.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Adding a note with an empty title shows a clear message and adds nothing",
+        "control": false,
+        "expected": "broken",
+        "verdicts": [
+          "broken",
+          "broken",
+          "broken"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Export the notes as a PDF file",
+        "control": true,
+        "expected": "broken",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test",
+          "broken"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [
+          0.0
+        ],
+        "score_spread": 0.0
+      }
+    ],
+    "pairs": {
+      "correct": 11,
+      "wrong": 0,
+      "unconfirmed": 4,
+      "total": 15
+    },
+    "accuracy": 73.3,
+    "talnex_scores": [
+      56.0,
+      56.0,
+      50.0
+    ],
+    "talnex_spread": 6.0,
+    "flags_per_run": [
+      0,
+      0,
+      0
+    ],
+    "seconds_per_run": [
+      423,
+      513,
+      438
+    ],
+    "cost_per_run": [
+      0.126,
+      0.0941,
+      0.0984
+    ],
+    "checks": {
+      "every run finished": true,
+      "no wrong verdicts": true,
+      "every claim steady (same verdict in 2 of 3 runs)": true,
+      "majority verdict is the expected one for every claim": false,
+      "TalNex score spread within 10 points": true,
+      "no unexpected red flags": true
+    },
+    "passed": false
+  }
+}

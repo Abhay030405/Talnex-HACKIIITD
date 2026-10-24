@@ -7,6 +7,13 @@ A claim is only ever marked BROKEN when all of these hold:
   4. an independent check of the screenshots agrees it failed.
 Anything else that goes wrong is "could not test" (left out of scores), never a mark against the team.
 
+A try that could not finish because of US (it ran out of time or actions, or could not show a part of the claim)
+is not a failure of the site: it gets one more try, built a different way, and if that also can't finish the
+claim is "could not test". It is never "partly works" because of our own test.
+
+When the plan splits the claim into checks, both the run and the independent check mark each one, and the
+verdict comes from those marks (scoring/claim_points).
+
 This module is a plain state machine. Everything it needs (Fetch, the runner, the planner, the proof
 checker, sleeping) is passed in, so every branch can be tested with fakes and no money is spent.
 """
@@ -25,6 +32,9 @@ from talnex_ai.testing.runner.runner import RunRecord
 from talnex_ai.tinyfish.client import FetchResult
 
 log = logging.getLogger("talnex.ladder")
+
+# Why a try stopped short through no fault of the site.
+INCOMPLETE_REASONS = ("ran out of time", "ran out of actions", "the test could not show every part of the claim")
 
 
 @dataclass
@@ -51,6 +61,23 @@ class LadderResult:
 
 def _keys(*runs: RunRecord) -> list[str]:
     return [s.proof_key for r in runs for s in r.steps if s.proof_key]
+
+
+def incomplete(run: RunRecord) -> bool:
+    """The try stopped short because of the test, not the site."""
+    return run.outcome == "blocked" and (run.stop_reason or "") in INCOMPLETE_REASONS
+
+
+def part_marks(run: RunRecord, check: ProofCheck, plan: TestPlan) -> dict:
+    """The per-check marks for the evidence, when both judges marked every check of the plan. The ladder serves
+    every runner (live browser or sandbox HTTP), and a plan without checks is judged as a whole."""
+    plan_checks = getattr(plan, "checks", None) or ()
+    run_parts, check_parts = getattr(run, "parts", ()) or (), getattr(check, "parts", ()) or ()
+    if plan_checks and len(run_parts) == len(check_parts) == len(plan_checks):
+        return {"agent_parts": tuple(run_parts), "checker_parts": tuple(check_parts),
+                "part_names": tuple(c.text for c in plan_checks),
+                "part_promises": tuple(getattr(c, "promise", True) for c in plan_checks)}
+    return {}
 
 
 def judge_claim(plan: TestPlan, site_url: str, deps: LadderDeps) -> LadderResult:
@@ -83,6 +110,50 @@ def judge_claim(plan: TestPlan, site_url: str, deps: LadderDeps) -> LadderResult
         say(f"{label}: {check.outcome}")
         return check
 
+    def try_again(previous_plan: TestPlan, previous: RunRecord) -> tuple[Optional[TestPlan], Optional[RunRecord], Optional[str]]:
+        """A second try, built a different way. (plan, run, None), or (None, None, why it could not be made)."""
+        try:
+            second_plan = deps.alternate(previous_plan, previous)
+            second = deps.run(second_plan)
+        except LimitReached as err:
+            return None, None, f"a run limit was reached before a second try ({err})"
+        except Exception as err:  # couldn't even prepare a second try: never a reason to blame the site
+            log.warning("second try could not be prepared: %s", err)
+            return None, None, "a second, different try could not be prepared"
+        runs.append(second)
+        return second_plan, second, None
+
+    def judge_success(run: RunRecord, run_plan: TestPlan, tries: int, note: str = "") -> LadderResult:
+        check = checked(run, run_plan, "Independent check")
+        return judged(Evidence(run.outcome, check.outcome, tries=tries, repeat_agrees=False if tries > 1 else None,
+                               screenshot_clear=check.screenshot_clear, **part_marks(run, check, run_plan)),
+                      [run], check, note=note)
+
+    def climb(failed_plan: TestPlan, failed: RunRecord) -> LadderResult:
+        """A try failed. Climb the ladder before blaming anyone."""
+        # 2. Wait in case the site was asleep, then make sure it's awake.
+        say(f"Step 2: waiting {deps.wait_seconds}s in case the site was asleep")
+        deps.sleep(deps.wait_seconds)
+        page = deps.fetch(site_url)
+        if not page.ok:
+            return could_not_test(f"the page stopped loading when we looked again ({page.error_code or 'no answer'})")
+        # 3. A second try, built a different way.
+        second_plan, second, problem = try_again(failed_plan, failed)
+        if problem:
+            return could_not_test(problem)
+        say(f"Try {len(runs)} (a different way): {second.outcome}")
+        if second.outcome == "blocked":
+            return could_not_test(second.stop_reason or second.observed or "the second try was blocked")
+        if second.outcome in ("works", "partly_works"):
+            return judge_success(second, second_plan, tries=len(runs),
+                                 note="it failed once but worked on a retry, so it is not broken")
+        # 4. Both tries failed: the independent check must agree before the word "broken" is used.
+        check = checked(second, second_plan, "Step 4: independent check of the screenshots")
+        return judged(Evidence("broken", check.outcome, tries=len(runs), repeat_agrees=True,
+                               screenshot_clear=check.screenshot_clear, ladder_cleared=True,
+                               **part_marks(second, check, second_plan)),
+                      [failed, second], check)
+
     # 1. Did the page load at all?
     page = deps.fetch(site_url)
     if not page.ok:
@@ -95,45 +166,25 @@ def judge_claim(plan: TestPlan, site_url: str, deps: LadderDeps) -> LadderResult
         return could_not_test(f"a run limit was reached ({err})")
     runs.append(first)
     say(f"Try 1: {first.outcome}")
+
+    if incomplete(first):
+        # Our test stopped short: one more try, a different way, before giving up. Nothing here blames the site.
+        say(f"Try 1 could not finish ({first.stop_reason}); trying once more a different way")
+        second_plan, second, problem = try_again(plan, first)
+        if problem:
+            return could_not_test(problem)
+        say(f"Try 2 (a different way): {second.outcome}")
+        if second.outcome in ("works", "partly_works"):
+            return judge_success(second, second_plan, tries=2)
+        if second.outcome == "broken":  # the site failed now that the test could finish: climb the full ladder
+            return climb(second_plan, second)
+        return could_not_test(second.stop_reason or second.observed or "the test could not finish twice")
     if first.outcome == "blocked":
         return could_not_test(first.stop_reason or first.observed or "the test was blocked")
     if first.outcome in ("works", "partly_works"):
-        check = checked(first, plan, "Independent check")
-        return judged(Evidence(first.outcome, check.outcome, tries=1, screenshot_clear=check.screenshot_clear),
-                      [first], check)
+        return judge_success(first, plan, tries=1)
+    return climb(plan, first)
 
-    # The first try failed. Climb the ladder before blaming anyone.
-    # 2. Wait in case the site was asleep, then make sure it's awake.
-    say(f"Step 2: waiting {deps.wait_seconds}s in case the site was asleep")
-    deps.sleep(deps.wait_seconds)
-    page = deps.fetch(site_url)
-    if not page.ok:
-        return could_not_test(f"the page stopped loading when we looked again ({page.error_code or 'no answer'})")
-
-    # 3. A second try, built a different way.
-    try:
-        second_plan = deps.alternate(plan, first)
-        second = deps.run(second_plan)
-    except LimitReached as err:
-        return could_not_test(f"a run limit was reached before a second try ({err})")
-    except Exception as err:  # couldn't even prepare a second try: never a reason to blame the site
-        log.warning("second try could not be prepared: %s", err)
-        return could_not_test("a second, different try could not be prepared")
-    runs.append(second)
-    say(f"Try 2 (a different way): {second.outcome}")
-    if second.outcome == "blocked":
-        return could_not_test(second.stop_reason or second.observed or "the second try was blocked")
-    if second.outcome in ("works", "partly_works"):
-        check = checked(second, second_plan, "Independent check")
-        return judged(Evidence(second.outcome, check.outcome, tries=2, repeat_agrees=False,
-                               screenshot_clear=check.screenshot_clear),
-                      [second], check, note="it failed once but worked on a retry, so it is not broken")
-
-    # 4. Both tries failed: the independent check must agree before the word "broken" is used.
-    check = checked(second, second_plan, "Step 4: independent check of the screenshots")
-    return judged(Evidence("broken", check.outcome, tries=2, repeat_agrees=True,
-                           screenshot_clear=check.screenshot_clear, ladder_cleared=True),
-                  [first, second], check)
 
 
 def to_result(claim_id: str, ladder: LadderResult) -> Result:

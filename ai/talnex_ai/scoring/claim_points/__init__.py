@@ -7,7 +7,7 @@ which is left out of scores and never counts against the team.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, Sequence
 
 from talnex_ai.formats import Confidence, Verdict
 
@@ -26,6 +26,11 @@ class Evidence:
     screenshot_clear: bool = True
     backup_method_used: bool = False
     ladder_cleared: bool = False          # the never-blame ladder passed (needed before "broken")
+    # Per-check marks from the run and from the independent check (same order), when the plan had checks.
+    agent_parts: tuple[str, ...] = ()
+    checker_parts: tuple[str, ...] = ()
+    part_names: tuple[str, ...] = ()
+    part_promises: tuple[bool, ...] = ()  # True for what the claim promises, False for a step on the way to it
 
 
 @dataclass(frozen=True)
@@ -45,8 +50,83 @@ def confidence_value(confidence: str) -> Optional[float]:
     return CONFIDENCE_VALUE.get(confidence)
 
 
+def _promised(marks: Sequence[str], promises: Sequence[bool] = ()) -> list[str]:
+    """The marks that decide the verdict: the parts the claim promises. A step on the way only matters through the
+    promise it leads to (when the step fails, the promise can't be shown). Without promise flags, every part counts."""
+    if promises and len(promises) == len(marks) and any(promises):
+        return [m for m, p in zip(marks, promises) if p]
+    return list(marks)
+
+
+def outcome_from_parts(marks: Sequence[str], promises: Sequence[bool] = ()) -> Outcome:
+    """One judge's outcome from its marks: every promised part seen works; a promised part not seen makes it partly
+    working, or broken when no promised part was seen; a part that couldn't be judged means the test could not show it."""
+    parts = [m for m in _promised(marks, promises) if m != "beyond_claim"]
+    if not parts:
+        return "blocked"
+    if all(m == "seen" for m in parts):
+        return "works"
+    if "not_seen" in parts:
+        return "partly_works" if "seen" in parts else "broken"
+    return "blocked"
+
+
+def merge_part(run: str, check: str) -> tuple[str, int]:
+    """One part, from both judges: (status, how many judges back it). A part is only "not seen" when BOTH say so:
+    one judge alone never blames. When they contradict each other the part is "disputed"."""
+    marks = {run, check} - {"beyond_claim"}
+    if not marks:
+        return "beyond_claim", 2
+    if run == "beyond_claim" or check == "beyond_claim":
+        # One judge says the part is beyond the claim. The other judge alone can confirm it was seen, but can never
+        # blame on its own, so anything less than "seen" leaves the part out.
+        only = run if check == "beyond_claim" else check
+        return ("seen", 1) if only == "seen" else ("beyond_claim", 1)
+    if run == check:
+        return run, 2 if run != "cant_tell" else 0
+    if marks == {"seen", "not_seen"}:
+        return "disputed", 2
+    known = run if check == "cant_tell" else check
+    return ("cant_tell", 0) if known == "not_seen" else (known, 1)
+
+
+def _name(e: Evidence, i: int) -> str:
+    return e.part_names[i] if i < len(e.part_names) else f"part {i + 1}"
+
+
+def _decide_parts(e: Evidence) -> Decision:
+    merged = [merge_part(a, c) for a, c in zip(e.agent_parts, e.checker_parts)]
+    promised = set(range(len(merged)))
+    if e.part_promises and len(e.part_promises) == len(merged) and any(e.part_promises):
+        promised = {i for i, p in enumerate(e.part_promises) if p}
+    judged = [(i, s, n) for i, (s, n) in enumerate(merged) if s != "beyond_claim" and i in promised]
+    if not judged:
+        return Decision("could_not_test", "low", "no part of the claim could be judged")
+    disputed = [_name(e, i) for i, s, _ in judged if s == "disputed"]
+    seen = [_name(e, i) for i, s, _ in judged if s == "seen"]
+    missing = [_name(e, i) for i, s, _ in judged if s == "not_seen"]
+    unknown = [_name(e, i) for i, s, _ in judged if s == "cant_tell"]
+    if disputed:
+        return Decision("could_not_test", "disagree", "the run and the independent check disagree on: " + "; ".join(disputed))
+    if len(seen) == len(judged):
+        if any(n < 2 for _, _, n in judged):
+            return Decision("works", "low", f"all {len(seen)} parts were seen, some by only one of the two checks")
+        confidence, reason = _agreed_confidence(e)
+        return Decision("works", confidence, f"all {len(seen)} parts were seen; {reason}")
+    if missing and seen:
+        return Decision("partly_works", "medium" if not unknown else "low",
+                        f"{len(seen)} of {len(judged)} parts work; not working: " + "; ".join(missing))
+    if missing and not seen:
+        if not e.ladder_cleared:
+            return Decision("could_not_test", "low", "it looked broken, but the never-blame steps were not completed")
+        return Decision("broken", "medium" if not unknown else "low", "not working: " + "; ".join(missing))
+    return Decision("could_not_test", "low", "these parts could not be shown by the test: " + "; ".join(unknown))
+
+
 def decide(e: Evidence) -> Decision:
     """The verdict and confidence for one claim."""
+    if e.agent_parts and e.checker_parts and len(e.agent_parts) == len(e.checker_parts):
+        return _decide_parts(e)
     if "blocked" in (e.agent, e.checker):
         return Decision("could_not_test", "low", "could not reach or try the feature (blocked)")
 

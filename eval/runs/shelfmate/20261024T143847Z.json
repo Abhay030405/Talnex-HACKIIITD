@@ -1,0 +1,429 @@
+{
+  "when": "2026-10-24 14:38 UTC",
+  "runs": [
+    {
+      "index": 1,
+      "subject_id": "c94eea9a-d3e9-4cc4-83c8-b5168e4c6acc",
+      "finished": true,
+      "seconds": 558.5021777999937,
+      "cost_usd": 0.29595,
+      "talnex": 80.0,
+      "coverage": 77.8,
+      "flags": [],
+      "claims": {
+        "Create an account with an email and a password": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + signup form accepts email and password; account is created and user is signed in ? not checked: password is not shown in plain text while typing; rejects invalid email format with a message"
+        },
+        "Sign in and sign out": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Sign-in form accepts credentials and submits; Correct credentials grant access to protected area ? not checked: Wrong credentials show an error, no access; Session persists across page reload"
+        },
+        "Add a book with a title and an author": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 5.9,
+          "reason": "5.9/10 for fresher: + Book appears in list after adding; Title and author both saved and shown - Duplicate book not silently added twice ? not checked: Added book persists after page reload; Empty title or author rejected"
+        },
+        "See your books and search them by title or author": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Edit a book's details or delete it": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Mark a book as Want to read, Reading or Finished and its badge changes": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Three status options selectable per book; Badge on book updates to chosen status ? not checked: Status persists after page reload; Status change works on every book in the list"
+        },
+        "Rate finished books from 1 to 5 and see the average rating": {
+          "verdict": "works",
+          "confidence": "low",
+          "feature_score": 8.3,
+          "reason": "8.3/10 for fresher: + rating control on finished books; average rating displayed for a book - average updates when a rating changes ? not checked: rating saved and shown after reload; only finished books can be rated"
+        },
+        "Export the shelf as a CSV file": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + Export control visible on the shelf page - Downloaded file is a real CSV with rows and columns ? not checked: Exported rows match the shelf contents; Column values match what is shown on the page"
+        },
+        "Set a yearly reading goal and a progress bar shows how many books are finished": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + yearly goal can be set and saved - progress bar reflects finished books; progress updates when a book is finished ? not checked: goal persists after page reload; progress bar caps at 100 percent (capped at 5: it only partly works)"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "subject_id": "5bf84e0c-5970-4cf2-8c8d-35191244040a",
+      "finished": true,
+      "seconds": 687.6876568999724,
+      "cost_usd": 0.25616,
+      "talnex": 85.0,
+      "coverage": 88.9,
+      "flags": [],
+      "claims": {
+        "Create an account with an email and a password": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + signup form accepts email and password; account is actually created and usable ? not checked: invalid email format is rejected with a message; empty email or password is rejected"
+        },
+        "Sign in and sign out": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Sign-in form accepts credentials and submits; Correct credentials grant access to protected content ? not checked: Wrong credentials show an error and deny access; Session persists across page reloads while signed in"
+        },
+        "Add a book with a title and an author": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Book appears in the list after adding; Title and author both stored and shown ? not checked: Added book survives a page reload; Empty title or author is rejected"
+        },
+        "See your books and search them by title or author": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Book list visible on the page; Each book shows title and author ? not checked: Search is case-insensitive; Empty or no-match search shows a clear state"
+        },
+        "Edit a book's details or delete it": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Mark a book as Want to read, Reading or Finished and its badge changes": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + Three status options selectable per book - Badge updates immediately after choosing status; Switching between statuses replaces old badge ? not checked: Status persists after page reload; Status change works on multiple books independent..."
+        },
+        "Rate finished books from 1 to 5 and see the average rating": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + rating control on finished books; average shown for rated book ? not checked: saved rating persists after reload; unrated book shows no average"
+        },
+        "Export the shelf as a CSV file": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 5.0,
+          "reason": "5/10 for fresher: + Export control visible on the shelf page - Downloaded file is a valid CSV; CSV rows match the shelf items shown ? not checked: Empty shelf exports a header-only file; Fields with commas or quotes stay intact (capped at 5: it only partly ..."
+        },
+        "Set a yearly reading goal and a progress bar shows how many books are finished": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 2.9,
+          "reason": "2.9/10 for fresher: + Yearly goal can be set and saved - Progress bar reflects finished books count; Progress updates when a book is marked finished ? not checked: Goal persists after page reload; Goal of zero or empty input handled"
+        }
+      }
+    },
+    {
+      "index": 3,
+      "subject_id": "469c281a-29c8-429f-bc28-9359a438697d",
+      "finished": true,
+      "seconds": 549.3682901000138,
+      "cost_usd": 0.24335,
+      "talnex": 85.0,
+      "coverage": 77.8,
+      "flags": [],
+      "claims": {
+        "Create an account with an email and a password": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + signup form accepts email and password; account is created and usable after signup ? not checked: password is not shown in plain text while typing; rejects invalid or malformed email"
+        },
+        "Sign in and sign out": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + sign-in form accepts credentials and submits; correct credentials grant access to protected area ? not checked: wrong credentials show an error, no access; empty or malformed input handled without crash"
+        },
+        "Add a book with a title and an author": {
+          "verdict": "works",
+          "confidence": "low",
+          "feature_score": 7.7,
+          "reason": "7.7/10 for fresher: + Adding a book with title and author works; New book appears in the list after adding - Duplicate book is handled sensibly ? not checked: Book persists after page reload; Empty title or author is rejected"
+        },
+        "See your books and search them by title or author": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Edit a book's details or delete it": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Mark a book as Want to read, Reading or Finished and its badge changes": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + Three status options selectable per book; Badge text updates to chosen status ? not checked: Status persists after page reload; Status shown on book list and detail view"
+        },
+        "Rate finished books from 1 to 5 and see the average rating": {
+          "verdict": "works",
+          "confidence": "medium",
+          "feature_score": 10.0,
+          "reason": "10/10 for fresher: + rating control on finished books; average shown for rated book ? not checked: saved rating persists after reload; unrated book shows no fake average"
+        },
+        "Export the shelf as a CSV file": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 2.9,
+          "reason": "2.9/10 for fresher: + Export control visible on the shelf page - Downloaded file is a real CSV with rows; Each shelf entry appears as one row ? not checked: Empty shelf exports a header-only file; Export still works after page reload"
+        },
+        "Set a yearly reading goal and a progress bar shows how many books are finished": {
+          "verdict": "partly_works",
+          "confidence": "medium",
+          "feature_score": 4.0,
+          "reason": "4/10 for fresher: + Yearly goal can be set and saved; Goal persists after reload - Progress bar reflects books finished; Progress updates when a book is finished ? not checked: Progress bar caps at 100% when goal exceeded; Zero or empty goal handled gracefully"
+        }
+      }
+    }
+  ],
+  "analysis": {
+    "app": "shelfmate",
+    "runs": 3,
+    "claims": [
+      {
+        "claim": "Create an account with an email and a password",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Sign in and sign out",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Add a book with a title and an author",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          5.9,
+          10.0,
+          7.7
+        ],
+        "score_spread": 4.1
+      },
+      {
+        "claim": "See your books and search them by title or author",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test",
+          "works",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [
+          10.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Edit a book's details or delete it",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Mark a book as Want to read, Reading or Finished and its badge changes",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "partly_works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 1,
+        "feature_scores": [
+          10.0,
+          5.0,
+          10.0
+        ],
+        "score_spread": 5.0
+      },
+      {
+        "claim": "Rate finished books from 1 to 5 and see the average rating",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "works",
+          "works",
+          "works"
+        ],
+        "majority": "works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          8.3,
+          10.0,
+          10.0
+        ],
+        "score_spread": 1.7
+      },
+      {
+        "claim": "Export the shelf as a CSV file",
+        "control": false,
+        "expected": "broken or partly_works",
+        "verdicts": [
+          "partly_works",
+          "partly_works",
+          "partly_works"
+        ],
+        "majority": "partly_works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          5.0,
+          5.0,
+          2.9
+        ],
+        "score_spread": 2.1
+      },
+      {
+        "claim": "Set a yearly reading goal and a progress bar shows how many books are finished",
+        "control": false,
+        "expected": "broken or partly_works",
+        "verdicts": [
+          "partly_works",
+          "partly_works",
+          "partly_works"
+        ],
+        "majority": "partly_works",
+        "agreeing_runs": 3,
+        "steady": true,
+        "majority_is_expected": true,
+        "wrong_runs": 0,
+        "feature_scores": [
+          5.0,
+          2.9,
+          4.0
+        ],
+        "score_spread": 2.1
+      }
+    ],
+    "pairs": {
+      "correct": 21,
+      "wrong": 1,
+      "unconfirmed": 5,
+      "total": 27
+    },
+    "accuracy": 77.8,
+    "talnex_scores": [
+      80.0,
+      85.0,
+      85.0
+    ],
+    "talnex_spread": 5.0,
+    "flags_per_run": [
+      0,
+      0,
+      0
+    ],
+    "seconds_per_run": [
+      559,
+      688,
+      549
+    ],
+    "cost_per_run": [
+      0.2959,
+      0.2562,
+      0.2434
+    ],
+    "checks": {
+      "every run finished": true,
+      "no wrong verdicts": false,
+      "every claim steady (same verdict in 2 of 3 runs)": true,
+      "majority verdict is the expected one for every claim": false,
+      "TalNex score spread within 10 points": true,
+      "no unexpected red flags": true
+    },
+    "passed": false
+  }
+}

@@ -11,7 +11,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, Optional, Protocol
 
-from talnex_ai.testing.runner.actions import Action, Click, Fill, Navigate, Press, Scroll, Select, Target, Upload, Wait
+from talnex_ai.testing.runner.actions import (
+    Action, Click, Fill, FreshStart, Navigate, Press, Scroll, Select, Target, Upload, Wait,
+)
 from talnex_ai.testing.runner.devtools import DevtoolsWatch
 
 log = logging.getLogger("talnex.runner")
@@ -145,6 +147,10 @@ class PlaywrightDriver:
                 self.page.wait_for_timeout(int(action.seconds * 1000))
             elif isinstance(action, Scroll):
                 self.page.mouse.wheel(0, 700 if action.direction == "down" else -700)
+            elif isinstance(action, FreshStart):
+                self.page.context.clear_cookies()
+                self.page.evaluate("() => { try { localStorage.clear(); sessionStorage.clear(); } catch (e) {} }")
+                self.page.reload(wait_until="domcontentloaded", timeout=NAVIGATE_TIMEOUT_MS)
             self._settle()
         except Exception as err:
             raise ActionError(first_line(err)) from err
