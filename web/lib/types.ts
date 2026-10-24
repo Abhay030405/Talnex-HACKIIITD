@@ -21,6 +21,8 @@ export interface JobRow {
   seconds: number;
   error?: string;
   result?: Record<string, unknown>;
+  /** The stages this one waits for, to draw the pipeline. */
+  after_stages?: string[];
 }
 
 // ---------- Roles ----------

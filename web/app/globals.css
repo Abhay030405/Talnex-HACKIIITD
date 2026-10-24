@@ -2000,6 +2000,113 @@ a.meta:hover {
   margin-top: var(--space-3);
 }
 
+.jobs-panel__view {
+  margin-top: var(--tn-space-3);
+}
+
+/* The jobs panel's pipeline graph: one box per stage, coloured by status, with a drawer for the clicked stage. */
+.job-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--tn-space-3);
+}
+
+.job-flow__canvas {
+  height: var(--tx-diagram-medium);
+  border: var(--tn-line-w) solid var(--tn-line);
+  border-radius: var(--tn-radius-2);
+  background: var(--tn-bg-surface);
+}
+
+.job-flow__canvas .react-flow__edge-path {
+  stroke: var(--tn-line-strong);
+}
+
+.job-flow__drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tn-space-3);
+  padding: var(--tn-space-4);
+  border: var(--tn-line-w) solid var(--tn-line);
+  border-radius: var(--tn-radius-2);
+  background: var(--tn-bg-raised);
+}
+
+@media (min-width: 64rem) {
+  .job-flow:has(.job-flow__drawer) {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+
+.job-node {
+  min-width: calc(var(--tn-space-9) * 2);
+  padding: var(--tn-space-2) var(--tn-space-3);
+  border: var(--tn-line-w-thick) solid var(--tn-line-strong);
+  border-radius: var(--tn-radius-1);
+  background: var(--tn-bg-raised);
+  color: var(--tn-text);
+  cursor: pointer;
+}
+
+.job-node__name {
+  font-size: var(--tn-type-small);
+  font-weight: 600;
+}
+
+.job-node__status {
+  font-size: var(--tn-type-label);
+  color: var(--tn-text-muted);
+}
+
+.job-node--done {
+  border-color: var(--tn-works-line);
+  background: var(--tn-works-soft);
+}
+
+.job-node--failed {
+  border-color: var(--tn-broken-line);
+  background: var(--tn-broken-soft);
+}
+
+.job-node--running,
+.job-node--retrying {
+  border-color: var(--tn-testing-line);
+  background: var(--tn-testing-soft);
+  animation: job-node-pulse var(--tn-dur-reveal) ease-in-out infinite alternate;
+}
+
+.job-node--queued {
+  border-color: var(--tn-partly-line);
+  background: var(--tn-partly-soft);
+}
+
+.job-node--skipped,
+.job-node--waiting {
+  border-style: dashed;
+  color: var(--tn-text-muted);
+}
+
+.job-node--selected {
+  outline: var(--tn-line-w-thick) solid var(--tn-focus);
+  outline-offset: var(--tn-space-half);
+}
+
+@keyframes job-node-pulse {
+  from {
+    box-shadow: 0 0 0 0 var(--tn-testing-ring);
+  }
+  to {
+    box-shadow: 0 0 0 var(--tn-space-2) var(--tn-testing-ring);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .job-node--running,
+  .job-node--retrying {
+    animation: none;
+  }
+}
+
 .jobs-panel__run {
   width: auto;
   padding: var(--space-1) var(--space-2);

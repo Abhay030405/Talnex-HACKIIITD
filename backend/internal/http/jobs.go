@@ -33,16 +33,19 @@ type jobRow struct {
 	Seconds    float64         `json:"seconds"`
 	Error      string          `json:"error,omitempty"`
 	Result     json.RawMessage `json:"result,omitempty"`
+	// After is the stages this one waits for (pipeline_stages.after_stages), so the website can draw the pipeline.
+	After []string `json:"after_stages"`
 }
 
 // Report-answer and custom-test jobs belong to the chat, not the panel.
 const jobColumns = `j.id::text, coalesce(j.pipeline, ''), j.job_type, j.target_type, j.target_id::text, coalesce(cp.name, ''),
 	j.run_number, j.status, j.tries, j.max_tries, j.created_at, j.updated_at,
-	extract(epoch FROM j.updated_at - j.created_at)::float8, coalesce(j.error, ''), j.result`
+	extract(epoch FROM j.updated_at - j.created_at)::float8, coalesce(j.error, ''), j.result, coalesce(ps.after_stages, '{}')`
 
 func (s *server) listJobs(w http.ResponseWriter, r *http.Request, where string, id string) {
 	rows, err := s.opts.Pool.Query(r.Context(), `SELECT `+jobColumns+` FROM jobs j
 		LEFT JOIN candidate_projects cp ON cp.id = j.target_id
+		LEFT JOIN pipeline_stages ps ON ps.pipeline = j.pipeline AND ps.stage = j.job_type
 		WHERE j.pipeline IS NOT NULL AND (`+where+`)
 		ORDER BY j.run_number DESC, j.created_at LIMIT 400`, id)
 	if err != nil {
@@ -53,7 +56,7 @@ func (s *server) listJobs(w http.ResponseWriter, r *http.Request, where string, 
 		var j jobRow
 		var result []byte
 		err := row.Scan(&j.ID, &j.Pipeline, &j.Stage, &j.TargetType, &j.TargetID, &j.Project, &j.Run, &j.Status,
-			&j.Tries, &j.MaxTries, &j.Created, &j.Updated, &j.Seconds, &j.Error, &result)
+			&j.Tries, &j.MaxTries, &j.Created, &j.Updated, &j.Seconds, &j.Error, &result, &j.After)
 		j.Error = firstLine(j.Error)
 		if len(result) > 0 && len(result) <= 2000 {
 			j.Result = result

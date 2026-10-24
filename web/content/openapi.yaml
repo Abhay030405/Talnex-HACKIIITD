@@ -1431,6 +1431,7 @@ components:
         seconds: { type: number }
         error: { type: string }
         result: { type: object }
+        after_stages: { type: array, items: { type: string }, description: The stages this one waits for, to draw the pipeline. }
     Error:
       type: object
       description: Every error, in plain words.
