@@ -89,6 +89,15 @@ def build_kit(report: Mapping[str, Any]) -> list[dict[str, Any]]:
     if len(pastes) >= 2:
         out.append(_paste_question(pastes[0]))
 
+    role = report.get("role") or {}
+    for s in role.get("skills") or []:
+        if not s.get("proven_by"):
+            out.append({"kind": "skill", "question": f"This role needs {s['skill']}. Tell us about something you built "
+                                                     f"with {s['skill']}: what was hard, and how you solved it.",
+                        "why": f"None of the features TalNex tested showed {s['skill']}. That is not proof they lack it, "
+                               "only that the resume projects did not show it.",
+                        "proof": {"skill": s["skill"]}})
+
     for project, f in _features(report, ("could_not_test",)):
         if f.get("testable"):
             out.append({"kind": "demo", "question": f"Could you show us \"{_claim(f)}\" in {project.get('name')} live?",

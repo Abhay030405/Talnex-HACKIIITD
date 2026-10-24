@@ -285,13 +285,15 @@ export interface CandidateReport {
   coding_signals: CodingSignal[];
   flags: ReportFlag[];
   notes: string[];
+  /** The role the candidate was checked for, with each must-have skill and the working features that show it. */
+  role?: { title: string; skills: { skill: string; proven_by: string[] }[] } | null;
   /** Questions to ask the candidate, each tied to its proof. Missing on reports made before the kit existed. */
   interview_kit?: InterviewQuestion[];
 }
 
 /** One interview question from ai/talnex_ai/reports/interview_kit.py. A thing to talk about, never a verdict. */
 export interface InterviewQuestion {
-  kind: "coding" | "feature" | "flag" | "demo";
+  kind: "coding" | "feature" | "flag" | "demo" | "skill";
   question: string;
   why: string;
   proof: Record<string, string | null | undefined>;

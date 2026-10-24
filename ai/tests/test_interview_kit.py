@@ -55,3 +55,14 @@ def test_questions_read_cleanly():
     assert '"Save pages as bookmarks" for TodoApp. Our test found: No bookmark control exists. The sidebar was inspected too. Walk us' in q["question"]
     long_ = build_kit(report([feature("X", "broken", "word " * 200)]))[0]["question"]
     assert "…" in long_ and len(long_) < 420
+
+
+def test_role_fit_finds_skills_in_working_features_and_asks_about_the_rest():
+    from talnex_ai.reports.recruiter_report import role_fit
+    projects = [{"name": "TodoApp", "features": [feature("Sync todos through a REST API", "works"),
+                                                feature("Realtime chat with WebSockets", "broken")]}]
+    fit = role_fit("Backend intern", ["REST API", "WebSockets", "Go"], projects)
+    assert [s["proven_by"] for s in fit["skills"]] == [["TodoApp: Sync todos through a REST API"], [], []]
+    kit = build_kit({**report(projects[0]["features"]), "role": fit})
+    skill_qs = [q for q in kit if q["kind"] == "skill"]
+    assert [q["proof"]["skill"] for q in skill_qs] == ["WebSockets", "Go"] and "not proof" in skill_qs[0]["why"]

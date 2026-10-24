@@ -22,7 +22,7 @@ Rules:
 - When the message says the feature will be tested through its live site, write every item as something a person can SEE or TRY from outside (what appears, what happens with an odd input, whether it still works after a reload). Never name code internals such as functions or objects in that case."""
 
 
-def checklist_user(claim_text: str, group: str, role: str, *, from_code: bool = False) -> str:
+def checklist_user(claim_text: str, group: str, role: str, *, from_code: bool = False, brief: str = "") -> str:
     if from_code:
         if role == "fresher":
             design_note = 'The reviewer is judging a fresher: do NOT include any "design" items.'
@@ -32,7 +32,12 @@ def checklist_user(claim_text: str, group: str, role: str, *, from_code: bool = 
     else:
         design_note = 'Do NOT include any "design" items: structure and readability cannot be seen from outside.'
         evidence_note = "The feature will be tested through its live site only: every item must be observable by using it."
-    return f"Feature claim: {claim_text}\nFeature group: {group}\n{design_note}\n{evidence_note}"
+    text = f"Feature claim: {claim_text}\nFeature group: {group}\n{design_note}\n{evidence_note}"
+    if brief:
+        # What the recruiter is hiring for: it can shape which items matter, never whether the feature works.
+        text += ("\nThe reviewer is hiring for the role below. Prefer items that show the skills it asks for, but every "
+                 "item must still be about this feature only.\n" + wrap_untrusted(brief, "role_brief"))
+    return text
 
 
 MARK_SYSTEM = f"""You mark a checklist against evidence about a software feature.

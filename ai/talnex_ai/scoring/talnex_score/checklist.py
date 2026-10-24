@@ -49,13 +49,13 @@ class Marks(_Shape):
 
 
 def write_checklist(client: ChatClient, claim_text: str, group: str, role: RoleLevel, *,
-                    job_id: Optional[str] = None, from_code: bool = False) -> Checklist:
+                    job_id: Optional[str] = None, from_code: bool = False, brief: str = "") -> Checklist:
     """The checklist for a feature, written from the claim alone, before any results are seen.
 
     By default the feature will be tested on its live site, so every item is something a visitor
     can see or try. `from_code=True` is for judging a project's code, where items may describe it."""
     return ask_json(client, "claim_reader", CHECKLIST_SYSTEM,
-                    checklist_user(claim_text, group, role, from_code=from_code),
+                    checklist_user(claim_text, group, role, from_code=from_code, brief=brief),
                     lambda text: parse_model(Checklist, text), job_id=job_id)
 
 

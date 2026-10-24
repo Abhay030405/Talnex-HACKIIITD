@@ -5,6 +5,8 @@ counts against anyone. It never holds resume text: only claims (results), what w
 """
 from __future__ import annotations
 
+import re
+
 import math
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -115,9 +117,21 @@ def _minutes_taken(conn, candidate_id: str) -> int:
     return max(1, math.ceil((last - first).total_seconds() / 60))
 
 
+def role_fit(title: str, skills: list[str], projects: list[dict]) -> dict:
+    """Each must-have skill of the role, with the working features that show it. Plain word matching on the claims
+    TalNex tested, so "not seen" means only that no tested feature mentioned it, never that the candidate lacks it."""
+    out = []
+    for skill in skills:
+        word = re.compile(rf"(?<![\w+#.]){re.escape(skill)}(?![\w+#])", re.IGNORECASE)
+        proven = [f"{p['name']}: {f['text']}" for p in projects for f in p["features"]
+                  if f.get("verdict") in ("works", "partly_works") and word.search(f.get("text") or "")]
+        out.append({"skill": skill, "proven_by": proven[:3]})
+    return {"title": title, "skills": out}
+
+
 def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
     with pool.connection() as conn:
-        cand = conn.execute("SELECT role_level FROM candidates WHERE id = %s::uuid", (candidate_id,)).fetchone()
+        cand = conn.execute("SELECT role_level, role_id::text FROM candidates WHERE id = %s::uuid", (candidate_id,)).fetchone()
         if cand is None:
             raise LookupError(f"candidate {candidate_id} does not exist")
         rows = conn.execute("SELECT id::text, name, live_url, repo_url FROM candidate_projects "
@@ -130,6 +144,7 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
         flags = [{"type": t, "level": lvl, "reason": why} for t, lvl, why in conn.execute(
             "SELECT flag_type, level, reason FROM flags WHERE candidate_id = %s::uuid ORDER BY created_at, id", (candidate_id,))]
         talnex_minutes = _minutes_taken(conn, candidate_id)
+        role_row = conn.execute("SELECT title, skills FROM roles WHERE id = %s::uuid", (cand[1],)).fetchone() if cand[1] else None
 
     untested_features = sum(1 for p in projects for f in p["features"] if f["testable"] and f["verdict"] in (None, "could_not_test"))
     not_tested_projects = [p for p in projects if p["status"] != "tested"]
@@ -155,5 +170,6 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
                        "saved_minutes": max(0, manual - talnex_minutes)},
         "projects": projects, "coding_signals": signals, "flags": flags, "notes": notes,
     }
+    report["role"] = role_fit(role_row[0], role_row[1] or [], projects) if role_row else None
     report["interview_kit"] = build_kit(report)
     return report
