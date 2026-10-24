@@ -1,0 +1,66 @@
+---
+title: Live events
+description: How watch_live reads the live stream, and what is in the digest it returns.
+---
+
+While a check runs, the Python worker records what the agent does as **live events** (`docs/live_events.md`). The Go
+API streams them with Server-Sent Events at `GET /v1/live/{kind}/{id}`, owner-checked like every other route.
+
+`watch_live` reads that stream for a while and returns a **digest** an assistant can read in one go, instead of
+hundreds of raw events.
+
+## What happens during a watch
+
+1. **Replay first.** On connecting, the API sends `replay.start`, then every saved event for that subject, then
+   `replay.done`. So watching a finished check shows its whole story, and watching a running one catches up first.
+2. **Then live.** New events arrive as the agent works. Keep-alive pings are ignored.
+3. **Stop on time.** After `seconds` (default 20, never more than **120**, never less than 1) the watch stops, even
+   though the stream stays open.
+4. **Reconnect if it drops.** If the stream ends early, the watch connects again (up to 5 times). Each connection
+   replays from the start, and the list starts again at `replay.start`, so **nothing is counted twice**.
+5. If the API cannot be reached at all, you get an error, not an empty digest.
+
+## The digest
+
+One entry per subject (a team, or a candidate's project):
+
+```json
+{
+  "watched_seconds": 10,
+  "events": 400,
+  "reconnects": 0,
+  "subjects": [
+    {
+      "kind": "project",
+      "id": "b93b6f22-…",
+      "stages": { "precheck": "done", "live_test": "done", "proof_check": "done" },
+      "now": "",
+      "claims": {
+        "249d90a1-…": { "text": "Convert between USD, EUR, GBP and INR.", "status": "works", "confidence": "medium" }
+      },
+      "actions": 94,
+      "browser_cost_usd": 0.05596,
+      "last_actions": ["…the last five steps…"],
+      "last_reasons": ["…the agent's last five reasons…"]
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `stages` | Each stage seen: `running`, `done`, `skipped`, `failed` or `retrying` |
+| `now` | The stage running right now, or empty |
+| `claims` | Each claim's text and status: `queued`, `testing`, then the verdict (`works`, `partly_works`, `broken`, `could_not_test`, `reviewed_from_code`) with its confidence and reason |
+| `actions` | How many browser steps the agent took |
+| `browser_cost_usd` | The browser agent's cost so far (the full run cost is on the proof card) |
+| `last_actions`, `last_reasons` | The latest five steps and the agent's latest five reasons |
+
+<Callout title="Never broken before the verdict">
+  A claim only shows a verdict once the `verdict` event arrives, after the proof check and the
+  [never-blame ladder](/docs/safety). While it is being tested it is `testing`, whatever the agent's steps look like.
+</Callout>
+
+The example above is a real run: the planted "honest" app TinyTools, 400 events, 7 claims that all work. The same
+recording is used in the tests (`mcp/tests/fixtures/live-sample.json`). It is sent in odd-sized chunks and must fold to
+exactly the same digest.

@@ -1,3 +1,5 @@
+import { AskTalnex, type Ask, type CustomTest } from "@/components/proof/AskTalnex";
+import type { JobRole } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect, unstable_rethrow } from "next/navigation";
@@ -50,6 +52,37 @@ export default async function CandidatePage({
   if (candidate.status === "awaiting_confirmation") redirect(`${path}/confirm`);
 
   const report = await getCandidateReport(candidateId);
+  let asks: Ask[] = [];
+  if (report) {
+    try {
+      asks = await apiFetch<Ask[]>(`/v1/candidates/${encodeURIComponent(candidateId)}/asks`);
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+  }
+  let customTests: CustomTest[] = [];
+  if (report) {
+    const lists = await Promise.all(
+      report.projects.map(async (p) => {
+        try {
+          const list = await apiFetch<CustomTest[]>(`/v1/candidate-projects/${encodeURIComponent(p.id)}/custom-tests`);
+          return list.map((t) => ({ ...t, project: p.name }));
+        } catch (error) {
+          unstable_rethrow(error);
+          return [];
+        }
+      }),
+    );
+    customTests = lists.flat();
+  }
+  let criteria: { name: string; weight: number }[] = [];
+  if (candidate.role_id) {
+    try {
+      criteria = (await apiFetch<JobRole>(`/v1/roles/${encodeURIComponent(candidate.role_id)}`)).criteria ?? [];
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+  }
   // A check running again keeps its old report on screen, so progress shows whenever something is still running.
   let progress: CandidateProgress | null = null;
   if (!report || !isFinishedStatus(candidate.status)) {
@@ -80,7 +113,7 @@ export default async function CandidatePage({
         </div>
       </PageHeader>
 
-      <AutoRefresh active={!isFinishedStatus(status)} />
+      <AutoRefresh active={!isFinishedStatus(status) || [...asks, ...customTests].some((a) => a.status !== "done" && a.status !== "failed")} />
 
       {resume && RESUME_MESSAGES[resume] && (
         <p className="notice" role="alert">
@@ -107,7 +140,16 @@ export default async function CandidatePage({
       {progress && (!report || !isFinishedStatus(status)) && <ProgressPanel progress={progress} />}
 
       {report ? (
-        <CandidateReportView report={report} />
+        <>
+          <AskTalnex
+            candidateId={candidateId}
+            asks={asks}
+            customTests={customTests}
+            projects={report.projects.map((p) => ({ id: p.id, name: p.name }))}
+            roleId={candidate.role_id}
+          />
+          <CandidateReportView report={report} criteria={criteria} />
+        </>
       ) : (
         <section className="panel" aria-labelledby="report-title">
           <div className="panel__head">

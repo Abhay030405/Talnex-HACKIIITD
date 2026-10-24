@@ -88,6 +88,7 @@ def features(conn, kind: str, subject_id: str) -> list[dict]:
                    r.verdict, r.confidence, r.reason, r.feature_score, r.score_reason
               FROM claims c LEFT JOIN results r ON r.claim_id = c.id
              WHERE c.{column} = %s::uuid ORDER BY c.importance DESC, c.created_at, c.id""", (subject_id,)).fetchall()
+    lists = checklists(conn, kind, subject_id)
     out = []
     for cid, text, group, importance, testable, untestable, track, source, verdict, confidence, reason, score, score_reason in rows:
         steps = proof_steps(conn, cid) if verdict else []
@@ -98,5 +99,23 @@ def features(conn, kind: str, subject_id: str) -> list[dict]:
             "score10": _num(score), "score_reason": score_reason,
             "proof": steps, "observations": observations(steps),
             "code_review": code_review_of(conn, cid),
+            "checklist": lists.get(cid, []),
         })
+    return out
+
+
+def checklists(conn, kind: str, subject_id: str) -> dict[str, list[str]]:
+    """What TalNex planned to check per claim, written before testing (test_plan for live claims, sandbox_plan for
+    backend ones). Later runs win over earlier ones."""
+    out: dict[str, list[str]] = {}
+    for stage, result in conn.execute(
+            """SELECT job_type, result FROM jobs WHERE target_type = %s AND target_id = %s::uuid
+                AND job_type IN ('test_plan', 'sandbox_plan') AND status = 'done' ORDER BY run_number, updated_at""",
+            (kind, subject_id)).fetchall():
+        per_claim = (result or {}).get("claims" if stage == "test_plan" else "checklists") or {}
+        for cid, entry in per_claim.items():
+            items = ((entry or {}).get("checklist") or {}).get("items") or []
+            texts = [str(i.get("text")) for i in items if isinstance(i, dict) and i.get("text")]
+            if texts:
+                out[cid] = texts
     return out

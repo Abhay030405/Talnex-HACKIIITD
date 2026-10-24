@@ -2004,6 +2004,210 @@ a.meta:hover {
   color: var(--color-warning);
 }
 
+/* The live screen: the remote browser right now, above the latest step screenshot. */
+.live-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.live-screen__badge {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+/* The live wall of a role: one small live tile per candidate. */
+.live-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-4);
+}
+
+.live-wall__tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.live-wall__tile:hover {
+  border-color: var(--color-primary);
+}
+
+.live-wall__name {
+  font-weight: 700;
+}
+
+.live-wall__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: var(--line) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+/* Ask TalNex: a chat panel over the report, opened from a floating button. */
+.chat-launcher {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 40;
+  box-shadow: var(--shadow-lg);
+}
+
+.chat {
+  position: fixed;
+  right: var(--space-5);
+  bottom: calc(var(--space-5) * 3);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: min(28rem, calc(100vw - var(--space-5) * 2));
+  height: min(36rem, calc(100vh - var(--space-9)));
+  border: var(--line) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.chat__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--line) solid var(--color-border);
+}
+
+.chat__thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.chat__pair {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.chat__bubble {
+  max-width: 85%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.chat__bubble--me {
+  align-self: flex-end;
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
+.chat__bubble--ai {
+  align-self: flex-start;
+  background: var(--color-bg);
+  border: var(--line) solid var(--color-border);
+}
+
+.chat__bubble--waiting {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.chat__action {
+  margin-top: var(--space-2);
+}
+
+.chat__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.chat__shot {
+  width: calc(var(--space-9) * 1.5);
+  height: auto;
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.chat__starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.chat__chip {
+  padding: var(--space-1) var(--space-3);
+  border: var(--line) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.chat__chip:hover {
+  border-color: var(--color-primary);
+}
+
+.chat__compose {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  padding: var(--space-3);
+  border-top: var(--line) solid var(--color-border);
+}
+
+.chat__input {
+  flex: 1;
+  resize: none;
+  font-family: var(--font-sans);
+}
+
+/* A LeetCode paste: what was pasted, when, and how it compares with nearby contestants. */
+.paste-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.paste-card__code {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre;
+}
+
 /* The interview kit: numbered questions, each with why it is worth asking. */
 .interview-kit {
   display: flex;
@@ -2099,6 +2303,39 @@ a.meta:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* What the browser's developer tools saw during a step: API calls with latency, failures, console, masked leaks. */
+.network {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.network > summary {
+  width: fit-content;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.network__table {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.network__url {
+  word-break: break-all;
+}
+
+.network__bad {
+  color: var(--color-danger);
+}
+
+.network__console {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-warning);
 }
 
 /* A screenshot shows small and opens to full width on click. */

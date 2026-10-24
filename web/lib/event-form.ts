@@ -36,6 +36,10 @@ export interface NewEventBody {
   ends_at: string;
   sponsor_tools: string[];
   criteria: NewCriterion[];
+  /** The problem statement or theme; it reaches the test prompts as data. */
+  brief: string;
+  /** Checks that run; empty means every check. */
+  checks: Record<string, boolean>;
 }
 
 export const MAX_CRITERIA = 12;
@@ -99,6 +103,10 @@ export function parseEventForm(form: FormData): Parsed<NewEventBody> {
       ends_at: `${end}T23:59:59Z`,
       sponsor_tools: splitList(text(form, "sponsor_tools")),
       criteria,
+      brief: text(form, "brief").slice(0, 20000),
+      checks: form.has("checks_shown")
+        ? Object.fromEntries(["live_test", "code_review"].map((c) => [c, form.getAll("checks").includes(c)]))
+        : {},
     },
   };
 }
@@ -112,6 +120,8 @@ export interface NewProjectBody {
   repo_url: string;
   test_login_ref: string;
   team_github_handles: string[];
+  /** The team's own short description of what they built. */
+  abstract: string;
 }
 
 export const MAX_TEAM_HANDLES = 10;
@@ -151,6 +161,12 @@ export function parseProjectForm(form: FormData): Parsed<NewProjectBody> {
 
   return {
     ok: true,
-    value: { team_name: team, ...values, test_login_ref: text(form, "test_login_ref"), team_github_handles: handles },
+    value: {
+      team_name: team,
+      ...values,
+      test_login_ref: text(form, "test_login_ref"),
+      team_github_handles: handles,
+      abstract: text(form, "abstract").slice(0, 4000),
+    },
   };
 }

@@ -189,7 +189,20 @@ export type ProjectStatus = "tested" | "could_not_test" | "no_live_link";
 /** screen: a screenshot. http: a saved request and answer (backend test). command: a saved command's output. */
 export type ProofKind = "screen" | "http" | "command";
 
+/** What the browser's developer tools saw during one step (ai/talnex_ai/testing/runner/devtools.py). */
+export interface DevtoolsRecord {
+  api_calls?: { method: string; url: string; status: number; ms?: number }[];
+  error_responses?: { method: string; url: string; status: number; ms?: number }[];
+  failed_requests?: { method: string; url: string; error: string }[];
+  console_errors?: string[];
+  page_errors?: string[];
+  slow_api_calls?: number;
+  /** Secrets or private data the site showed, masked: never the secret itself. */
+  leaks?: { type: string; level: string; masked: string; where: string }[];
+}
+
 export interface ProofStep {
+  devtools?: DevtoolsRecord | null;
   step: number;
   action: string;
   observed: string | null;
@@ -228,6 +241,10 @@ export interface ReportFeature {
   code_review?: CodeReview | null;
   /** Who wrote the code behind this claim. Missing on reports made before authorship existed. */
   authorship?: Authorship | null;
+  /** What TalNex planned to check, written before testing. */
+  checklist?: string[];
+  /** True when the checklist was written with the recruiter's role brief. */
+  checked_for_role?: boolean;
 }
 
 export interface ReportFlag {
@@ -271,6 +288,8 @@ export interface CodingSignal {
   signal: string;
   weight: "not_suspicious" | "medium" | "strong" | string;
   contest: string | null;
+  /** The contest problem, for per-problem signals such as a LeetCode paste. */
+  problem?: string | null;
   evidence: Record<string, unknown>;
 }
 
@@ -286,13 +305,17 @@ export interface CandidateReport {
   coding_signals: CodingSignal[];
   flags: ReportFlag[];
   notes: string[];
+  /** True while some projects are still being checked: results so far. */
+  partial?: boolean;
+  /** The role the candidate was checked for, with each must-have skill and the working features that show it. */
+  role?: { title: string; skills: { skill: string; proven_by: string[] }[] } | null;
   /** Questions to ask the candidate, each tied to its proof. Missing on reports made before the kit existed. */
   interview_kit?: InterviewQuestion[];
 }
 
 /** One interview question from ai/talnex_ai/reports/interview_kit.py. A thing to talk about, never a verdict. */
 export interface InterviewQuestion {
-  kind: "coding" | "feature" | "flag" | "demo";
+  kind: "coding" | "feature" | "flag" | "demo" | "skill";
   question: string;
   why: string;
   proof: Record<string, string | null | undefined>;

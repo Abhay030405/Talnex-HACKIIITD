@@ -41,6 +41,8 @@ type NewProject struct {
 	TestLoginRef string `json:"test_login_ref"`
 	// Optional GitHub accounts of the team. Stored trimmed, lowercase and without a leading @.
 	TeamGithubHandles []string `json:"team_github_handles"`
+	// Abstract is the team's own short description of what they built; it reaches the test prompts as data.
+	Abstract string `json:"abstract"`
 }
 
 // maxTeamHandles is the most GitHub accounts one team can list.
@@ -127,9 +129,10 @@ func scan(row pgx.Row) (Project, error) {
 // Create adds a project to an event. The caller must already have checked that the user owns the event.
 func (s *Store) Create(ctx context.Context, eventID string, n NewProject) (Project, error) {
 	p, err := scan(s.pool.QueryRow(ctx, `
-		INSERT INTO projects (event_id, team_name, video_url, live_url, repo_url, test_login_ref, team_github_handles)
-		VALUES ($1::uuid, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), coalesce($7::text[], '{}'))
-		RETURNING `+columns, eventID, n.TeamName, n.VideoURL, n.LiveURL, n.RepoURL, n.TestLoginRef, n.TeamGithubHandles))
+		INSERT INTO projects (event_id, team_name, video_url, live_url, repo_url, test_login_ref, team_github_handles, abstract)
+		VALUES ($1::uuid, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), coalesce($7::text[], '{}'), $8)
+		RETURNING `+columns, eventID, n.TeamName, n.VideoURL, n.LiveURL, n.RepoURL, n.TestLoginRef, n.TeamGithubHandles,
+		strings.TrimSpace(n.Abstract)))
 	if err != nil {
 		return Project{}, fmt.Errorf("create project: %w", err)
 	}

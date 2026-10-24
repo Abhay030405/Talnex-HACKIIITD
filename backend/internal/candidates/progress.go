@@ -105,7 +105,7 @@ func (s *Store) Progress(ctx context.Context, candidateID string) (Progress, err
 	var p Progress
 	err := s.pool.QueryRow(ctx, `
 		SELECT status, coalesce(status_detail, ''),
-		       EXISTS (SELECT 1 FROM candidate_reports WHERE candidate_id = $1::uuid)
+		       EXISTS (SELECT 1 FROM candidate_reports WHERE candidate_id = $1::uuid AND coalesce(report->>'partial', '') <> 'true')
 		  FROM candidates WHERE id = $1::uuid`, candidateID).Scan(&p.Status, &p.StatusDetail, &p.ReportReady)
 	if err != nil {
 		return Progress{}, fmt.Errorf("read candidate status: %w", err)

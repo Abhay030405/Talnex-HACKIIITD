@@ -47,7 +47,7 @@ def plan_one(model: ChatClient, info: SubjectInfo, claim: Claim, job_id: Optiona
     try:
         plans = plan_claim(model, claim, site_url=info.live_url or "", site_notes=code_hint(note or {}) or None,
                            job_id=job_id)
-        checklist = write_checklist(model, claim.text, claim.claim_group, info.role_level, job_id=job_id)
+        checklist = write_checklist(model, claim.text, claim.claim_group, info.role_level, job_id=job_id, brief=info.brief)
         return {"plans": [p.model_dump() for p in plans], "checklist": checklist.model_dump()}
     except Exception as err:
         log.warning("could not plan claim %s: %s", claim.id, err)

@@ -44,6 +44,8 @@ describe("event form", () => {
         ends_at: "2026-11-06T23:59:59Z",
         sponsor_tools: ["Stripe", "Twilio"],
         criteria: [],
+        brief: "",
+        checks: {},
       },
     });
   });
@@ -119,6 +121,7 @@ describe("project form", () => {
         repo_url: "",
         test_login_ref: "rocket-demo",
         team_github_handles: ["alice", "bob"],
+        abstract: "",
       },
     });
   });

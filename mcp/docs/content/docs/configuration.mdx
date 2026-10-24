@@ -1,0 +1,39 @@
+---
+title: Configuration
+description: The four settings, where they come from, and what each one controls.
+---
+
+The server reads its settings from the environment once, at start (`mcp/src/settings.ts`). All four are required.
+**A missing one stops the server with its name**, for example `Missing setting: AUTH_SECRET`, and several missing
+ones are named together.
+
+| Setting | Example | What it is |
+|---|---|---|
+| `TALNEX_API_URL` | `http://localhost:8080` | The Go API's address. Must start with `http://` or `https://`; a trailing `/` is fine |
+| `AUTH_SECRET` | from `.env` | The secret the API trusts. The same value as in the repository's `.env` |
+| `TALNEX_EMAIL` | `organizer@example.com` | The account to act as. Results are that person's only. Case and spaces are tidied |
+| `TALNEX_ROLE` | `organizer` | `organizer` (hackathons) or `recruiter` (candidates). Anything else stops the server |
+
+They are also listed in the repository's `.env.example`, but the stack itself does not read them: you put them in your
+assistant's MCP config.
+
+## How a call is signed
+
+Every API call carries a fresh token, signed exactly the way the website signs its own calls (`web/lib/token.ts`):
+HS256 with `AUTH_SECRET`, the email (trimmed, lower case), an empty name, the role, and a two-minute expiry. A test
+checks the two are **byte for byte** the same, so the API cannot tell them apart.
+
+<Callout type="warn" title="Local and self-hosted use only">
+  Signing with the shared `AUTH_SECRET` means whoever has it can act as any account. That is fine on your own computer
+  against your own stack. Before anyone else connects (and before billing), TalNex needs per-person API keys: a key made
+  on the website, stored hashed, tied to one account and role, and revocable. That is future work.
+</Callout>
+
+## Timeouts and limits
+
+| What | Limit |
+|---|---|
+| One API call | 20 seconds (60 seconds for a resume upload) |
+| `watch_live` | 1–120 seconds, default 20. Reconnects up to 5 times if the stream drops |
+| `ask_project` | waits up to 120 seconds for the answer (default 60), then gives you an id to read later |
+| `confirm_candidate` | up to 8 projects |

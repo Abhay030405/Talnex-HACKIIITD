@@ -154,6 +154,15 @@ function SubjectPanel({
         {s.kind !== "event" && (
           <>
             <div className="live-panel__screen">
+              {s.screen && (
+                <div className="live-screen">
+                  <span className="live-screen__badge">Live screen</span>
+                  {/* A short-lived signed link from the API, refreshed with every frame. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="live-shot__img" src={s.screen} alt="The remote browser right now" />
+                  {s.label && <span className="meta">{s.label}</span>}
+                </div>
+              )}
               <Shot shot={s.shot} />
               {s.label && <p className="live-panel__label">{s.label}</p>}
               {s.reason && <p className="live-panel__reason">“{s.reason}”</p>}

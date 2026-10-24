@@ -12,12 +12,16 @@ The sandbox host runs `sandboxd` (architecture section 28). For now the host is 
 
 ## Run
 
-```
-cd backend && go build -o sandboxd.exe ./cmd/sandboxd     # build outside the repo folder if Windows blocks it
-SANDBOXD_LISTEN_ADDR=0.0.0.0:7070 SANDBOXD_TOKEN=... SANDBOX_DRIVER=docker ./sandboxd.exe
-```
+`sandboxd` is part of the main Docker Compose stack: `docker compose up -d --build` builds the VM base image
+(`talnex-sandbox-full`, the `sandbox-image` service, which exits once built) and starts `sandboxd` with the host's Docker
+socket mounted, so each VM is a sibling container. Callers use `SANDBOXD_URL=http://sandboxd:7070`.
 
-`GET /healthz` needs no token and shows the driver, how many VMs run and the maximum.
+- Health: `docker compose exec sandboxd wget -qO- http://127.0.0.1:7070/healthz` (driver, running VMs, maximum).
+- Logs: `docker compose logs -f sandboxd`. VMs: `docker ps --filter label=talnex.sandbox=1`.
+
+Running it by hand outside Compose still works: `cd backend && go build -o sandboxd.exe ./cmd/sandboxd`, then
+`SANDBOXD_LISTEN_ADDR=0.0.0.0:7070 SANDBOXD_TOKEN=... SANDBOX_DRIVER=docker ./sandboxd.exe` (and point `SANDBOXD_URL`
+at `http://host.docker.internal:7070`).
 
 ## Rules that always hold
 

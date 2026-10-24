@@ -1,0 +1,52 @@
+---
+title: Safety and privacy
+description: What the server will not do without you, how results stay private, and why nothing is called broken lightly.
+---
+
+## Nothing costs money without your go-ahead
+
+Checks use a real browser agent and models, so they cost money. These tools act **only** with `confirm: true`:
+
+| Tool | Without confirm | With confirm |
+|---|---|---|
+| `run_project` | The team's links and the estimate | Starts the check |
+| `run_event` | The teams that would be checked, those already done, and the estimate | Starts every new team |
+| `confirm_candidate` | The projects and coding profiles that would be checked, and the estimate | Starts the checks |
+| `create_candidate` under an `auto_confirm` role | Why it would start checks by itself, and the estimate | Creates the candidate (checks start after the resume is read) |
+| `delete_candidate` | Nothing is deleted | Deletes the candidate and their files for good |
+
+Tests check that without confirm nothing that changes data is called, and with confirm the API is called exactly once.
+The end-to-end check against a real stack never passes `confirm: true`.
+
+## Results are private
+
+- The server acts as one person (`TALNEX_EMAIL`), and the Go API checks the owner on every request. Someone else's
+  event or candidate looks exactly like one that does not exist: `Not found (or it belongs to another account)`.
+- Tools for the other kind of account are refused before any call.
+- Resume files and personal details are deleted by TalNex after the report is made; `delete_candidate` removes the
+  rest on request.
+
+## Nobody is blamed without proof
+
+TalNex decides by what happened on screen, never by what a page, README or video says about itself. Before any claim
+is marked **Broken**, all four steps of the never-blame ladder must hold:
+
+<NeverBlameLadder />
+
+- **"Could not test" and "could not confirm" are left out of the score** and the reason is shown. They never count
+  against anyone and never mean "fake".
+- **Red flags sit beside the score** and are never subtracted from it.
+- **The AI opinion** (UI, innovation) is always labelled as opinion, not tested proof, and is never part of the score.
+- **No overall ranking and no single winner.** `compare_event` shows up to three teams per feature. People decide.
+
+## Errors without leaks
+
+A failed call comes back as a tool error in plain words: the API's own message, or a clear one such as
+`Cannot reach the TalNex API at http://localhost:8080`. Never a stack trace. Anything unexpected inside the server
+becomes `Something went wrong in the TalNex MCP server.` The server writes only to stderr, never to the protocol
+channel.
+
+## The shared secret
+
+The server signs calls with `AUTH_SECRET`, which can sign as **any** account. Keep it to your own computer and your own
+stack. Per-person API keys are future work.

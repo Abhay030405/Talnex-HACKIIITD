@@ -1,0 +1,65 @@
+---
+title: Quick start
+description: Build the server, connect it to Claude Code and ask your first question.
+---
+
+<Steps>
+<Step>
+
+### Start TalNex
+
+From the repository root, start the stack and check that the API answers on port 8080:
+
+```bash
+docker compose up -d
+```
+
+</Step>
+<Step>
+
+### Build the MCP server
+
+You need Node 20 or newer.
+
+```bash
+cd mcp
+npm install
+npm run build        # writes mcp/dist/index.js
+```
+
+</Step>
+<Step>
+
+### Add it to Claude Code
+
+Use the same `AUTH_SECRET` as the API (from the repository's `.env`), and the account you want to act as:
+
+```bash
+claude mcp add talnex \
+  --env TALNEX_API_URL=http://localhost:8080 \
+  --env AUTH_SECRET=<AUTH_SECRET from .env> \
+  --env TALNEX_EMAIL=organizer@example.com \
+  --env TALNEX_ROLE=organizer \
+  -- node C:/Projects/Talnex-HACKIIITD/mcp/dist/index.js
+```
+
+On Windows PowerShell you can load the secret without showing it:
+
+```powershell
+$s = (Select-String -Path .\.env -Pattern '^AUTH_SECRET=').Line.Substring(12)
+claude mcp add talnex -e TALNEX_API_URL=http://localhost:8080 -e AUTH_SECRET=$s -e TALNEX_EMAIL=organizer@example.com -e TALNEX_ROLE=organizer -- node C:/Projects/Talnex-HACKIIITD/mcp/dist/index.js
+```
+
+</Step>
+<Step>
+
+### Ask
+
+Start a new `claude` session and type `/mcp`: `talnex` should be connected with 19 tools. Then try:
+
+> Using TalNex, which account am I, and what events do I have?
+
+</Step>
+</Steps>
+
+Next: [connect Claude Desktop or Gemini CLI](/docs/connect), or see [every tool](/docs/tools).

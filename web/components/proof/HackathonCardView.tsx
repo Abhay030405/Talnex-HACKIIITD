@@ -1,3 +1,4 @@
+import { weightedFromGroups } from "@/lib/role-score";
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
@@ -59,8 +60,18 @@ function OpinionBox({ opinion }: { opinion: AiOpinion }) {
 }
 
 /** One hackathon project's proof card: scores with coverage, flags beside them, each claim with proof, and notes. */
-export function HackathonCardView({ card }: { card: HackathonCard }) {
-  const weighted = card.weighted_total;
+export function HackathonCardView({
+  card,
+  criteria,
+}: {
+  card: HackathonCard;
+  /** The event's weights as they are now: the weighted total is worked out from them, so edits apply at once. */
+  criteria?: { name: string; weight: number }[];
+}) {
+  const weighted =
+    card.weighted_total && criteria?.length
+      ? { ...card.weighted_total, ...weightedFromGroups(card.groups, criteria) }
+      : card.weighted_total;
 
   return (
     <div className="stack">

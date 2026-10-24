@@ -49,6 +49,17 @@ export function ClaimRow({ feature }: { feature: ReportFeature }) {
         </div>
       )}
 
+      {feature.checklist && feature.checklist.length > 0 && (
+        <details className="proof-viewer">
+          <summary>{feature.checked_for_role ? "What TalNex checked (for this role)" : "What TalNex checked"}</summary>
+          <ul className="report-list">
+            {feature.checklist.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       <AuthorshipLine authorship={feature.authorship} />
       <ProofClip steps={feature.proof} verdict={feature.verdict} />
       <ProofViewer steps={feature.proof} />

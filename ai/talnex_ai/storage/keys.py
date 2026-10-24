@@ -21,6 +21,11 @@ def screen_key(project: str, run: str, step: int) -> str:
     return _join("screens", project, run, step)
 
 
+def live_screen_key(subject: str, run: str) -> str:
+    """The newest live-view frame of one test run, overwritten each time (the Go API only makes view links)."""
+    return _join("live", subject, run, "screen.jpg")
+
+
 def video_key(project: str, name: str) -> str:
     return _join("videos", project, name)
 

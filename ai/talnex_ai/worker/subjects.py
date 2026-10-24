@@ -27,6 +27,7 @@ class SubjectInfo:
     repo_url: Optional[str]
     video_url: Optional[str]
     role_level: RoleLevel
+    brief: str = ""      # what the recruiter is hiring for (the role), as plain text for prompts; data, never orders
 
     @property
     def kind(self) -> str:
@@ -46,9 +47,9 @@ class SubjectInfo:
 
 
 _QUERIES = {
-    "project": """SELECT p.team_name, p.live_url, p.repo_url, p.video_url, e.role_level
+    "project": """SELECT p.team_name, p.live_url, p.repo_url, p.video_url, e.role_level, NULL, e.brief, p.abstract
                     FROM projects p JOIN events e ON e.id = p.event_id WHERE p.id = %s::uuid""",
-    "candidate_project": """SELECT cp.name, cp.live_url, cp.repo_url, cp.video_url, c.role_level
+    "candidate_project": """SELECT cp.name, cp.live_url, cp.repo_url, cp.video_url, c.role_level, c.role_id::text, '', ''
                     FROM candidate_projects cp JOIN candidates c ON c.id = cp.candidate_id WHERE cp.id = %s::uuid""",
 }
 
@@ -65,11 +66,33 @@ def subject_of(job: Job) -> Subject:
 def load_subject_info(pool: ConnectionPool, subject: Subject) -> SubjectInfo:
     with pool.connection() as conn:
         row = conn.execute(_QUERIES[subject.kind], (subject.id,)).fetchone()
-    if row is None:
-        raise LookupError(f"{subject.kind} {subject.id} does not exist")
-    name, live_url, repo_url, video_url, role_level = row
+        if row is None:
+            raise LookupError(f"{subject.kind} {subject.id} does not exist")
+        name, live_url, repo_url, video_url, role_level, role_id, event_brief, abstract = row
+        brief = role_brief(conn, role_id) if role_id else "\n".join(
+            part for part in (f"Event brief: {event_brief[:4000]}" if event_brief else "",
+                              f"The team's abstract: {abstract[:2000]}" if abstract else "") if part)
     return SubjectInfo(subject, name or "", _blank_to_none(live_url), _blank_to_none(repo_url),
-                       _blank_to_none(video_url), role_level)
+                       _blank_to_none(video_url), role_level, brief)
+
+
+def role_brief(conn, role_id: str) -> str:
+    """The role as short plain text: title, job description, the person wanted, skills and criteria."""
+    row = conn.execute("SELECT title, job_description, person_wanted, skills FROM roles WHERE id = %s::uuid", (role_id,)).fetchone()
+    if row is None:
+        return ""
+    title, jd, person, skills = row
+    criteria = conn.execute("SELECT name, weight FROM criteria WHERE role_id = %s::uuid ORDER BY weight DESC", (role_id,)).fetchall()
+    parts = [f"Role: {title}"]
+    if skills:
+        parts.append("Must-have skills: " + ", ".join(skills))
+    if criteria:
+        parts.append("What matters most (weight): " + ", ".join(f"{n} ({float(w):g})" for n, w in criteria))
+    if person:
+        parts.append(f"The person wanted: {person}")
+    if jd:
+        parts.append(f"Job description: {jd[:4000]}")
+    return "\n".join(parts)
 
 
 def _blank_to_none(value: Optional[str]) -> Optional[str]:
