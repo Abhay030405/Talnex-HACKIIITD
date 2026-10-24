@@ -58,6 +58,8 @@ export interface LogLine {
   at: string;
   label: string;
   text: string;
+  /** "#2" when the line belongs to a claim: claims are tested side by side, so the log says which one. */
+  claim?: string;
   tone: "plain" | "reason" | "works" | "partly" | "broken" | "unknown" | "failed";
 }
 
@@ -288,6 +290,8 @@ export function reduceLive(state: LiveState, kind: string, ev: LiveEvent): LiveS
       return state;
   }
 
+  const claimNo = ev.claim_id ? s.claimOrder.indexOf(ev.claim_id) + 1 : 0;
+  if (line && claimNo > 0) line = { ...line, claim: `#${claimNo}` };
   if (line) s = { ...s, log: [...s.log, { at: text(ev.at), ...line }].slice(-LOG_LIMIT) };
   return {
     subjects: { ...state.subjects, [id]: s },

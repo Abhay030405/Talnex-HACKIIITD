@@ -156,11 +156,13 @@ function SubjectPanel({
 
         <ul className="live-claims">
           {s.claimOrder.length === 0 && <li className="live-claim">No claims yet.</li>}
-          {s.claimOrder.map((cid) => {
+          {s.claimOrder.map((cid, n) => {
             const c = s.claims[cid];
             return (
               <li key={cid} className={`live-claim live-claim--${c.status}`}>
-                <span className="live-claim__text">{c.text || "A claim"}</span>
+                <span className="live-claim__text">
+                  <span className="live-claim__no">#{n + 1}</span> {c.text || "A claim"}
+                </span>
                 <span className="live-claim__status">
                   {claimWord(c.status)}
                   {c.confidence ? ` · ${c.confidence}` : ""}
@@ -179,7 +181,10 @@ function SubjectPanel({
               <li key={`${line.at}-${i}`} className={`live-log__line live-log__line--${line.tone}`}>
                 <span className="live-log__at">{clock(line.at)}</span>
                 <span className="live-log__label">{line.label}</span>
-                <span className="live-log__text">{line.text}</span>
+                <span className="live-log__text">
+                  {line.claim && <span className="live-log__claim">{line.claim}</span>}
+                  {line.text}
+                </span>
               </li>
             ))}
         </ol>

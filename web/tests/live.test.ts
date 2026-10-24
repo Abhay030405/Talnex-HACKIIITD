@@ -126,3 +126,18 @@ describe("the stream proxy", () => {
     expect(down.status).toBe(503);
   });
 });
+
+describe("log lines name their claim", () => {
+  it("numbers each line by the claim it belongs to, in the order claims appeared", async () => {
+    const { reduceLive, emptyLiveState } = await import("@/lib/live");
+    const subject = { kind: "project", id: "p1" };
+    let s = reduceLive(emptyLiveState(), "claims.queued", {
+      kind: "claims.queued", subject, data: { total: 2, claims: [{ id: "a", text: "Add todos" }, { id: "b", text: "Tick todos" }] },
+    });
+    s = reduceLive(s, "reason", { kind: "reason", subject, claim_id: "b", data: { text: "click the box" } });
+    s = reduceLive(s, "stage.started", { kind: "stage.started", subject, stage: "live_test", data: {} });
+    const log = s.subjects.p1.log;
+    expect(log[log.length - 2].claim).toBe("#2");
+    expect(log[log.length - 1].claim).toBeUndefined();
+  });
+});
