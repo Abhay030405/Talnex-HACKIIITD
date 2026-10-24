@@ -21,6 +21,12 @@ type Options struct {
 	WebOrigin          string
 	EnableDevEndpoints bool
 	Log                *slog.Logger
+	// Files keeps uploaded resumes. Nil turns resume upload off.
+	Files ResumeFiles
+	// ProofLinks makes short-lived screenshot links for the report. Nil leaves the links out.
+	ProofLinks ProofLinks
+	// FileRemover deletes stored files when a candidate is deleted. Nil skips file deletion.
+	FileRemover FileRemover
 	// Ready reports whether the services behind the API are reachable (database, storage).
 	Ready func(ctx context.Context) error
 }
@@ -59,10 +65,19 @@ func NewHandler(o Options) http.Handler {
 	private.HandleFunc("GET /v1/events/{id}/projects", auth.RequireRole(auth.RoleOrganizer, s.listProjects))
 	private.HandleFunc("POST /v1/events/{id}/run", auth.RequireRole(auth.RoleOrganizer, s.runEvent))
 	private.HandleFunc("GET /v1/projects/{id}", auth.RequireRole(auth.RoleOrganizer, s.getProject))
+	private.HandleFunc("GET /v1/projects/{id}/proof", auth.RequireRole(auth.RoleOrganizer, s.getProjectProof))
+	private.HandleFunc("GET /v1/events/{id}/overview", auth.RequireRole(auth.RoleOrganizer, s.getEventOverview))
+	private.HandleFunc("GET /v1/events/{id}/compare", auth.RequireRole(auth.RoleOrganizer, s.getEventCompare))
 	private.HandleFunc("POST /v1/projects/{id}/run", auth.RequireRole(auth.RoleOrganizer, s.runProject))
 	private.HandleFunc("POST /v1/candidates", auth.RequireRole(auth.RoleRecruiter, s.createCandidate))
 	private.HandleFunc("GET /v1/candidates", auth.RequireRole(auth.RoleRecruiter, s.listCandidates))
 	private.HandleFunc("GET /v1/candidates/{id}", auth.RequireRole(auth.RoleRecruiter, s.getCandidate))
+	private.HandleFunc("POST /v1/candidates/{id}/resume", auth.RequireRole(auth.RoleRecruiter, s.uploadResume))
+	private.HandleFunc("GET /v1/candidates/{id}/report", auth.RequireRole(auth.RoleRecruiter, s.getReport))
+	private.HandleFunc("GET /v1/candidates/{id}/progress", auth.RequireRole(auth.RoleRecruiter, s.getProgress))
+	private.HandleFunc("GET /v1/candidates/{id}/found", auth.RequireRole(auth.RoleRecruiter, s.getFound))
+	private.HandleFunc("POST /v1/candidates/{id}/confirm", auth.RequireRole(auth.RoleRecruiter, s.confirmCandidate))
+	private.HandleFunc("DELETE /v1/candidates/{id}", auth.RequireRole(auth.RoleRecruiter, s.deleteCandidate))
 	if o.EnableDevEndpoints {
 		private.HandleFunc("POST /v1/dev/selftest", s.startSelfTest)
 		private.HandleFunc("GET /v1/dev/selftest/{target}", s.selfTestStatus)
