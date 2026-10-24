@@ -7,6 +7,8 @@ import {
   BookOpen,
   Briefcase,
   CalendarDays,
+  Globe,
+  Link2,
   LogOut,
   Magnet,
   Plus,
@@ -36,3 +38,5 @@ export const CalendarIcon = wrap(CalendarDays);
 export const LogoutIcon = wrap(LogOut);
 export const MagnetIcon = wrap(Magnet);
 export const DocsIcon = wrap(BookOpen);
+export const LinkIcon = wrap(Link2);
+export const GlobeIcon = wrap(Globe);

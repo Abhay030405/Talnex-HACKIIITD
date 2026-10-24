@@ -35,6 +35,9 @@ def save_resume(pool: ConnectionPool, candidate_id: str, read: ResumeRead) -> li
             # resume handles first, then what the recruiter typed wins
             conn.execute("UPDATE candidates SET coding_handles = %s::jsonb || coding_handles, updated_at = now() WHERE id = %s::uuid",
                          (json.dumps(read.coding_handles), candidate_id))
+        if read.profile_links:
+            conn.execute("UPDATE candidates SET profile_links = %s::jsonb || profile_links WHERE id = %s::uuid",
+                         (json.dumps(read.profile_links), candidate_id))
         if read.coding_links:
             conn.execute("UPDATE candidates SET coding_links = %s::jsonb || coding_links WHERE id = %s::uuid",
                          (json.dumps(read.coding_links), candidate_id))

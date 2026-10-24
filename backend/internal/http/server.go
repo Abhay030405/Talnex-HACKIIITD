@@ -45,6 +45,7 @@ type server struct {
 	projects   *projects.Store
 	queue      *jobs.Queue
 	sms        *smsLimiter
+	logins     *failLimiter
 }
 
 // NewHandler builds the API routes.
@@ -59,6 +60,7 @@ func NewHandler(o Options) http.Handler {
 		projects:   projects.NewStore(o.Pool),
 		queue:      jobs.NewQueue(o.Pool),
 		sms:        &smsLimiter{},
+		logins:     &failLimiter{},
 	}
 
 	public := http.NewServeMux()
@@ -67,6 +69,7 @@ func NewHandler(o Options) http.Handler {
 
 	private := http.NewServeMux()
 	private.HandleFunc("GET /v1/me", s.me)
+	private.HandleFunc("POST /v1/auth/register", s.register)
 	private.HandleFunc("POST /v1/events", auth.RequireRole(auth.RoleOrganizer, s.createEvent))
 	private.HandleFunc("GET /v1/events", auth.RequireRole(auth.RoleOrganizer, s.listEvents))
 	private.HandleFunc("GET /v1/events/{id}", auth.RequireRole(auth.RoleOrganizer, s.getEvent))
@@ -126,6 +129,9 @@ func NewHandler(o Options) http.Handler {
 	root.Handle("/readyz", public)
 	// Gateway route: the phone has no user, so it skips sign-in and is checked by its gateway key instead.
 	root.HandleFunc("POST /v1/sms/incoming", s.incomingSMS)
+	// Email and password sign-in: outside the sign-in middleware (a wrong email must not create an account), but it
+	// checks the website-signed token itself.
+	root.HandleFunc("POST /v1/auth/password-login", s.passwordLogin)
 	if o.EnableDevEndpoints {
 		// Local demos only: mission control for everything the worker is doing, with no sign-in.
 		root.HandleFunc("GET /v1/dev/live", s.getDevLive)

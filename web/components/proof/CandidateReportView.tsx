@@ -7,6 +7,7 @@ import { RerunButton } from "@/components/proof/RerunButton";
 import { StatTile } from "@/components/ui/StatTile";
 import { Tabs } from "@/components/ui/Tabs";
 import { BADGE_CLASS, formatCost, formatDate, formatDuration } from "@/lib/format";
+import { insightTone } from "@/lib/insights";
 import { pasteCard, replaySummary } from "@/lib/leetcode-format";
 import { SITE_NAMES, evidenceFacts, reportSummary, signalWeightInfo } from "@/lib/report-format";
 import { githubCard } from "@/lib/report-layout";
@@ -197,7 +198,20 @@ function CodingProfiles({ report }: { report: CandidateReport }) {
       </div>
       <div className="panel__body stack">
         <p className="note">Hints to look at, not proof of anything. TalNex does not check that a profile is theirs.</p>
-        {signals.length === 0 && <p className="note">No coding profile signals for this candidate.</p>}
+        {(report.profile_insights ?? []).length > 0 && (
+          <ul className="insights">
+            {(report.profile_insights ?? []).map((insight) => {
+              const tone = insightTone(insight.evidence?.tone);
+              return (
+                <li className="insights__item" key={`${insight.site}-${insight.signal}`}>
+                  <span className={BADGE_CLASS[tone.badge]}>{tone.text}</span>
+                  <span>{String(insight.evidence?.summary ?? "")}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {signals.length === 0 &&<p className="note">No coding profile signals for this candidate.</p>}
         {signals.map((signal, i) => (
           <SignalCard key={`${signal.site}-${signal.signal}-${i}`} signal={signal} />
         ))}

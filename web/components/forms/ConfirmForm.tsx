@@ -7,6 +7,7 @@ import { Field } from "@/components/forms/Field";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { PlusIcon } from "@/components/ui/Icons";
 import { CODING_SITES, MAX_NAME_CHARS, MAX_PROJECTS, profileValue } from "@/lib/confirm-format";
+import { PROFILE_KINDS } from "@/lib/profile-links";
 import type { CandidateFound, FoundProject } from "@/lib/types";
 
 const INITIAL: ConfirmState = {};
@@ -131,6 +132,29 @@ export function ConfirmForm({ candidateId, found }: { candidateId: string; found
                 placeholder={site.example}
                 autoComplete="off"
                 defaultValue={profileValue(site.key, found.coding_links, found.coding_handles)}
+              />
+            </Field>
+          ))}
+        </div>
+      </section>
+
+      <section className="stack">
+        <h2 className="panel__title">Profile links</h2>
+        <p className="note">
+          GitHub, LinkedIn, portfolio and other profile pages from the resume. Fix or add any; leave a box empty to remove
+          it. Emails and phone numbers are never kept.
+        </p>
+        <div className="form-grid">
+          {PROFILE_KINDS.map((kind) => (
+            <Field key={kind.key} label={kind.label} htmlFor={`link-${kind.key}`}>
+              <input
+                className="input"
+                id={`link-${kind.key}`}
+                name={`link.${kind.key}`}
+                type="url"
+                placeholder={kind.example}
+                autoComplete="off"
+                defaultValue={found.profile_links?.[kind.key] ?? ""}
               />
             </Field>
           ))}

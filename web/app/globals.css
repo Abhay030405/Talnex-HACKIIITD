@@ -2600,6 +2600,47 @@ a.meta:hover {
   color: var(--color-text-muted);
 }
 
+/* Profile links on the candidate page: one chip per link, with its icon. */
+.link-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: var(--line) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+a.link-chip:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* Profile insights: a tone chip and one plain line each. */
+.insights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.insights__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
 /* ---------- Hackathon pages ---------- */
 
 .panel__foot {

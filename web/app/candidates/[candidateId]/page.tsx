@@ -8,7 +8,9 @@ import { notFound, redirect, unstable_rethrow } from "next/navigation";
 import { CandidateReportView } from "@/components/proof/CandidateReportView";
 import { ProgressPanel } from "@/components/proof/ProgressPanel";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
+import { GlobeIcon, LinkIcon } from "@/components/ui/Icons";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { orderedLinks } from "@/lib/profile-links";
 import { ApiError, apiFetch } from "@/lib/api";
 import { BADGE_CLASS, candidateStatus } from "@/lib/format";
 import { getCandidateProgress } from "@/lib/progress";
@@ -151,11 +153,41 @@ export default async function CandidatePage({
                 </h2>
               </div>
               <dl className="definition panel__body">
+                <dt>Profiles</dt>
+                <dd>
+                  {orderedLinks(candidate.profile_links).length > 0 ? (
+                    <span className="link-chips">
+                      {orderedLinks(candidate.profile_links).map((l) => (
+                        <a key={l.key} className="link-chip" href={l.url} target="_blank" rel="noopener noreferrer">
+                          {l.key === "portfolio" ? <GlobeIcon size={16} /> : <LinkIcon size={16} />}
+                          {l.label}
+                        </a>
+                      ))}
+                    </span>
+                  ) : (
+                    "None on the resume"
+                  )}
+                </dd>
                 <dt>Coding profiles</dt>
                 <dd>
-                  {handles.length > 0
-                    ? handles.map(([site, handle]) => `${SITE_NAMES[site] ?? site}: ${handle}`).join(" · ")
-                    : "None added"}
+                  {handles.length > 0 ? (
+                    <span className="link-chips">
+                      {handles.map(([site, handle]) =>
+                        candidate.coding_links?.[site] ? (
+                          <a key={site} className="link-chip" href={candidate.coding_links[site]} target="_blank" rel="noopener noreferrer">
+                            <LinkIcon size={16} />
+                            {SITE_NAMES[site] ?? site}: {handle}
+                          </a>
+                        ) : (
+                          <span key={site} className="link-chip">
+                            {SITE_NAMES[site] ?? site}: {handle}
+                          </span>
+                        ),
+                      )}
+                    </span>
+                  ) : (
+                    "None added"
+                  )}
                 </dd>
               </dl>
             </section>

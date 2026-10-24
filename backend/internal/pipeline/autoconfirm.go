@@ -61,7 +61,7 @@ func AsFound(f candidates.Found) candidates.Confirmation {
 			profiles[site] = handle
 		}
 	}
-	return candidates.Confirmation{Projects: f.Projects, CodingProfiles: profiles}
+	return candidates.Confirmation{Projects: f.Projects, CodingProfiles: profiles, ProfileLinks: f.ProfileLinks}
 }
 
 // AutoConfirm starts the checks on what the resume reader found, for a candidate whose role has auto_confirm on.

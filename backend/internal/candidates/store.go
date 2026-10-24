@@ -26,8 +26,11 @@ type Candidate struct {
 	RoleLevel     string            `json:"role_level"`
 	RoleID        string            `json:"role_id,omitempty"`
 	CodingHandles map[string]string `json:"coding_handles"`
-	Status        string            `json:"status"`
-	CreatedAt     time.Time         `json:"created_at"`
+	CodingLinks   map[string]string `json:"coding_links"`
+	// ProfileLinks: GitHub, LinkedIn, portfolio, ... from the resume (links only, never email or phone).
+	ProfileLinks map[string]string `json:"profile_links"`
+	Status       string            `json:"status"`
+	CreatedAt    time.Time         `json:"created_at"`
 }
 
 type NewCandidate struct {
@@ -75,20 +78,23 @@ func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool}
 }
 
-const columns = `id::text, coalesce(label, ''), role_level, coalesce(role_id::text, ''), coding_handles, status, created_at`
+const columns = `id::text, coalesce(label, ''), role_level, coalesce(role_id::text, ''), coding_handles, coding_links, profile_links, status, created_at`
 
 func scan(row pgx.Row) (Candidate, error) {
 	var (
-		c   Candidate
-		raw []byte
+		c                    Candidate
+		raw, links, profiles []byte
 	)
-	if err := row.Scan(&c.ID, &c.Label, &c.RoleLevel, &c.RoleID, &raw, &c.Status, &c.CreatedAt); err != nil {
+	if err := row.Scan(&c.ID, &c.Label, &c.RoleLevel, &c.RoleID, &raw, &links, &profiles, &c.Status, &c.CreatedAt); err != nil {
 		return Candidate{}, err
 	}
 	c.CodingHandles = map[string]string{}
 	if err := json.Unmarshal(raw, &c.CodingHandles); err != nil {
 		return Candidate{}, fmt.Errorf("read coding handles: %w", err)
 	}
+	c.CodingLinks, c.ProfileLinks = map[string]string{}, map[string]string{}
+	_ = json.Unmarshal(links, &c.CodingLinks)
+	_ = json.Unmarshal(profiles, &c.ProfileLinks)
 	return c, nil
 }
 
