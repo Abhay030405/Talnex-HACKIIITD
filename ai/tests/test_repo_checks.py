@@ -177,7 +177,7 @@ class TestRepoChecksStage:
         used = {v["tool"]: v for v in out["sponsors"]}
         assert used["Stripe"]["used"] and used["Stripe"]["flag"] is None
         assert used["Twilio"]["in_readme"] and used["Twilio"]["flag"] == "review"
-        assert "repository matches the live site" in out["not_checked"]
+        assert out["repo_vs_live"]["skipped"] and out["repo_vs_live"]["reason"]   # never "not built yet"
 
     def test_running_twice_does_not_pile_up_flags(self, pool, project):
         save_stage(pool, project, "github_check", GITHUB)
