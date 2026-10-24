@@ -216,3 +216,57 @@ func TestTheOpinionScreenshotsBecomeViewLinks(t *testing.T) {
 		t.Fatalf("opinion links: %d %s", resp.StatusCode, body)
 	}
 }
+
+func TestTheEventOverviewShowsEachRunsTimeAndCost(t *testing.T) {
+	srv := setupProof(t)
+	pool := dbtest.Pool(t)
+	event := makeEvent(t, srv.URL, "overview-cost@example.com", fixedEventBody())
+	ran := makeProject(t, srv.URL, "overview-cost@example.com", event, "Ran")
+	makeProject(t, srv.URL, "overview-cost@example.com", event, "Never")
+	ctx := context.Background()
+	var oldJob, newJob, newJob2 string
+	insertJob := func(run int, stage, from, to string) string {
+		t.Helper()
+		var id string
+		if err := pool.QueryRow(ctx, `INSERT INTO jobs (job_type, runner, target_type, target_id, pipeline, run_number, status,
+		      dedupe_key, created_at, updated_at) VALUES ($1, 'python', 'project', $2::uuid, 'hackathon', $3, 'done', $4,
+		      now() - $5::interval, now() - $6::interval) RETURNING id::text`,
+			stage, ran, run, "cost-test:"+stage+":"+ran+":"+from, from, to).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	oldJob = insertJob(1, "claims", "2 hours", "1 hour")      // an earlier run: never counted
+	newJob = insertJob(2, "claims", "300 seconds", "250 seconds")
+	newJob2 = insertJob(2, "live_test", "250 seconds", "60 seconds") // the latest run took 240 s
+	if _, err := pool.Exec(ctx, `INSERT INTO usage_log (job_id, service, cost_usd) VALUES
+	      ($1::uuid, 'azure_foundry', 5), ($2::uuid, 'azure_foundry', 0.05), ($3::uuid, 'tinyfish.main.browser', 0.02)`,
+		oldJob, newJob, newJob2); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, out := call(t, "GET", srv.URL+"/v1/events/"+event+"/overview", "overview-cost@example.com", nil)
+	if resp.StatusCode != 200 {
+		t.Fatalf("overview: %d %s", resp.StatusCode, out)
+	}
+	var got struct {
+		Projects []struct {
+			TeamName   string   `json:"team_name"`
+			RunSeconds *float64 `json:"run_seconds"`
+			RunCostUSD *float64 `json:"run_cost_usd"`
+		} `json:"projects"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	never, done := got.Projects[0], got.Projects[1]
+	if never.TeamName != "Never" || never.RunSeconds != nil || never.RunCostUSD != nil {
+		t.Fatalf("a project never checked has no time or cost: %+v", never)
+	}
+	if done.RunSeconds == nil || *done.RunSeconds < 239 || *done.RunSeconds > 241 {
+		t.Fatalf("run time = %v, want 240 s (the latest run only)", done.RunSeconds)
+	}
+	if done.RunCostUSD == nil || *done.RunCostUSD < 0.0699 || *done.RunCostUSD > 0.0701 {
+		t.Fatalf("run cost = %v, want 0.07 (model 0.05 + browser 0.02, the earlier run left out)", done.RunCostUSD)
+	}
+}
