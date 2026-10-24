@@ -83,6 +83,40 @@ def _parse(text: str, claim_text: str = "") -> _Answer:
     return answer
 
 
+MAX_NOTES = 8
+
+
+def devtools_notes(steps: Sequence, max_notes: int = MAX_NOTES) -> list[str]:
+    """Short lines on what the browser's developer tools saw during the test (runner/devtools.py): error answers,
+    failed requests, console errors and very slow API calls. Background evidence for the proof check, never a verdict:
+    an error answer in the background does not by itself mean the feature failed. Returns at most `max_notes` lines."""
+    notes: list[str] = []
+    seen: set[str] = set()
+
+    def add(line: str) -> None:
+        if line not in seen:
+            seen.add(line)
+            notes.append(line)
+
+    for step in steps:
+        dt = getattr(step, "devtools", None)
+        if not isinstance(dt, dict):
+            continue
+        for c in dt.get("error_responses", []):
+            ms = f", {c['ms']}ms" if c.get("ms") else ""
+            add(f"{c.get('method', 'GET')} {c.get('url', '')} answered {c.get('status')}{ms}")
+        for f in dt.get("failed_requests", []):
+            add(f"request to {f.get('url', '')} failed ({f.get('error', '')})")
+        for e in dt.get("console_errors", []):
+            add(f"console: {e}")
+        for e in dt.get("page_errors", []):
+            add(f"page error: {e}")
+        for c in dt.get("api_calls", []):
+            if c.get("ms", 0) >= 2000:
+                add(f"slow: {c.get('method', 'GET')} {c.get('url', '')} took {c['ms']}ms")
+    return notes[:max_notes]
+
+
 def screens_for_check(steps: Sequence, max_images: int = MAX_IMAGES) -> list[str]:
     """One screenshot per plan step (its last action), then the final state, oldest first.
 
@@ -110,6 +144,7 @@ def check_proof(
     claim_text: str,
     expected_result: str,
     proof_keys: Sequence[Optional[str]],
+    notes: Sequence[str] = (),
     job_id: Optional[str] = None,
     max_images: int = MAX_IMAGES,
     checks: Sequence = (),
@@ -127,11 +162,13 @@ def check_proof(
         return ProofCheck("blocked", "there were no screenshots to look at", False, 0)
 
     if checks:
-        marks, found = ask_json(client, "proof_checker", PARTS_SYSTEM, parts_user(claim_text, numbered(checks), len(pictures)),
+        marks, found = ask_json(client, "proof_checker", PARTS_SYSTEM,
+                                parts_user(claim_text, numbered(checks), len(pictures), notes),
                                 lambda text: _parse_parts(text, claim_text, len(checks)),
                                 job_id=job_id, images=pictures, temperature=0.0)
         return ProofCheck(outcome_from_parts(marks, [getattr(c, "promise", True) for c in checks]), found.seen,
                           found.screenshot_clear, len(pictures), marks)
-    answer = ask_json(client, "proof_checker", SYSTEM, user(claim_text, expected_result, len(pictures)), lambda text: _parse(text, claim_text),
+    answer = ask_json(client, "proof_checker", SYSTEM, user(claim_text, expected_result, len(pictures), notes),
+                      lambda text: _parse(text, claim_text),
                       job_id=job_id, images=pictures, temperature=0.0)
     return ProofCheck(answer.outcome, answer.seen, answer.screenshot_clear, len(pictures))

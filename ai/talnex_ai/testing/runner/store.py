@@ -1,6 +1,8 @@
 """Saves test runs and their steps. Go owns the schema; this only writes rows."""
 from __future__ import annotations
 
+import json
+
 from typing import Optional
 
 from psycopg_pool import ConnectionPool
@@ -27,12 +29,13 @@ def add_steps(pool: ConnectionPool, run_id: str, steps: list[StepRecord]) -> Non
     with pool.connection() as conn, conn.transaction():
         for s in steps:
             conn.execute(
-                """INSERT INTO steps (run_id, step_number, kind, action, expected, observed, proof_key, duration_ms)
-                   VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s)
+                """INSERT INTO steps (run_id, step_number, kind, action, expected, observed, proof_key, duration_ms, devtools)
+                   VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
                    ON CONFLICT (run_id, step_number) DO UPDATE SET
                        action = EXCLUDED.action, expected = EXCLUDED.expected, observed = EXCLUDED.observed,
-                       proof_key = EXCLUDED.proof_key, duration_ms = EXCLUDED.duration_ms""",
-                (run_id, s.step_number, s.kind, s.action, s.expected, s.observed, s.proof_key, s.duration_ms),
+                       proof_key = EXCLUDED.proof_key, duration_ms = EXCLUDED.duration_ms, devtools = EXCLUDED.devtools""",
+                (run_id, s.step_number, s.kind, s.action, s.expected, s.observed, s.proof_key, s.duration_ms,
+                 json.dumps(s.devtools) if s.devtools is not None else None),
             )
 
 
@@ -46,7 +49,7 @@ def finish_run(pool: ConnectionPool, run_id: str, outcome: str) -> None:
 def load_steps(pool: ConnectionPool, run_id: str) -> list[StepRecord]:
     with pool.connection() as conn:
         rows = conn.execute(
-            """SELECT step_number, kind, action, expected, observed, proof_key, duration_ms
+            """SELECT step_number, kind, action, expected, observed, proof_key, duration_ms, devtools
                  FROM steps WHERE run_id = %s::uuid ORDER BY step_number""", (run_id,)).fetchall()
-    fields = ("step_number", "kind", "action", "expected", "observed", "proof_key", "duration_ms")
+    fields = ("step_number", "kind", "action", "expected", "observed", "proof_key", "duration_ms", "devtools")
     return [StepRecord(**dict(zip(fields, row))) for row in rows]

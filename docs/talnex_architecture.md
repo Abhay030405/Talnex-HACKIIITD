@@ -526,7 +526,9 @@ Recruiter mode only. These give evidence, never a verdict.
 - Strong signal: a contest where **all** the person's contest submissions are Skipped.
 - Every rated contest is also checked for single **Skipped problems** in a contest that was otherwise judged. Codeforces gives no reason for a Skip, so each one is a hint: weight Medium when no later resubmission of that problem explains it, Not suspicious when one does (only the last try of a problem is judged).
 
-**LeetCode** (TinyFish Agent + Browser, Python):
+**LeetCode public data** (Python, no login): read from LeetCode's own public data endpoint (`LEETCODE_GRAPHQL_URL`, the same no-login JSON its profile pages load) — solved counts, contest rating, and the contest history. A contest the user **joined but has no standing in** (attended, yet rank 0 and 0 solved) is the public trace LeetCode leaves when it voids a result, for example after its own plagiarism check; it is kept as a Medium signal (`leetcode_removed_contest`), evidence to look at, never proof. If the endpoint blocks the request, the result is "could not check", never a mark against the candidate. (Without the setting, the public profile page is read through Fetch instead.)
+
+**LeetCode Code Replay** (TinyFish Agent + Browser, Python; not built yet — needs a team session, see rule 6):
 1. Read the public contest history.
 2. Log in with the team LeetCode account from Vault.
 3. Open the contest ranking, find the candidate, and open Code Replay for each solved problem.
@@ -1013,7 +1015,7 @@ The review gives notes with file and line references. It is shown beside the res
 
 - The repo's `.env.example` is read. Missing values get **harmless placeholders** (fake keys, local database address). The repo is never given a real key.
 - Features that need a real third party (payment, email, model API) are marked "needs external service" and are not tested; the core of the route may still answer, and the response is recorded.
-- Services the repo needs (database, cache) are started from its compose file or from the recipe.
+- Services the repo needs (database, cache) are started **beside the VM**. When the recipe lists a backing store (`postgres`, `redis`, `mongodb`, detected from dependencies, `.env.example` or compose), sandboxd starts that official image as its own throwaway container on a **private network** the VM joins, reachable by the service name, and the repo is given the **real connection settings** (`DATABASE_URL`, `REDIS_URL`, ...) instead of the placeholder. At most two services per run; each is capped, holds no real data, and is destroyed with the VM and its network. Only services in the fixed catalogue can be started; anything else is refused. This widens the sandbox's surface (28.13 hardening still applies: only repos we chose are run until then).
 - A repo that cannot start without a real external key is **Could not run: needs external key**, shown plainly.
 
 ### 28.10 Never-blame in the sandbox

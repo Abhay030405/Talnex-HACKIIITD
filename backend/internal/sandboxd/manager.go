@@ -25,10 +25,11 @@ type VM struct {
 
 // CreateRequest asks for a VM. Zero values mean "the host's default"; asking for more than the host allows is capped.
 type CreateRequest struct {
-	Image            string `json:"image"`
-	CPUs             int    `json:"cpus"`
-	MemoryMB         int    `json:"memory_mb"`
-	TimeLimitSeconds int    `json:"time_limit_seconds"`
+	Image            string   `json:"image"`
+	CPUs             int      `json:"cpus"`
+	MemoryMB         int      `json:"memory_mb"`
+	TimeLimitSeconds int      `json:"time_limit_seconds"`
+	Services         []string `json:"services,omitempty"`
 }
 
 // Manager applies the host's rules on top of a driver.
@@ -69,11 +70,16 @@ func (m *Manager) Create(ctx context.Context, req CreateRequest) (VM, error) {
 	if strings.ContainsAny(req.Image, " \t\r\n;&|$`'\"\\") {
 		return VM{}, bad("image name has characters that are not allowed")
 	}
+	services, err := cleanServices(req.Services)
+	if err != nil {
+		return VM{}, err
+	}
 	spec := VMSpec{
 		Image:     req.Image,
 		CPUs:      capInt(req.CPUs, m.lim.CPUs),
 		MemoryMB:  capInt(req.MemoryMB, m.lim.MemoryMB),
 		TimeLimit: time.Duration(capInt(req.TimeLimitSeconds, int(m.lim.TimeLimit.Seconds()))) * time.Second,
+		Services:  services,
 	}
 
 	id := uuid.NewString()
@@ -97,6 +103,27 @@ func (m *Manager) Create(ctx context.Context, req CreateRequest) (VM, error) {
 }
 
 // capInt returns the asked value when it is positive and not above the allowed one, else the allowed one.
+// cleanServices keeps the known, de-duplicated services in order, and refuses an unknown one or too many.
+func cleanServices(asked []string) ([]string, error) {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(asked))
+	for _, s := range asked {
+		s = strings.TrimSpace(strings.ToLower(s))
+		if s == "" || seen[s] {
+			continue
+		}
+		if _, ok := ServiceCatalog[s]; !ok {
+			return nil, bad("the sandbox cannot start a %q service", s)
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	if len(out) > MaxServices {
+		return nil, bad("a run may ask for at most %d services, not %d", MaxServices, len(out))
+	}
+	return out, nil
+}
+
 func capInt(asked, allowed int) int {
 	if asked <= 0 || asked > allowed {
 		return allowed

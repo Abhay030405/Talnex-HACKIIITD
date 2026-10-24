@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	labelAll = "talnex.sandbox"
-	labelVM  = "talnex.vm"
+	labelAll  = "talnex.sandbox"
+	labelVM   = "talnex.vm"
+	labelRole = "talnex.role" // "app" (the VM itself) or "svc" (a backing store beside it)
 	// A container stays alive a little past the VM's time limit by itself, so a crashed daemon cannot leave one
 	// running forever even before the reaper looks.
 	selfDestructSlack = 60 * time.Second
@@ -60,7 +61,9 @@ func realCLI(bin string) cli {
 	}
 }
 
-func name(id string) string { return "talnex-vm-" + id }
+func name(id string) string             { return "talnex-vm-" + id }
+func netName(id string) string          { return "talnex-net-" + id }
+func svcName(id, service string) string { return "talnex-svc-" + id + "-" + service }
 
 // simple runs a docker command and returns its stdout, or an error carrying docker's own message.
 func (d *Docker) simple(ctx context.Context, stdin io.Reader, args ...string) (string, error) {
@@ -82,16 +85,68 @@ func (d *Docker) Ping(ctx context.Context) error {
 
 func (d *Docker) Create(ctx context.Context, id string, spec sandboxd.VMSpec) error {
 	life := int((spec.TimeLimit + selfDestructSlack).Seconds())
-	_, err := d.simple(ctx, nil, "run", "-d", "--init",
+	args := []string{"run", "-d", "--init",
 		"--name", name(id),
-		"--label", labelAll+"=1", "--label", labelVM+"="+id,
+		"--label", labelAll + "=1", "--label", labelVM + "=" + id, "--label", labelRole + "=app",
 		"--cpus", strconv.Itoa(spec.CPUs),
-		"--memory", strconv.Itoa(spec.MemoryMB)+"m", "--memory-swap", strconv.Itoa(spec.MemoryMB)+"m",
+		"--memory", strconv.Itoa(spec.MemoryMB) + "m", "--memory-swap", strconv.Itoa(spec.MemoryMB) + "m",
 		"--pids-limit", "1024",
 		"--security-opt", "no-new-privileges",
 		"-w", "/work",
-		spec.Image, "sleep", strconv.Itoa(life))
-	return err
+	}
+	// Backing stores run on a private network beside the VM, reachable from it by service name. The VM joins it too.
+	if len(spec.Services) > 0 {
+		if err := d.startServices(ctx, id, spec); err != nil {
+			_ = d.Destroy(ctx, id) // tear down any part that did start
+			return err
+		}
+		args = append(args, "--network", netName(id), "--network-alias", "app")
+	}
+	args = append(args, spec.Image, "sleep", strconv.Itoa(life))
+	if _, err := d.simple(ctx, nil, args...); err != nil {
+		_ = d.Destroy(ctx, id)
+		return err
+	}
+	return nil
+}
+
+// startServices makes the private network and starts each backing store on it, with the service name as its network
+// alias. A service is capped like the VM; it holds no real data and is destroyed with the VM.
+func (d *Docker) startServices(ctx context.Context, id string, spec sandboxd.VMSpec) error {
+	if _, err := d.simple(ctx, nil, "network", "create", "--label", labelAll+"=1", "--label", labelVM+"="+id, netName(id)); err != nil {
+		return fmt.Errorf("create sandbox network: %w", err)
+	}
+	mem := strconv.Itoa(spec.MemoryMB) + "m"
+	for _, service := range spec.Services {
+		cat, ok := sandboxd.ServiceCatalog[service]
+		if !ok {
+			return fmt.Errorf("unknown service %q", service)
+		}
+		args := []string{"run", "-d", "--init",
+			"--name", svcName(id, service),
+			"--label", labelAll + "=1", "--label", labelVM + "=" + id, "--label", labelRole + "=svc",
+			"--network", netName(id), "--network-alias", service,
+			"--memory", mem, "--memory-swap", mem, "--pids-limit", "512",
+			"--security-opt", "no-new-privileges",
+		}
+		for _, k := range sortedKeys(cat.Env) {
+			args = append(args, "-e", k+"="+cat.Env[k])
+		}
+		args = append(args, cat.Image)
+		if _, err := d.simple(ctx, nil, args...); err != nil {
+			return fmt.Errorf("start %s: %w", service, err)
+		}
+	}
+	return nil
+}
+
+func sortedKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (d *Docker) CopyIn(ctx context.Context, id, dir string, archive io.Reader) error {
@@ -174,15 +229,24 @@ func (d *Docker) Exec(ctx context.Context, id string, spec sandboxd.ExecSpec) (s
 }
 
 func (d *Docker) Destroy(ctx context.Context, id string) error {
-	_, err := d.simple(ctx, nil, "rm", "-f", name(id))
-	if err != nil && strings.Contains(err.Error(), "No such container") {
-		return nil // already gone
+	// Remove the VM and any backing-store containers that share its label, then the private network.
+	ids, _ := d.simple(ctx, nil, "ps", "-aq", "--filter", "label="+labelVM+"="+id)
+	containers := strings.Fields(ids)
+	if len(containers) == 0 {
+		containers = []string{name(id)} // fall back to the VM by name
 	}
-	return err
+	_, err := d.simple(ctx, nil, append([]string{"rm", "-f"}, containers...)...)
+	if err != nil && !strings.Contains(err.Error(), "No such container") {
+		return err
+	}
+	// The network is removed last, once nothing is attached. It is best-effort: a leftover empty network is harmless
+	// and never a reason to report the VM as not destroyed.
+	_, _ = d.simple(ctx, nil, "network", "rm", netName(id))
+	return nil
 }
 
 func (d *Docker) List(ctx context.Context) ([]string, error) {
-	out, err := d.simple(ctx, nil, "ps", "-aq", "--filter", "label="+labelAll+"=1", "--format", `{{.Label "`+labelVM+`"}}`)
+	out, err := d.simple(ctx, nil, "ps", "-aq", "--filter", "label="+labelRole+"=app", "--format", `{{.Label "`+labelVM+`"}}`)
 	if err != nil {
 		return nil, err
 	}

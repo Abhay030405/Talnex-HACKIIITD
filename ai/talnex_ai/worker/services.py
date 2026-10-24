@@ -29,6 +29,7 @@ class Services:
     mailbox_for: Callable[[str], Optional[Any]]      # site host -> the sign-up inbox reader, or None
     uploads_root: Optional[Path]                     # the only folder the agent may upload test files from
     connect: Callable = driver_module.connect        # how to attach Playwright to a remote browser
+    browser: Optional[Any] = None                    # browser provider for the live test (TinyFish, or a fallback); None -> tinyfish
     smsbox_for: Optional[Callable[[str], Optional[Any]]] = None  # site host -> the team phone's texts, or None
     sandbox: Optional[Any] = None                    # SandboxClient for the VM host, None when it is not set up
 
@@ -65,9 +66,18 @@ def build_services(pool: ConnectionPool, cfg: Optional[settings_module.Settings]
     from talnex_ai.tinyfish.budget import Budget
     from talnex_ai.tinyfish.client import TinyFishClient
 
+    from talnex_ai.tinyfish.budget import BudgetExceeded
+    from talnex_ai.tinyfish.client import TinyFishError
+
     cfg = cfg or settings_module.load()
     model = build_llm_client(cfg, lambda **usage: log_usage(pool, **usage))
     tinyfish = TinyFishClient(cfg.tinyfish, Budget(cfg.tinyfish, pool))
+    browser = tinyfish
+    if cfg.browserless_cdp_url:
+        from talnex_ai.browser import BrowserlessProvider, FallbackBrowser
+        backup = BrowserlessProvider(cfg.browserless_cdp_url, cfg.browserless_token)
+        browser = FallbackBrowser(tinyfish, backup, errors=(TinyFishError, BudgetExceeded))
+        log.info("browser fallback is on: TinyFish, then Browserless if it is unavailable")
     files = Store(cfg.s3)
     files.ensure_bucket()
 
@@ -89,4 +99,4 @@ def build_services(pool: ConnectionPool, cfg: Optional[settings_module.Settings]
         log.info("the sandbox host is not set up (SANDBOXD_URL), so repositories are not run")
     # Built even when off: the sandbox stages check the setting and skip, and any other call gets a clear error.
     return Services(cfg, pool, model, tinyfish, files, mailbox_for, Path(cfg.runner.uploads_dir),
-                    smsbox_for=smsbox_for, sandbox=SandboxClient(cfg.sandbox))
+                    browser=browser, smsbox_for=smsbox_for, sandbox=SandboxClient(cfg.sandbox))

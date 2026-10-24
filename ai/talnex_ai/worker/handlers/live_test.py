@@ -26,7 +26,7 @@ from talnex_ai.safety.site_rules import LimitReached, RunLimits
 from talnex_ai.scoring.flags.store import add_flag
 from talnex_ai.scoring.store import save_result
 from talnex_ai.testing.planner.planner import plan_claim
-from talnex_ai.testing.proof_check import check_proof, screens_for_check
+from talnex_ai.testing.proof_check import check_proof, devtools_notes, screens_for_check
 from talnex_ai.testing.retries import LadderDeps, judge_claim, to_result
 from talnex_ai.testing.runner.runner import run_plan
 from talnex_ai.worker.registry import JobContext, stage
@@ -102,7 +102,8 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
                          "Hidden text aimed at an AI checker was found on the live site", finding.as_flag_evidence())
 
         def run(p: TestPlan):
-            return run_plan(pool=sv.pool, store_files=sv.files, tinyfish=sv.tinyfish, client=sv.model, claim=claim,
+            return run_plan(pool=sv.pool, store_files=sv.files, tinyfish=getattr(sv, "browser", None) or sv.tinyfish,
+                            client=sv.model, claim=claim,
                             plan=p, site_url=info.live_url, subject_id=info.id, limits=limits, runner_cfg=cfg.runner,
                             uploads_root=sv.uploads_root, way_in=way_in.instructions, mailbox=mailbox, smsbox=smsbox,
                             job_id=job_id, connect=sv.connect, on_hidden_text=on_hidden_text, on_event=ev)
@@ -115,9 +116,10 @@ def judge_one(sv: Any, info: SubjectInfo, claim: Claim, saved: Mapping[str, Any]
 
         def check(record, p: TestPlan):
             screens = screens_for_check(record.steps)
+            notes = devtools_notes(record.steps)
             ev.emit("check.started", images=len(screens))
             found = check_proof(sv.model, sv.files, claim_text=claim.text, expected_result=p.expected_result,
-                                proof_keys=screens, job_id=job_id, checks=p.checks)
+                                proof_keys=screens, notes=notes, job_id=job_id, checks=p.checks)
             ev.emit("check", outcome=found.outcome, seen=found.seen, images=found.images_used, parts=list(found.parts))
             return found
 

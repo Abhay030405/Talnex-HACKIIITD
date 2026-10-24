@@ -100,6 +100,18 @@ services:
       timeout: 3s
       retries: 10
 
+  # Optional self-hosted browser for the live test fallback. Off by default; start with:
+  #   docker compose --profile browser up -d
+  # Then set BROWSERLESS_CDP_URL=ws://browserless:3000 in .env. Plain Chrome only (no stealth/CAPTCHA/proxies).
+  browserless:
+    image: ghcr.io/browserless/chromium:v2.24.0
+    profiles: ["browser"]
+    environment:
+      CONCURRENT: 2
+      TIMEOUT: 120000
+    ports:
+      - "3000:3000"
+
 volumes:
   postgres_data:
   s3_data:

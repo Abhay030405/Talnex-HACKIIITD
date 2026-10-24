@@ -78,6 +78,15 @@ def test_a_plan_runs_with_a_screenshot_per_action():
     assert all(r.proof_key for r in result.records) and len(saved) == 3
 
 
+def test_devtools_from_the_browser_are_saved_on_each_step_record():
+    model = ScriptedModel(act(type="press", key="Enter"), done("milk is listed"), verdict())
+    # the driver hands out one drain() per step record (the action, then the final check)
+    seen = [{"api_calls": [{"method": "POST", "url": "https://x/api/save", "status": 500, "ms": 120}]}, None]
+    result, _ = run(model, FakeDriver(devtools=list(seen)))
+    assert result.records[0].devtools == seen[0] and result.records[0].devtools["api_calls"][0]["status"] == 500
+    assert result.records[1].devtools is None
+
+
 def test_a_failed_action_is_told_to_the_model_with_a_picture():
     model = ScriptedModel(act(type="click", target={"kind": "text", "name": "Add"}),
                           act(type="click", target={"kind": "role", "role": "button", "name": "Add"}),

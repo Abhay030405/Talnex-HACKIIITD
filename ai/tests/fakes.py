@@ -54,7 +54,8 @@ class FakeDriver:
     """A pretend page. Each successful action moves it to the next scripted page state."""
 
     def __init__(self, snapshots: Optional[list[str]] = None, *, url="https://demo.example.com/",
-                 fail: frozenset = frozenset(), hidden: Optional[list[str]] = None):
+                 fail: frozenset = frozenset(), hidden: Optional[list[str]] = None, devtools: Optional[list] = None):
+        self.devtools_seen = list(devtools or [])  # handed out one per step record, like a real driver's drain
         self.snapshots = snapshots or [LONG_PAGE]
         self.position = 0
         self.fail = set(fail)
@@ -79,6 +80,9 @@ class FakeDriver:
 
     def hidden_text(self) -> list[str]:
         return list(self.hidden)
+
+    def devtools(self) -> Optional[dict]:
+        return self.devtools_seen.pop(0) if self.devtools_seen else None
 
     def perform(self, action, uploads_root) -> None:
         self.attempts += 1

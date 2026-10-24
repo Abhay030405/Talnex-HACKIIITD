@@ -152,11 +152,14 @@ class SandboxClient:
             raise SandboxUnavailable(f"the sandbox host is not healthy: {data.get('status')}")
         return data
 
-    def create_vm(self, image: str, *, cpus: int = 0, memory_mb: int = 0, time_limit_seconds: int = 0) -> VmInfo:
-        """Make a fresh VM. When the host is full this waits, up to the configured time, for a place to open."""
+    def create_vm(self, image: str, *, cpus: int = 0, memory_mb: int = 0, time_limit_seconds: int = 0,
+                  services=()) -> VmInfo:
+        """Make a fresh VM. When the host is full this waits, up to the configured time, for a place to open.
+        `services` are backing stores (postgres, redis...) to start beside it; the host refuses any it does not know."""
         deadline = self._clock() + self.cfg.busy_wait_seconds
         body = {"image": image, "cpus": cpus, "memory_mb": memory_mb,
-                "time_limit_seconds": time_limit_seconds or self.cfg.vm_time_limit_seconds}
+                "time_limit_seconds": time_limit_seconds or self.cfg.vm_time_limit_seconds,
+                "services": list(services)}
         while True:
             try:
                 data = self._call("POST", "/v1/vms", json_body=body, ok=(201,)).json()

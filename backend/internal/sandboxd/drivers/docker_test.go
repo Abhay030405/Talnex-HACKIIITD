@@ -155,7 +155,70 @@ func TestListReturnsTheIdsOfOurContainersOnly(t *testing.T) {
 	if err != nil || len(ids) != 2 || ids[0] != "id-1" {
 		t.Errorf("ids %v err %v", ids, err)
 	}
-	if line := strings.Join(s.calls[0], " "); !strings.Contains(line, "label=talnex.sandbox=1") {
-		t.Errorf("docker %s", line)
+	if line := strings.Join(s.calls[0], " "); !strings.Contains(line, "label=talnex.role=app") {
+		t.Errorf("list should count only the VM containers, not the backing stores: docker %s", line)
+	}
+}
+
+func TestServicesRunOnAPrivateNetworkTheVMJoins(t *testing.T) {
+	s := &script{}
+	err := driver(s).Create(context.Background(), "abc", sandboxd.VMSpec{
+		Image: "talnex-sandbox-full", CPUs: 2, MemoryMB: 1024, TimeLimit: 10 * time.Minute, Services: []string{"postgres"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var netCreate, svcRun, appRun string
+	for _, c := range s.calls {
+		line := strings.Join(c, " ")
+		switch {
+		case strings.HasPrefix(line, "network create"):
+			netCreate = line
+		case strings.Contains(line, "talnex-svc-abc-postgres"):
+			svcRun = line
+		case strings.Contains(line, "--name talnex-vm-abc"):
+			appRun = line
+		}
+	}
+	if !strings.Contains(netCreate, "talnex-net-abc") {
+		t.Errorf("no private network was created: %q", netCreate)
+	}
+	for _, want := range []string{"--network talnex-net-abc", "--network-alias postgres", "-e POSTGRES_PASSWORD=talnex",
+		"-e POSTGRES_USER=talnex", "postgres:16-alpine", "talnex.role=svc"} {
+		if !strings.Contains(svcRun, want) {
+			t.Errorf("service run\n %s\n lacks %q", svcRun, want)
+		}
+	}
+	for _, want := range []string{"--network talnex-net-abc", "--network-alias app", "talnex.role=app"} {
+		if !strings.Contains(appRun, want) {
+			t.Errorf("app run\n %s\n lacks %q", appRun, want)
+		}
+	}
+}
+
+func TestDestroyRemovesEveryContainerOfTheVMAndItsNetwork(t *testing.T) {
+	s := &script{reply: func(args []string) (string, string, int) {
+		if len(args) >= 2 && args[0] == "ps" {
+			return "cid_app\ncid_pg\n", "", 0
+		}
+		return "", "", 0
+	}}
+	if err := driver(s).Destroy(context.Background(), "abc"); err != nil {
+		t.Fatal(err)
+	}
+	var rm, netRm bool
+	for _, c := range s.calls {
+		line := strings.Join(c, " ")
+		if strings.HasPrefix(line, "rm -f") && strings.Contains(line, "cid_app") && strings.Contains(line, "cid_pg") {
+			rm = true
+		}
+		if line == "network rm talnex-net-abc" {
+			netRm = true
+		}
+	}
+	if !rm {
+		t.Error("destroy should remove every container of the VM in one rm")
+	}
+	if !netRm {
+		t.Error("destroy should remove the private network")
 	}
 }

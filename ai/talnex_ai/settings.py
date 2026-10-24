@@ -220,6 +220,12 @@ class Settings:
     copy: CopySettings = field(default_factory=CopySettings)
     authorship: AuthorshipSettings = field(default_factory=AuthorshipSettings)
     walkthrough: WalkthroughSettings = field(default_factory=WalkthroughSettings)
+    # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
+    leetcode_graphql_url: str = ""
+    # A plain Chrome-over-CDP endpoint (e.g. self-hosted or hosted Browserless /chromium) used as a backup browser when
+    # TinyFish is unavailable. Plain browser only: stealth, CAPTCHA solving and proxies are never used. Empty: off.
+    browserless_cdp_url: str = ""
+    browserless_token: str = ""
 
 
 class _Env:
@@ -427,4 +433,6 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
-                    walkthrough=walkthrough)
+                    walkthrough=walkthrough, leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                    browserless_cdp_url=env.url("BROWSERLESS_CDP_URL", required=False),
+                    browserless_token=env.optional("BROWSERLESS_TOKEN"))
