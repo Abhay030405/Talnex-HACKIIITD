@@ -1,4 +1,4 @@
-import { Closing, Doors } from "@/components/landing/Doors";
+import { Doors } from "@/components/landing/Doors";
 import { Hero } from "@/components/landing/Hero";
 import { Process } from "@/components/landing/Process";
 import { Specimen } from "@/components/landing/Specimen";
@@ -13,7 +13,6 @@ export default async function Home() {
       <Process />
       <Specimen />
       <Doors />
-      <Closing />
     </>
   );
 }

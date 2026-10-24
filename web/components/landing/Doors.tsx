@@ -30,19 +30,3 @@ export function Doors() {
     </section>
   );
 }
-
-export function Closing() {
-  return (
-    <section className="closing wrap" aria-labelledby="closing-title">
-      <h2 className="closing__title" id="closing-title">
-        Stop grading the demo video.
-      </h2>
-      <div className="closing__side">
-        <p>Your first proof card takes about five minutes.</p>
-        <ButtonLink href="/login" variant="primary" size="lg">
-          Check a project
-        </ButtonLink>
-      </div>
-    </section>
-  );
-}
