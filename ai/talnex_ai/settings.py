@@ -131,6 +131,20 @@ class EmailSettings:
 
 
 @dataclass(frozen=True)
+class PhoneSettings:
+    """The team SIM for the phone way in (login ladder). Texts reach us through the API (the
+    `inbound_sms` table). An empty number means phone sign-up is off."""
+
+    number: str
+    wait_seconds: int
+    poll_seconds: int
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.number)
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
@@ -140,6 +154,7 @@ class Settings:
     tinyfish: TinyFishSettings
     runner: RunnerSettings
     email: EmailSettings
+    phone: PhoneSettings = field(default_factory=lambda: PhoneSettings("", 90, 3))
 
 
 class _Env:
@@ -297,8 +312,13 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         poll_seconds=env.whole("AGENTMAIL_POLL_SECONDS", 3),
         login_secret=env.optional("EMAIL_LOGIN_SECRET"),
     )
+    phone = PhoneSettings(
+        number=env.optional("TEAM_PHONE_NUMBER"),
+        wait_seconds=env.whole("SMS_WAIT_SECONDS", 90),
+        poll_seconds=env.whole("SMS_POLL_SECONDS", 3),
+    )
     database_url = env.required("DATABASE_URL")
 
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
-                    runner=runner, email=email)
+                    runner=runner, email=email, phone=phone)
