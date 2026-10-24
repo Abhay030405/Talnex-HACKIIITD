@@ -130,7 +130,8 @@ def check_proof(
         marks, found = ask_json(client, "proof_checker", PARTS_SYSTEM, parts_user(claim_text, numbered(checks), len(pictures)),
                                 lambda text: _parse_parts(text, claim_text, len(checks)),
                                 job_id=job_id, images=pictures, temperature=0.0)
-        return ProofCheck(outcome_from_parts(marks), found.seen, found.screenshot_clear, len(pictures), marks)
+        return ProofCheck(outcome_from_parts(marks, [getattr(c, "promise", True) for c in checks]), found.seen,
+                          found.screenshot_clear, len(pictures), marks)
     answer = ask_json(client, "proof_checker", SYSTEM, user(claim_text, expected_result, len(pictures)), lambda text: _parse(text, claim_text),
                       job_id=job_id, images=pictures, temperature=0.0)
     return ProofCheck(answer.outcome, answer.seen, answer.screenshot_clear, len(pictures))

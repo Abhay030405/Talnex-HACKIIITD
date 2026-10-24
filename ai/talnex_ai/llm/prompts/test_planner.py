@@ -26,7 +26,8 @@ Each plan has:
 - "test_type": the type name you were given.
 - "steps": between 1 and 10 steps. Each step has "action" (what to do, in plain words, like telling a person) and "expected" (what should be visible afterwards, something a person could check on screen).
 - "expected_result": one sentence saying what the finished test should show if the claim is true.
-- "checks" (only for "normal" and "access" plans): the claim split into the 1 to 4 separate things it promises, each {{"text": "what must be visible if this part is true", "quote": "the exact words of the claim this part proves, copied from the claim"}}. Every promise in the claim gets a check, and nothing that is not in the claim does. A claim that something is THERE gets a check that it is there, not a check of what it produces.
+- "checks" (only for "normal" and "access" plans): the claim split into the 1 to 4 separate things it promises, each {{"text": "what must be visible if this part is true", "quote": "the exact words of the claim this part proves, copied from the claim", "promise": true or false}}. Every promise in the claim gets a check, and nothing that is not in the claim does. "promise" is true for what the claim says the visitor GETS (a caption appears, the count updates, the note stays after a reload) and false for a step on the way to it (open the page, choose a photo, type in the box). At least one check is a promise. A claim that something is THERE gets a check that it is there, and that check is the promise.
+- When a claim is about what a signed-out or first-time visitor sees, add a step "start fresh as a new visitor" before checking it.
 
 Rules:
 - The first step is always to open the site and, where needed, sign in using the way in you are given.

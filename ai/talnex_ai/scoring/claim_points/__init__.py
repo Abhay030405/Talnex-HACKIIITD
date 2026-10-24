@@ -30,6 +30,7 @@ class Evidence:
     agent_parts: tuple[str, ...] = ()
     checker_parts: tuple[str, ...] = ()
     part_names: tuple[str, ...] = ()
+    part_promises: tuple[bool, ...] = ()  # True for what the claim promises, False for a step on the way to it
 
 
 @dataclass(frozen=True)
@@ -49,10 +50,18 @@ def confidence_value(confidence: str) -> Optional[float]:
     return CONFIDENCE_VALUE.get(confidence)
 
 
-def outcome_from_parts(marks: Sequence[str]) -> Outcome:
-    """One judge's outcome from its marks: every part seen works; a part not seen makes it partly working, or
-    broken when nothing was seen; a part that couldn't be judged means the test could not show it (blocked)."""
-    parts = [m for m in marks if m != "beyond_claim"]
+def _promised(marks: Sequence[str], promises: Sequence[bool] = ()) -> list[str]:
+    """The marks that decide the verdict: the parts the claim promises. A step on the way only matters through the
+    promise it leads to (when the step fails, the promise can't be shown). Without promise flags, every part counts."""
+    if promises and len(promises) == len(marks) and any(promises):
+        return [m for m, p in zip(marks, promises) if p]
+    return list(marks)
+
+
+def outcome_from_parts(marks: Sequence[str], promises: Sequence[bool] = ()) -> Outcome:
+    """One judge's outcome from its marks: every promised part seen works; a promised part not seen makes it partly
+    working, or broken when no promised part was seen; a part that couldn't be judged means the test could not show it."""
+    parts = [m for m in _promised(marks, promises) if m != "beyond_claim"]
     if not parts:
         return "blocked"
     if all(m == "seen" for m in parts):
@@ -87,7 +96,10 @@ def _name(e: Evidence, i: int) -> str:
 
 def _decide_parts(e: Evidence) -> Decision:
     merged = [merge_part(a, c) for a, c in zip(e.agent_parts, e.checker_parts)]
-    judged = [(i, s, n) for i, (s, n) in enumerate(merged) if s != "beyond_claim"]
+    promised = set(range(len(merged)))
+    if e.part_promises and len(e.part_promises) == len(merged) and any(e.part_promises):
+        promised = {i for i, p in enumerate(e.part_promises) if p}
+    judged = [(i, s, n) for i, (s, n) in enumerate(merged) if s != "beyond_claim" and i in promised]
     if not judged:
         return Decision("could_not_test", "low", "no part of the claim could be judged")
     disputed = [_name(e, i) for i, s, _ in judged if s == "disputed"]

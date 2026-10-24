@@ -75,7 +75,8 @@ def part_marks(run: RunRecord, check: ProofCheck, plan: TestPlan) -> dict:
     run_parts, check_parts = getattr(run, "parts", ()) or (), getattr(check, "parts", ()) or ()
     if plan_checks and len(run_parts) == len(check_parts) == len(plan_checks):
         return {"agent_parts": tuple(run_parts), "checker_parts": tuple(check_parts),
-                "part_names": tuple(c.text for c in plan_checks)}
+                "part_names": tuple(c.text for c in plan_checks),
+                "part_promises": tuple(getattr(c, "promise", True) for c in plan_checks)}
     return {}
 
 

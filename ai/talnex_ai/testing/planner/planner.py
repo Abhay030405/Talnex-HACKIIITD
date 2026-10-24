@@ -119,6 +119,9 @@ def check_parts(plan: TestPlan, claim_text: str) -> None:
     """A main plan splits its claim into checks, each quoting the claim, together covering most of it."""
     if not plan.checks:
         raise FormatError(f'the {plan.test_type} plan has no "checks": split the claim into the 1 to 4 things it promises')
+    if not any(c.promise for c in plan.checks):
+        raise FormatError(f'the {plan.test_type} plan marks no check as a promise: mark what the claim says the visitor '
+                          'gets with "promise": true')
     if len(plan.checks) > 4:
         raise FormatError(f"the {plan.test_type} plan has {len(plan.checks)} checks; use at most 4")
     for i, check in enumerate(plan.checks, start=1):

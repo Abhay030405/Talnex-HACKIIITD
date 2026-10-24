@@ -53,6 +53,8 @@ class Check(_Shape):
 
     text: str = Field(min_length=3, max_length=240, description="What must be visible if this part of the claim is true")
     quote: str = Field(default="", max_length=240, description="The words of the claim this part proves, copied exactly")
+    # True: something the claim promises the visitor gets. False: a step on the way to it (open a page, choose a photo).
+    promise: bool = True
 
 
 class TestPlan(_Shape):
