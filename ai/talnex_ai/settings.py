@@ -239,6 +239,13 @@ class InsightSettings:
     hard_share: float = 0.1        # hard share at or above this (with 35% medium) -> strength
     stars_strength: int = 20       # stars across original repos for a strength
     collab_prs: int = 3            # pull requests on others' repos for a strength
+    date_slack_months: int = 1     # resume vs GitHub: months of slack around the claimed dates
+    outside_share: float = 0.5     # share of commits outside the claimed dates that is worth a look
+    solo_other_share: float = 0.2  # a "solo" project with another contributor at this share or more is worth a look
+    own_share_min: float = 0.3     # the candidate's commit share below this (with others) is worth a look
+    burst_claimed_months: int = 2  # claimed this many months or more ...
+    burst_days_share: float = 0.8  # ... but this share of commits on two days -> worth a look
+    claims_max_pages: int = 3      # GitHub commit pages (100 each) read per resume repo
 
 
 @dataclass(frozen=True)
@@ -508,7 +515,14 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
                         easy_share=env.decimal("INSIGHT_EASY_SHARE", 0.7, 0.1, 1.0),
                         hard_share=env.decimal("INSIGHT_HARD_SHARE", 0.1, 0.01, 1.0),
                         stars_strength=env.whole("INSIGHT_STARS_STRENGTH", 20),
-                        collab_prs=env.whole("INSIGHT_COLLAB_PRS", 3)), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                        collab_prs=env.whole("INSIGHT_COLLAB_PRS", 3),
+                        date_slack_months=env.whole("INSIGHT_DATE_SLACK_MONTHS", 1),
+                        outside_share=env.decimal("INSIGHT_OUTSIDE_SHARE", 0.5, 0.05, 1.0),
+                        solo_other_share=env.decimal("INSIGHT_SOLO_OTHER_SHARE", 0.2, 0.01, 1.0),
+                        own_share_min=env.decimal("INSIGHT_OWN_SHARE_MIN", 0.3, 0.01, 1.0),
+                        burst_claimed_months=env.whole("INSIGHT_BURST_CLAIMED_MONTHS", 2),
+                        burst_days_share=env.decimal("INSIGHT_BURST_DAYS_SHARE", 0.8, 0.1, 1.0),
+                        claims_max_pages=env.whole("INSIGHT_CLAIMS_MAX_PAGES", 3)), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
                     github_api_base_url=env.url("GITHUB_API_BASE_URL", required=False) or "https://api.github.com",
                     github_token=env.optional("GITHUB_TOKEN"),
                     codeforces_api_base_url=env.url("CODEFORCES_API_BASE_URL", required=False) or "https://codeforces.com/api",
