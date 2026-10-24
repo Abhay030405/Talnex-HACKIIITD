@@ -3,6 +3,8 @@
 // It works only when the site runs with TALNEX_DOCS_DEV_TOKENS=true, on this computer.
 import { type FormEvent, useEffect, useState } from 'react';
 
+import { storeSessionToken } from '@/lib/docs/playground-auth';
+
 type State =
   | { kind: 'checking' }
   | { kind: 'off' }
@@ -122,16 +124,17 @@ export function SessionToken() {
     const r = await fetch('/api/docs/session-token', { method: 'POST' });
     const d = await r.json();
     if (!r.ok) return setState({ kind: 'error', message: d.error ?? 'Could not make a token.' });
+    // Fill every playground's Authorization field with it, then show it here too.
+    storeSessionToken(d);
     setState({ kind: 'done', token: d.token, expiresAt: d.expires_at, role: d.role, email: d.email });
-    await copy(d.token).catch(() => undefined);
   }
 
   return (
     <div className="tx-token">
       <p className="tx-token__title">Use my session</p>
       <p className="tx-token__note">
-        Signed in to TalNex? Get a short-lived token for your own account and call the API as yourself. It is copied for
-        you: paste it after <code>Bearer </code> in any playground&apos;s Authorization field, then press Send.
+        Signed in to TalNex? Every playground&apos;s Authorization field is filled with a short-lived token for your own
+        account, so you can press Send on any API page. Press the button for a fresh one.
       </p>
       <div className="tx-token__row">
         <button type="button" className="button button--primary" onClick={use}>
