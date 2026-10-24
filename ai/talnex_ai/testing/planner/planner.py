@@ -13,9 +13,11 @@ from talnex_ai.formats import Claim, FormatError, TestPlan, TestType, parse_list
 from talnex_ai.llm.prompts.test_planner import SYSTEM, build_user
 from talnex_ai.llm.structured import ChatClient, ask_json
 from talnex_ai.testing.planner.known_answers import KnownAnswer, matching_entries
-from talnex_ai.testing.scope import extra_requirement, unchanged_value
+from talnex_ai.testing.scope import content_words, extra_requirement, quote_problem, uncovered, unchanged_value
 
 MAX_PLANS_PER_CLAIM = 4
+CHECKED_TYPES = ("normal", "access")  # the main tests: their checks decide the verdict
+MAX_UNCOVERED_SHARE = 0.5             # at most half the claim's meaning words may go unquoted
 
 # Words that suggest the feature takes something typed, picked or uploaded.
 _TAKES_INPUT = re.compile(
@@ -92,7 +94,9 @@ def check_plans(plans: list[TestPlan], wanted: Sequence[TestType], claim_text: s
             risky = forbidden_action(text)
             if risky:
                 raise FormatError(f'a step mentions "{risky}", which is not allowed (never pay, delete, or message people)')
-        checked = " ".join([plan.expected_result] + [s.expected for s in plan.steps])
+        if plan.test_type in CHECKED_TYPES and claim_text:
+            check_parts(plan, claim_text)
+        checked = " ".join([plan.expected_result] + [s.expected for s in plan.steps] + [c.text for c in plan.checks])
         extra = extra_requirement(claim_text, checked)
         if extra:
             raise FormatError(f"the {plan.test_type} plan checks {extra}, which the claim does not promise. Test only "
@@ -109,6 +113,22 @@ def check_plans(plans: list[TestPlan], wanted: Sequence[TestType], claim_text: s
                 raise FormatError(f'the expected result says "{vague}", which would pass whatever happens. State the '
                                   "claim being TRUE as one concrete visible thing, and make the steps use the feature.")
     return plans
+
+
+def check_parts(plan: TestPlan, claim_text: str) -> None:
+    """A main plan splits its claim into checks, each quoting the claim, together covering most of it."""
+    if not plan.checks:
+        raise FormatError(f'the {plan.test_type} plan has no "checks": split the claim into the 1 to 4 things it promises')
+    if len(plan.checks) > 4:
+        raise FormatError(f"the {plan.test_type} plan has {len(plan.checks)} checks; use at most 4")
+    for i, check in enumerate(plan.checks, start=1):
+        problem = quote_problem(claim_text, check.quote)
+        if problem:
+            raise FormatError(f'check {i} ("{check.text}"): {problem}. Copy the exact claim words it proves into "quote".')
+    left = uncovered(claim_text, [c.quote for c in plan.checks])
+    if len(left) > MAX_UNCOVERED_SHARE * max(1, len(content_words(claim_text))):
+        raise FormatError("the checks leave most of the claim untested (" + ", ".join(sorted(left)) + "). Every promise "
+                          "in the claim needs a check.")
 
 
 def plan_claim(

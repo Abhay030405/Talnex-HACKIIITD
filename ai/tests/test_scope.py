@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from talnex_ai.formats import FormatError, PlanStep, TestPlan
+from talnex_ai.formats import Check, FormatError, PlanStep, TestPlan
 from talnex_ai.llm.prompts.test_planner import TYPE_HELP
 from talnex_ai.testing.planner.planner import check_plans
 from talnex_ai.testing.proof_check import _parse as parse_check
@@ -17,9 +17,10 @@ GOAL = "Set a yearly reading goal with a progress bar"
 LEFT = "See how many todo items are left"
 
 
-def plan(expected_result, test_type="normal", step_expected="the page shows it"):
+def plan(expected_result, test_type="normal", step_expected="the page shows it", quote=""):
+    checks = [Check(text=expected_result, quote=quote)] if quote else []
     return TestPlan(test_type=test_type, steps=[PlanStep(action="Open the site", expected=step_expected)],
-                    expected_result=expected_result)
+                    expected_result=expected_result, checks=checks)
 
 
 # ------------------------------------------------------------------ only what the claim says
@@ -30,7 +31,7 @@ def test_a_plan_may_not_add_blocked_private_pages_to_a_claim_that_never_said_so(
     invented = "The About page explains the app, while private account pages stay blocked when signed out."
     assert extra_requirement(claim, invented) == "private pages are blocked"
     with pytest.raises(FormatError, match="does not promise"):
-        check_plans([plan(invented, "access")], ["access"], claim)
+        check_plans([plan(invented, "access", quote=claim)], ["access"], claim)
 
 
 def test_a_claim_about_private_pages_may_check_them():
@@ -45,7 +46,7 @@ def test_speed_and_phone_layout_are_extra_too_unless_claimed():
 
 
 def test_a_clean_plan_passes_and_the_access_type_no_longer_demands_private_pages():
-    assert check_plans([plan("The About page opens and explains what CaptionIt is", "access")], ["access"], ABOUT)
+    assert check_plans([plan("The About page opens and explains what CaptionIt is", "access", quote=ABOUT)], ["access"], ABOUT)
     assert "only if the claim itself says so" in TYPE_HELP["access"]
 
 
@@ -62,8 +63,8 @@ def test_a_progress_claim_at_its_starting_value_is_not_proof():
 
 def test_the_planner_must_change_the_value_before_checking_it():
     with pytest.raises(FormatError, match="starting value"):
-        check_plans([plan("The goal shows 0 of 12 books finished with a progress bar")], ["normal"], GOAL)
-    assert check_plans([plan("After marking one book finished, the bar shows 1 of 12")], ["normal"], GOAL)
+        check_plans([plan("The goal shows 0 of 12 books finished with a progress bar", quote=GOAL)], ["normal"], GOAL)
+    assert check_plans([plan("After marking one book finished, the bar shows 1 of 12", quote=GOAL)], ["normal"], GOAL)
 
 
 def test_the_runs_own_verdict_and_the_blind_check_send_back_works_at_zero():
