@@ -18,8 +18,9 @@ from pathlib import Path
 from typing import Any, Callable, Literal, Optional, Protocol
 from urllib.parse import urlparse
 
-from talnex_ai.formats import StepRecord, TestPlan, parse_model
+from talnex_ai.formats import FormatError, StepRecord, TestPlan, parse_model
 from talnex_ai.llm.prompts.runner import FINAL_SYSTEM, STEP_SYSTEM, final_user, step_user
+from talnex_ai.testing.scope import unchanged_value
 from talnex_ai.llm.structured import ChatClient, ask_json
 from talnex_ai.login.email.extract import EmailHint
 from talnex_ai.testing.runner.actions import (
@@ -72,12 +73,29 @@ def trim(text: str, limit: int) -> str:
     return text[:limit].rsplit("\n", 1)[0] + "\n[...rest of the page cut...]"
 
 
+# Only real test inputs can be uploaded: pictures, documents and plain data files. A README describing the
+# folder once went in as a "photo".
+UPLOADABLE = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".txt", ".csv", ".json", ".docx", ".mp3", ".wav", ".mp4"}
+
+
 def list_test_files(uploads_root: Path) -> list[str]:
     """The test files that really exist (paths relative to the test files folder, forward slashes)."""
     root = Path(uploads_root) / "known_answers"
     if not root.is_dir():
         return []
-    return sorted(p.relative_to(uploads_root).as_posix() for p in root.rglob("*") if p.is_file())[:30]
+    return sorted(p.relative_to(uploads_root).as_posix() for p in root.rglob("*")
+                  if p.is_file() and p.suffix.lower() in UPLOADABLE and not p.name.lower().startswith("readme"))[:30]
+
+
+def _final(text: str, claim_text: str) -> FinalVerdict:
+    """The run's own verdict. "works" resting on a count or progress still at its starting value is sent back."""
+    verdict = parse_model(FinalVerdict, text)
+    start = unchanged_value(claim_text, verdict.observed) if verdict.verdict == "works" else None
+    if start:
+        raise FormatError(f'the verdict is works, but the value you describe ("{start}") is still at its starting point, '
+                          "which would look the same if the feature did nothing. Answer partly_works or broken, unless "
+                          'the test changed the value on purpose: then say how it changed ("went from 1 to 0").')
+    return verdict
 
 
 def _read_code(kind: str, box: Optional[Any], since: datetime) -> tuple[Optional[str], Optional[str]]:
@@ -276,7 +294,7 @@ def execute_plan(
         client, "agent", FINAL_SYSTEM,
         final_user(claim=claim_text, expected_result=plan.expected_result, history=history, url=driver.url(),
                    snapshot=snapshot),
-        lambda text: parse_model(FinalVerdict, text), job_id=job_id,
+        lambda text: _final(text, claim_text), job_id=job_id,
     )
     record("Final check", plan.expected_result, verdict.observed)
     return finish(verdict.verdict, verdict.observed, "blocked" if verdict.verdict == "blocked" else None)
