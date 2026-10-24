@@ -253,3 +253,22 @@ func (s *Store) AutoConfirmRole(ctx context.Context, candidateID string) (bool, 
 	}
 	return auto != nil && *auto, err
 }
+
+// CheckChosen says whether the candidate's role runs a check. No role, or a role that chose nothing, runs everything.
+func (s *Store) CheckChosen(ctx context.Context, candidateID, check string) (bool, error) {
+	var raw []byte
+	err := s.pool.QueryRow(ctx, `SELECT r.checks FROM candidates c JOIN roles r ON r.id = c.role_id WHERE c.id = $1::uuid`,
+		candidateID).Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	checks := map[string]bool{}
+	if err := json.Unmarshal(raw, &checks); err != nil {
+		return false, err
+	}
+	on, set := checks[check]
+	return len(checks) == 0 || !set || on, nil
+}

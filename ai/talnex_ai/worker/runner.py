@@ -23,6 +23,24 @@ log = logging.getLogger("talnex.worker")
 SAVE_TRIES = 3  # a finished job's result is worth a couple of retries: it may have cost real money
 
 
+
+# Which role check each stage belongs to (the recruiter picks checks on the new-role form). Stages not listed always run.
+STAGE_CHECK = {"live_test": "live_test", "code_review": "code_review", "authorship_read": "code_review",
+               "codechef": "coding_profiles", "leetcode": "coding_profiles", "leetcode_replay": "coding_profiles"}
+
+
+def check_turned_off(pool, job) -> "str | None":
+    """The role check that turns this stage off for its candidate, or None. An empty checks set means every check."""
+    check = STAGE_CHECK.get(job.type)
+    if check is None or job.target_type not in ("candidate", "candidate_project"):
+        return None
+    candidate = "c.id = %s::uuid" if job.target_type == "candidate" else         "c.id = (SELECT candidate_id FROM candidate_projects WHERE id = %s::uuid)"
+    with pool.connection() as conn:
+        row = conn.execute(f"SELECT r.checks FROM candidates c JOIN roles r ON r.id = c.role_id WHERE {candidate}",
+                           (job.target_id,)).fetchone()
+    checks = (row[0] if row else None) or {}
+    return check if checks and checks.get(check) is False else None
+
 class Worker:
     def __init__(
         self,
@@ -100,7 +118,8 @@ class Worker:
         events = for_job(self.pool, job) if self.live_events else NullEmitter()
         events.emit("stage.started", try_number=job.tries)
         try:
-            result = handler(job, ctx)
+            off = check_turned_off(self.pool, job) if self.pool is not None else None
+            result = {"skipped": True, "reason": f"not run: {off} was not chosen for this role"} if off else handler(job, ctx)
             ctx.check()  # a result that arrives after the time limit doesn't count
             if result is None:
                 result = {}

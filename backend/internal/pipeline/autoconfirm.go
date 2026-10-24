@@ -31,8 +31,14 @@ func StartChecks(ctx context.Context, store *candidates.Store, q Starter, candid
 	if err != nil {
 		return 0, nil, fmt.Errorf("find run: %w", err)
 	}
-	if _, err := q.StartPipeline(ctx, RecruiterCoding, "candidate", candidateID, run); err != nil {
-		return 0, nil, fmt.Errorf("start coding checks: %w", err)
+	coding, err := store.CheckChosen(ctx, candidateID, "coding_profiles")
+	if err != nil {
+		return 0, nil, err
+	}
+	if coding {
+		if _, err := q.StartPipeline(ctx, RecruiterCoding, "candidate", candidateID, run); err != nil {
+			return 0, nil, fmt.Errorf("start coding checks: %w", err)
+		}
 	}
 	for _, projectID := range projectIDs {
 		if _, err := q.StartPipeline(ctx, Recruiter, "candidate_project", projectID, run); err != nil {
