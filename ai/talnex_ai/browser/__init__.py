@@ -35,8 +35,9 @@ class BrowserlessSession:
 
 
 class BrowserlessProvider:
-    """A self-hosted Browserless (or any Chrome-over-CDP) endpoint. `ws_url` is its WebSocket address, `token` its
-    key. It runs real Chrome only: no stealth, no CAPTCHA solving, no proxies."""
+    """A Browserless (or any Chrome-over-CDP) endpoint. `ws_url` is its WebSocket address, `token` its key. On hosted
+    Browserless `/stealth` the runner also solves CAPTCHAs (`PlaywrightDriver.solve_captcha`); a self-hosted container
+    cannot, so a CAPTCHA there still stops the test."""
 
     def __init__(self, ws_url: str, token: str = "") -> None:
         self.ws_url = ws_url.rstrip("/")

@@ -221,8 +221,8 @@ class Settings:
     walkthrough: WalkthroughSettings = field(default_factory=WalkthroughSettings)
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
     leetcode_graphql_url: str = ""
-    # A plain Chrome-over-CDP endpoint (e.g. self-hosted or hosted Browserless /chromium) used as a backup browser when
-    # TinyFish is unavailable. Plain browser only: stealth, CAPTCHA solving and proxies are never used. Empty: off.
+    # A Chrome-over-CDP endpoint used as a backup browser when TinyFish is unavailable. Hosted Browserless /stealth also
+    # solves CAPTCHAs during the test; a self-hosted container cannot. Empty: off.
     browserless_cdp_url: str = ""
     browserless_token: str = ""
     # Browserless BQL endpoint (hosted /stealth/bql) for the team LinkedIn login. Empty: LinkedIn checks are off.
