@@ -149,3 +149,4 @@ export interface CandidateProgress {
   projects: ProgressProject[];
   report_ready: boolean;
 }
+
