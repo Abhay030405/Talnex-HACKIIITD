@@ -12,6 +12,7 @@ from typing import Any, Optional
 from psycopg_pool import ConnectionPool
 
 from talnex_ai.checks.authorship import report as authorship_report
+from talnex_ai.reports.interview_kit import build_kit
 from talnex_ai.reports.proof import features
 
 REPORT_VERSION = 1
@@ -146,7 +147,7 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
         notes.append("No projects were found on the resume.")
 
     manual = MANUAL_MINUTES_PER_PROJECT * sum(1 for p in projects if p["live_url"] or p["repo_url"])
-    return {
+    report = {
         "version": REPORT_VERSION, "candidate_id": candidate_id,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "role_level": cand[0], "has_gaps": has_gaps,
@@ -154,3 +155,5 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
                        "saved_minutes": max(0, manual - talnex_minutes)},
         "projects": projects, "coding_signals": signals, "flags": flags, "notes": notes,
     }
+    report["interview_kit"] = build_kit(report)
+    return report

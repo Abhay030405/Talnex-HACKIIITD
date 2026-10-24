@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 
 import { FlagList } from "@/components/flags/FlagBadge";
+import { InterviewKit } from "@/components/proof/InterviewKit";
 import { ProjectCard } from "@/components/proof/ProjectCard";
 import { StatTile } from "@/components/ui/StatTile";
 import { BADGE_CLASS, formatDate } from "@/lib/format";
@@ -29,6 +30,8 @@ export function CandidateReportView({ report }: { report: CandidateReport }) {
           Some parts could not be tested. They are shown with the reason and do not count against the candidate.
         </p>
       )}
+
+      <InterviewKit questions={report.interview_kit ?? []} />
 
       {report.projects.map((project) => (
         <ProjectCard key={project.id} project={project} />

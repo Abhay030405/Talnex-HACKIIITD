@@ -1814,6 +1814,27 @@ a.meta:hover {
   font-size: var(--text-sm);
 }
 
+/* The interview kit: numbered questions, each with why it is worth asking. */
+.interview-kit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.interview-kit__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.interview-kit__question {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
 /* A claim's test played back as a clip, ending on a verdict stamp over the last screenshot. */
 .proof-clip {
   display: flex;

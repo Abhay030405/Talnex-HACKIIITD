@@ -257,6 +257,16 @@ export interface CandidateReport {
   coding_signals: CodingSignal[];
   flags: ReportFlag[];
   notes: string[];
+  /** Questions to ask the candidate, each tied to its proof. Missing on reports made before the kit existed. */
+  interview_kit?: InterviewQuestion[];
+}
+
+/** One interview question from ai/talnex_ai/reports/interview_kit.py. A thing to talk about, never a verdict. */
+export interface InterviewQuestion {
+  kind: "coding" | "feature" | "flag" | "demo";
+  question: string;
+  why: string;
+  proof: Record<string, string | null | undefined>;
 }
 
 // ---------- The hackathon proof card, overview and compare ----------
