@@ -29,7 +29,7 @@ function runPath(job: JobRow): string | null {
  * Every job of a check, grouped by project and pipeline: pick a run, then run one stage again, several chosen stages,
  * or retry a failed job. Earlier stages are reused, the stages after the chosen ones run again, and the live view opens.
  */
-export function JobsPanel({ jobs, liveHref }: { jobs: JobRow[]; liveHref: string }) {
+export function JobsPanel({ jobs, liveHref, open = false }: { jobs: JobRow[]; liveHref: string; open?: boolean }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string[]>>({});
@@ -40,7 +40,7 @@ export function JobsPanel({ jobs, liveHref }: { jobs: JobRow[]; liveHref: string
     groups.set(key, [...(groups.get(key) ?? []), job]);
   }
   const busy = jobs.some((j) => j.status === "queued" || j.status === "running" || j.status === "retrying");
-  if (jobs.length === 0) return null;
+  if (jobs.length === 0) return <p className="note">No jobs have run yet.</p>;
 
   const go = (action: () => Promise<{ error?: string }>) =>
     start(async () => {
@@ -49,7 +49,7 @@ export function JobsPanel({ jobs, liveHref }: { jobs: JobRow[]; liveHref: string
     });
 
   return (
-    <details className="proof-viewer">
+    <details className="proof-viewer" open={open}>
       <summary>Jobs ({jobs.length})</summary>
       <AutoRefresh active={busy} />
       <div className="row jobs-panel__view" role="group" aria-label="Show jobs as">

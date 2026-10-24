@@ -30,10 +30,10 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ eventId: string; projectId: string }>;
-  searchParams: Promise<{ run?: string }>;
+  searchParams: Promise<{ run?: string; tab?: string }>;
 }) {
   const { eventId, projectId } = await params;
-  const { run } = await searchParams;
+  const { run, tab } = await searchParams;
   await requireRole("organizer");
 
   const project = await getProject(projectId);
@@ -64,6 +64,9 @@ export default async function ProjectPage({
   }
   const status = projectStatus(project.status);
   const message = run ? RUN_MESSAGES[run] : undefined;
+  const jobsPanel = (
+    <JobsPanel jobs={jobs} liveHref={`/events/${encodeURIComponent(eventId)}/projects/${encodeURIComponent(projectId)}/live`} open={Boolean(card)} />
+  );
 
   return (
     <div className="stack">
@@ -99,8 +102,6 @@ export default async function ProjectPage({
         </p>
       )}
 
-      <JobsPanel jobs={jobs} liveHref={`/events/${encodeURIComponent(eventId)}/projects/${encodeURIComponent(projectId)}/live`} />
-
       {card ? (
         <>
           <AskTalnex
@@ -115,9 +116,11 @@ export default async function ProjectPage({
               criteriaHref: `/events/${encodeURIComponent(eventId)}#criteria`,
             }}
           />
-          <HackathonCardView card={card} criteria={criteria} />
+          <HackathonCardView card={card} criteria={criteria} initialTab={tab} jobs={jobsPanel} />
         </>
       ) : (
+        <>
+        {jobsPanel}
         <section className="panel" aria-labelledby="pending-title">
           <div className="panel__head">
             <h2 className="panel__title" id="pending-title">
@@ -132,6 +135,7 @@ export default async function ProjectPage({
             </p>
           </div>
         </section>
+        </>
       )}
     </div>
   );

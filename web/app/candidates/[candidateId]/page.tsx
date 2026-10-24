@@ -33,10 +33,10 @@ export default async function CandidatePage({
   searchParams,
 }: {
   params: Promise<{ candidateId: string }>;
-  searchParams: Promise<{ resume?: string }>;
+  searchParams: Promise<{ resume?: string; tab?: string }>;
 }) {
   const { candidateId } = await params;
-  const { resume } = await searchParams;
+  const { resume, tab } = await searchParams;
   await requireRole("recruiter");
   const path = `/candidates/${encodeURIComponent(candidateId)}`;
 
@@ -128,52 +128,57 @@ export default async function CandidatePage({
         </p>
       )}
 
-      <section className="panel" aria-labelledby="details-title">
-        <div className="panel__head">
-          <h2 className="panel__title" id="details-title">
-            Candidate details
-          </h2>
-        </div>
-        <dl className="definition panel__body">
-          <dt>Coding profiles</dt>
-          <dd>
-            {handles.length > 0
-              ? handles.map(([site, handle]) => `${SITE_NAMES[site] ?? site}: ${handle}`).join(" · ")
-              : "None added"}
-          </dd>
-        </dl>
-      </section>
-
-      {progress && (!report || !isFinishedStatus(status)) && <ProgressPanel progress={progress} />}
-
-      <JobsPanel jobs={jobs} liveHref={`${path}/live`} />
-
-      {report ? (
-        <>
-          <AskTalnex
-            candidateId={candidateId}
-            asks={asks}
-            customTests={customTests}
-            projects={report.projects.map((p) => ({ id: p.id, name: p.name }))}
-            roleId={candidate.role_id}
-          />
-          <CandidateReportView report={report} criteria={criteria} />
-        </>
-      ) : (
-        <section className="panel" aria-labelledby="report-title">
-          <div className="panel__head">
-            <h2 className="panel__title" id="report-title">
-              Proof report
-            </h2>
-          </div>
-          <div className="panel__body">
-            <p className="note">
-              {statusWords(status)} The report appears here once every project has been checked. This page updates by
-              itself.
-            </p>
-          </div>
-        </section>
+      {report && (
+        <AskTalnex
+          candidateId={candidateId}
+          asks={asks}
+          customTests={customTests}
+          projects={report.projects.map((p) => ({ id: p.id, name: p.name }))}
+          roleId={candidate.role_id}
+        />
       )}
+
+      <CandidateReportView
+        report={report}
+        criteria={criteria}
+        initialTab={tab}
+        details={
+          <>
+            <section className="panel" aria-labelledby="details-title">
+              <div className="panel__head">
+                <h2 className="panel__title" id="details-title">
+                  Candidate details
+                </h2>
+              </div>
+              <dl className="definition panel__body">
+                <dt>Coding profiles</dt>
+                <dd>
+                  {handles.length > 0
+                    ? handles.map(([site, handle]) => `${SITE_NAMES[site] ?? site}: ${handle}`).join(" · ")
+                    : "None added"}
+                </dd>
+              </dl>
+            </section>
+            {progress && (!report || !isFinishedStatus(status)) && <ProgressPanel progress={progress} />}
+            {!report && <p className="note">{statusWords(status)} This page updates by itself.</p>}
+          </>
+        }
+        jobs={<JobsPanel jobs={jobs} liveHref={`${path}/live`} open />}
+        live={
+          <div className="stack">
+            <p className="note">
+              {isFinishedStatus(status)
+                ? "Nothing is running right now. The live view replays the last week of events."
+                : "A check is running now: watch the agent use each site, step by step."}
+            </p>
+            <div className="row">
+              <Link href={`${path}/live`} className="button">
+                Open the live view
+              </Link>
+            </div>
+          </div>
+        }
+      />
 
       {canUploadResume(status) && (
         <section className="panel" aria-labelledby="again-title">
