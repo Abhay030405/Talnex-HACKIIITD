@@ -1,0 +1,71 @@
+"""The parts of a proof report that are the same for a hackathon project and for a project on a resume: the claims (features) of
+one project, each with its verdict, score, reason and proof, and what was found when its code was read.
+
+Shared by `recruiter_report.py` and `project_card.py`, so a feature looks the same on both and the sandbox track (backend
+requests and answers, the repository's own tests, code review) shows up in both without either report knowing about it.
+"""
+from __future__ import annotations
+
+from typing import Any, Optional
+
+COLUMN = {"project": "project_id", "candidate_project": "candidate_project_id"}
+
+
+def _num(value: Any) -> Optional[float]:
+    return None if value is None else float(value)
+
+
+def proof_steps(conn, claim_id: str) -> list[dict]:
+    """Steps of the main run, then the extra checks, numbered 1..n. The main run is the latest normal or access run; a claim TalNex
+    made from the routes (edge cases, a route check, load, the repository's own tests) has no such run, so its latest run is the main one.
+    A step's `proof_key` is a screenshot (live) or a saved request and answer (backend); the API turns it into a short-lived link."""
+    runs = conn.execute(
+        """SELECT id::text, (test_type IN ('normal', 'access')) AS is_main, test_type, track FROM test_runs
+            WHERE claim_id = %s::uuid ORDER BY started_at DESC NULLS LAST""", (claim_id,)).fetchall()
+    main = next((r for r in runs if r[1]), runs[0] if runs else None)
+    ordered = ([main] if main else []) + [r for r in runs if main is None or r[0] != main[0]]
+    out: list[dict] = []
+    for run_id, _is_main, test_type, track in ordered:
+        for action, observed, key, kind in conn.execute(
+                "SELECT action, observed, proof_key, kind FROM steps WHERE run_id = %s::uuid ORDER BY step_number", (run_id,)):
+            out.append({"step": len(out) + 1, "action": action, "observed": observed, "proof_key": key, "kind": kind,
+                        "test_type": test_type, "track": track})
+    return out
+
+
+def code_review_of(conn, claim_id: str) -> Optional[dict]:
+    """What the code review found for a claim, trimmed for display, or None. Always labelled as read from the code, not run."""
+    row = conn.execute(
+        """SELECT sr.resources->'code_review'->%s::text
+             FROM claims c
+             JOIN sandbox_runs sr ON (c.project_id IS NOT NULL AND sr.project_id = c.project_id)
+                                  OR (c.candidate_project_id IS NOT NULL AND sr.candidate_project_id = c.candidate_project_id)
+            WHERE c.id = %s::uuid AND jsonb_exists(sr.resources->'code_review', %s::text)
+            ORDER BY sr.created_at DESC LIMIT 1""", (claim_id, claim_id, claim_id)).fetchone()
+    finding = row[0] if row else None
+    if not finding:
+        return None
+    return {
+        "label": "reviewed from code, not run",
+        "mechanism": finding.get("mechanism"), "summary": finding.get("summary"),
+        "evidence": (finding.get("evidence") or [])[:6], "quality": (finding.get("quality") or [])[:6],
+        "ai": finding.get("ai") or {}, "files_read": (finding.get("files_read") or [])[:12],
+    }
+
+
+def features(conn, kind: str, subject_id: str) -> list[dict]:
+    """Every claim of one project (kind is "project" or "candidate_project") with its result, score and proof."""
+    column = COLUMN[kind]
+    rows = conn.execute(
+        f"""SELECT c.id::text, c.text, c.claim_group, c.importance, c.testable, c.untestable_reason, c.track, c.source,
+                   r.verdict, r.confidence, r.reason, r.feature_score, r.score_reason
+              FROM claims c LEFT JOIN results r ON r.claim_id = c.id
+             WHERE c.{column} = %s::uuid ORDER BY c.importance DESC, c.created_at, c.id""", (subject_id,)).fetchall()
+    return [{
+        "claim_id": cid, "text": text, "group": group, "importance": importance,
+        "testable": testable, "untestable_reason": untestable, "track": track, "source": source,
+        "verdict": verdict, "confidence": confidence, "reason": reason,
+        "score10": _num(score), "score_reason": score_reason,
+        "proof": proof_steps(conn, cid) if verdict else [],
+        "code_review": code_review_of(conn, cid),
+    } for cid, text, group, importance, testable, untestable, track, source, verdict, confidence, reason, score, score_reason in rows]
