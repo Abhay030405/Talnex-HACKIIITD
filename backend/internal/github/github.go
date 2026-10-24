@@ -45,6 +45,7 @@ type Repo struct {
 	DefaultBranch string    `json:"default_branch"`
 	Stars         int       `json:"stargazers_count"`
 	SizeKB        int       `json:"size"`
+	Language      string    `json:"language"` // GitHub's guess at the main language; empty for a repo with no code
 	Parent        *struct {
 		FullName string `json:"full_name"`
 	} `json:"parent"`
