@@ -79,6 +79,9 @@ var ownerRoutes = []struct {
 	{"GET", "/v1/events/{event}/overview", "organizer", true},
 	{"GET", "/v1/events/{event}/compare", "organizer", true},
 	{"POST", "/v1/projects/{project}/run", "organizer", true},
+	{"POST", "/v1/roles", "recruiter", false},
+	{"GET", "/v1/roles", "recruiter", false},
+	{"GET", "/v1/roles/{role}", "recruiter", true},
 	{"POST", "/v1/candidates", "recruiter", false},
 	{"GET", "/v1/candidates", "recruiter", false},
 	{"GET", "/v1/candidates/{cand}", "recruiter", true},
@@ -144,6 +147,8 @@ func TestEveryPrivateRouteChecksTheOwner(t *testing.T) {
 	code, out = roleCall(t, srv.URL, "POST", "/v1/events/"+eventID+"/projects", org, "organizer",
 		map[string]any{"team_name": "t", "live_url": "https://example.com"})
 	projectID := idOf(t, code, out)
+	code, out = roleCall(t, srv.URL, "POST", "/v1/roles", rec, "recruiter", map[string]any{"title": "Audit role"})
+	roleID := idOf(t, code, out)
 	code, out = roleCall(t, srv.URL, "POST", "/v1/candidates", rec, "recruiter", map[string]any{"label": "Asha"})
 	candID := idOf(t, code, out)
 	if _, err := pool.Exec(context.Background(),
@@ -167,7 +172,7 @@ func TestEveryPrivateRouteChecksTheOwner(t *testing.T) {
 	roleCall(t, srv.URL, "GET", "/v1/me", orgStranger, "organizer", nil)
 	roleCall(t, srv.URL, "GET", "/v1/me", recStranger, "recruiter", nil)
 
-	fill := strings.NewReplacer("{event}", eventID, "{project}", projectID, "{cand}", candID, "{cproj}", cprojID, "{walk}", walk.ID, "{kind}", "event")
+	fill := strings.NewReplacer("{event}", eventID, "{project}", projectID, "{cand}", candID, "{cproj}", cprojID, "{walk}", walk.ID, "{kind}", "event", "{role}", roleID)
 	for _, r := range ownerRoutes {
 		path := fill.Replace(r.path)
 		name := r.method + " " + r.path
