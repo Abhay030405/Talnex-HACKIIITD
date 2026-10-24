@@ -3,7 +3,7 @@
 Public data only, no login. When `LEETCODE_GRAPHQL_URL` is set it reads LeetCode's own public data endpoint (the same
 no-login JSON the profile page loads): solved counts, contest rating, and the contest history, which can show a contest
 the user joined but has no standing in (a voided result). Otherwise it reads the public profile page through Fetch. The
-logged-in Code Replay capture and paste analysis are not built (see `coding/leetcode_capture/`). Running it twice
+Code Replay paste check is its own stage, `leetcode_replay` (`coding/leetcode_capture/`). Running it twice
 replaces the rows.
 """
 from __future__ import annotations

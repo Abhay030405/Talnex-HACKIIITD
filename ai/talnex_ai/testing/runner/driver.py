@@ -94,6 +94,20 @@ class PlaywrightDriver:
         except Exception:
             return []
 
+    def solve_captcha(self) -> bool:
+        """Ask Browserless to solve the human check on the page. False when the browser has no such command
+        (TinyFish, a self-hosted Browserless) or it could not solve it."""
+        try:
+            result = self.page.context.new_cdp_session(self.page).send("Browserless.solveCaptcha")
+        except Exception as err:
+            log.info("this browser cannot solve human checks: %s", first_line(err))
+            return False
+        if not result.get("solved"):
+            log.info("browserless could not solve the human check: %s", result.get("error") or "none found")
+            return False
+        self._settle()
+        return True
+
     def screenshot(self) -> bytes:
         """The whole page, not just the visible part: the result is often below the fold, and a picture
         that cuts it off makes a working feature look untestable."""

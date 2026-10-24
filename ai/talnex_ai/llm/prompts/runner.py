@@ -32,7 +32,7 @@ TARGET is {{"kind": "role", "role": "button", "name": "Sign in"}} or {{"kind": "
 
 Rules:
 - One action per turn. Look at the snapshot after each action before deciding the next.
-- "done" only when the step's expected result is actually visible now. "failed" if, after reasonable tries, it did not happen. "blocked" if a human check (CAPTCHA), a login you cannot pass, or an error page stops you; never try to get around it.
+- "done" only when the step's expected result is actually visible now. "failed" if, after reasonable tries, it did not happen. "blocked" if a human check (CAPTCHA), a login you cannot pass, or an error page stops you.
 - Judge only by what you can see. Never assume something worked.
 - Only open an address that a page showed you (a link in the snapshot) or the start address. Never type an address you guessed, such as /login, /account or /profile: guessed pages mostly do not exist and only produce error pages. To check that something is NOT there, look at what the page shows; do not hunt for pages.
 - If the action you just performed makes the page show an error screen, or makes its content vanish, that IS the result: describe it in "observed" and give the step result at once ("done" if the step only asked to try the action, "failed" if the step expected something else). Do not reload and repeat the same action hoping for a different answer, and do not call it "blocked": "blocked" is only for something that stops you BEFORE you could try the step (a human check, a login you cannot pass, a page that never loads).

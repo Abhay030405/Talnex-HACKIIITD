@@ -206,6 +206,23 @@ class WalkthroughSettings:
 
 
 @dataclass(frozen=True)
+class LeetCodeReplaySettings:
+    """The LeetCode Code Replay paste check (architecture section 18): which contests, and when a paste is suspicious."""
+
+    contests: int = 5               # most recent rated contests read (plus any with a rating jump)
+    rating_jump: int = 100          # a contest whose rating gain is at least this is also read
+    settle_days: int = 7            # newer contests are skipped until LeetCode's own checks have settled
+    paste_min_lines: int = 4        # shorter pastes are helper code, never suspicious
+    template_seconds: int = 60      # a paste this soon after opening the problem is a personal template
+    max_edits_after: int = 3        # a core paste with at most this many edits after it is "pasted in one go"
+    repeat_contests: int = 3        # suspicious pastes in this many contests make every one of them strong
+    match_min_lines: int = 12       # a Medium paste at least this long is compared with nearby contestants' code
+    match_pages: int = 5            # ranking pages read on each side of the candidate's own (25 people a page)
+    match_pct: float = 90.0         # how much of the paste must be in someone else's code to count as the same
+    match_min_users: int = 2        # this many matching people make the paste strong
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
@@ -220,12 +237,17 @@ class Settings:
     copy: CopySettings = field(default_factory=CopySettings)
     authorship: AuthorshipSettings = field(default_factory=AuthorshipSettings)
     walkthrough: WalkthroughSettings = field(default_factory=WalkthroughSettings)
+    leetcode_replay: LeetCodeReplaySettings = field(default_factory=LeetCodeReplaySettings)
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
     leetcode_graphql_url: str = ""
-    # A plain Chrome-over-CDP endpoint (e.g. self-hosted or hosted Browserless /chromium) used as a backup browser when
-    # TinyFish is unavailable. Plain browser only: stealth, CAPTCHA solving and proxies are never used. Empty: off.
+    # A Chrome-over-CDP endpoint used as a backup browser when TinyFish is unavailable. Hosted Browserless /stealth also
+    # solves CAPTCHAs during the test; a self-hosted container cannot. Empty: off.
     browserless_cdp_url: str = ""
     browserless_token: str = ""
+    # Browserless BQL endpoint (hosted /stealth/bql) for the team LinkedIn login. Empty: LinkedIn checks are off.
+    browserless_bql_url: str = ""
+    linkedin_email: str = ""
+    linkedin_password: str = ""
 
 
 class _Env:
@@ -428,11 +450,26 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         whisper_device=env.one_of("WHISPER_DEVICE", "cpu", ("cpu", "cuda")),
         whisper_compute_type=env.optional("WHISPER_COMPUTE_TYPE", "int8"),
     )
+    leetcode_replay = LeetCodeReplaySettings(
+        contests=env.whole("LEETCODE_REPLAY_CONTESTS", 5),
+        rating_jump=env.whole("LEETCODE_REPLAY_RATING_JUMP", 100),
+        settle_days=env.whole("LEETCODE_REPLAY_SETTLE_DAYS", 7),
+        paste_min_lines=env.whole("LEETCODE_PASTE_MIN_LINES", 4),
+        template_seconds=env.whole("LEETCODE_PASTE_TEMPLATE_SECONDS", 60),
+        max_edits_after=env.whole("LEETCODE_PASTE_MAX_EDITS_AFTER", 3),
+        repeat_contests=env.whole("LEETCODE_PASTE_REPEAT_CONTESTS", 3),
+        match_min_lines=env.whole("LEETCODE_MATCH_MIN_LINES", 12),
+        match_pages=env.whole("LEETCODE_MATCH_PAGES", 5),
+        match_pct=env.decimal("LEETCODE_MATCH_PCT", 90.0, 50.0, 100.0),
+        match_min_users=env.whole("LEETCODE_MATCH_MIN_USERS", 2),
+    )
     database_url = env.required("DATABASE_URL")
 
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
-                    walkthrough=walkthrough, leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                    walkthrough=walkthrough, leetcode_replay=leetcode_replay, leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
                     browserless_cdp_url=env.url("BROWSERLESS_CDP_URL", required=False),
-                    browserless_token=env.optional("BROWSERLESS_TOKEN"))
+                    browserless_token=env.optional("BROWSERLESS_TOKEN"),
+                    browserless_bql_url=env.url("BROWSERLESS_BQL_URL", required=False),
+                    linkedin_email=env.optional("LINKEDIN_EMAIL"), linkedin_password=env.optional("LINKEDIN_PASSWORD"))

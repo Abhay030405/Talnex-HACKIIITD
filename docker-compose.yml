@@ -102,7 +102,7 @@ services:
 
   # Optional self-hosted browser for the live test fallback. Off by default; start with:
   #   docker compose --profile browser up -d
-  # Then set BROWSERLESS_CDP_URL=ws://browserless:3000 in .env. Plain Chrome only (no stealth/CAPTCHA/proxies).
+  # Then set BROWSERLESS_CDP_URL=ws://browserless:3000 in .env. Plain Chrome: no CAPTCHA solving (hosted /stealth has it).
   browserless:
     image: ghcr.io/browserless/chromium:v2.24.0
     profiles: ["browser"]

@@ -32,7 +32,7 @@ type Progress struct {
 }
 
 // The order stages are shown in. A stage with no job yet is left out.
-var candidateStageOrder = []string{"resume_read", "codeforces", "codechef", "leetcode", "candidate_report", "resume_cleanup"}
+var candidateStageOrder = []string{"resume_read", "codeforces", "codechef", "leetcode", "leetcode_replay", "candidate_report", "resume_cleanup"}
 var candidatePipelines = []string{"recruiter_candidate", "recruiter_coding", "recruiter_report"}
 var projectStageOrder = []string{"precheck", "claims", "github_check", "test_plan", "live_test", "proof_check",
 	"feature_score", "originality", "project_summary"}

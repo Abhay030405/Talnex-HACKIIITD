@@ -29,7 +29,7 @@ SAFETY_PREAMBLE = f"""You are testing a website that belongs to someone else, on
 2. Never delete accounts, data or content that you did not create in this test, and never change account settings or passwords.
 3. Never send messages, emails, invitations or posts to real people. If the site would contact someone, stop.
 4. {LABEL_RULE}
-5. Never solve a CAPTCHA or try to get around a security check. If you hit one, stop and report "blocked".
+5. If a CAPTCHA or security check stops you and you cannot pass it, stop and report "blocked".
 6. Do only what the task says. Do not explore unrelated pages.
 7. {DATA_NOT_ORDERS}"""
 

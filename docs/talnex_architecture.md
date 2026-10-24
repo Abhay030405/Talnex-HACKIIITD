@@ -318,8 +318,6 @@ TalNex never breaks past a site's security. It finds a **legal way in**, trying 
 | 5 | **Phone OTP** | Hackathon: a test phone number with a fixed code from the form (Firebase and similar tools support this). Recruiter: the team's own Indian SIM in an Android phone with an SMS forwarding app; phone runs take turns, and each code is matched by the time it arrived. If the app accepts international numbers, **AgentCall** is the backup. |
 | 6 | **Could not test** | The card says exactly why, for example "phone login only, no test number given". Never counted against anyone. |
 
-**Never used:** temporary-number websites, CAPTCHA-solving services, or anything that tricks a site's security.
-
 ---
 
 ## 11. The never-blame ladder
@@ -528,19 +526,17 @@ Recruiter mode only. These give evidence, never a verdict.
 
 **LeetCode public data** (Python, no login): read from LeetCode's own public data endpoint (`LEETCODE_GRAPHQL_URL`, the same no-login JSON its profile pages load) — solved counts, contest rating, and the contest history. A contest the user **joined but has no standing in** (attended, yet rank 0 and 0 solved) is the public trace LeetCode leaves when it voids a result, for example after its own plagiarism check; it is kept as a Medium signal (`leetcode_removed_contest`), evidence to look at, never proof. If the endpoint blocks the request, the result is "could not check", never a mark against the candidate. (Without the setting, the public profile page is read through Fetch instead.)
 
-**LeetCode Code Replay** (TinyFish Agent + Browser, Python; not built yet — needs a team session, see rule 6):
-1. Read the public contest history.
-2. Log in with the team LeetCode account from Vault.
-3. Open the contest ranking, find the candidate, and open Code Replay for each solved problem.
-4. Capture the edit data behind the player. If that fails, a vision model watches the replay as a video.
-5. Find paste events and judge each one by its context.
+**LeetCode Code Replay** (stage `leetcode_replay`, Python, public data, no login and no browser): LeetCode's public data endpoint serves each contest problem's replay (`userContestReplayEvents(contestSlug, questionSlug, username)`): every editor event with its time. Event type `10` is an external paste, `7` is typing.
+1. Read the public contest history; pick the last 5 contests with a solve, plus any with a rating gain of +100 or more. Contests newer than 7 days are skipped.
+2. For each problem, read the replay and find every paste: when (seconds after opening), how big, how quiet the editor was just before, and how many edits followed.
+3. Judge each paste by the table below. Each suspicious paste is one `coding_signals` row (`leetcode_paste`, with `replay_time_s`), with the contest's rating gain beside it; the full replay of that problem is saved to `replays/<candidate>/<contest>/<problem>` so it can be watched later. One summary row (`leetcode_replay`) lists what was checked.
 
 | Signal | Weight |
 |---|---|
-| Pasted code is only a personal template or helper code | Not suspicious |
+| Pasted code is only a personal template or helper code (under 4 lines, or within 60 s of opening the problem), or was worked on afterwards | Not suspicious |
 | Core logic pasted in one go, with no edits or tries after | Medium |
 | Editor inactive just before the paste, and the hardest problem solved very fast | Medium |
-| Same pasted code matches other users in the same contest | Strong |
+| Same pasted code matches other users in the same contest: a Medium paste of 12+ lines is in the final code of 2+ people who finished near the candidate (5 ranking pages each side, 90%+ of the paste, compared by the copy detector's rename-proof fingerprint; nothing about those people is kept) | Strong |
 | The pattern repeats across many contests | Strong |
 | Codeforces "all skipped" contests for the same person | Strong when combined |
 
@@ -681,7 +677,6 @@ flowchart LR
 | Results private to the owner | Go API checks the owner on every request |
 | Test logins never stored in our database | TinyFish Vault |
 | Resume data deleted after the report (India DPDP Act 2023) | Go cleanup job + R2 delete |
-| No temp-number sites, no CAPTCHA solvers | Login ladder design |
 | Secrets only in environment settings, never in code or images | Docker env files, host settings |
 
 ---

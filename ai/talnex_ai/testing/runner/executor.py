@@ -5,8 +5,8 @@ the text isn't enough), picks ONE action, plain code checks it's safe, the drive
 again. When the step's expected result is visible the model says "done". At the end a separate
 judgement says whether the plan's expected result happened.
 
-Nothing here blames a site for our own trouble: running out of time or actions, a CAPTCHA, or a
-refused action all end as "blocked", never "broken".
+Nothing here blames a site for our own trouble: running out of time or actions, a CAPTCHA the
+browser could not solve, or a refused action all end as "blocked", never "broken".
 """
 from __future__ import annotations
 
@@ -137,6 +137,7 @@ def execute_plan(
     test_files = list_test_files(uploads_root)  # only these may be uploaded; the model never invents a file
     scanned_urls: set[str] = set()              # each page is asked for its hidden text once
     seen_text: list[str] = []                   # every page seen so far: addresses in it are ones a visitor could follow
+    solved_urls: set[str] = set()               # pages where the browser already solved a human check
 
     def tell(kind: str, **data) -> None:
         """Report progress to the live view. Watching must never change what's being watched."""
@@ -163,6 +164,19 @@ def execute_plan(
                                   observed=observed, proof_key=save_proof(number, shot) if shot else None, devtools=seen))
         tell("step.record", number=number, label=action, expected=expected, observed=observed,
              proof_key=records[-1].proof_key, box=box, url=driver.url())
+
+    def human_check(snapshot: str, expected: Optional[str]) -> Optional[str]:
+        """None when there is no human check, "solved" when the browser solved it (Browserless), else "blocked".
+        A page is solved once: if it still reads like a human check after that, the model judges what it sees."""
+        url = driver.url()
+        if not looks_like_captcha(snapshot) or url in solved_urls:
+            return None
+        if not getattr(driver, "solve_captcha", lambda: False)():
+            return "blocked"
+        solved_urls.add(url)
+        used["actions"] += 1  # counts toward the action limit, so solve after solve still ends
+        record("Solved a human check (CAPTCHA)", expected, None)
+        return "solved"
 
     def note_last(observed: str) -> None:
         if records and observed:
@@ -197,7 +211,10 @@ def execute_plan(
             snapshot = trim(driver.snapshot(), cfg.snapshot_chars)
             seen_text += [snapshot, driver.url()]  # a page the site itself sent us to is a real address too
             scan_hidden_text()
-            if looks_like_captcha(snapshot):
+            check = human_check(snapshot, step.expected)
+            if check == "solved":
+                continue
+            if check == "blocked":
                 record("Stopped: a human check appeared", step.expected, "a CAPTCHA or human check is on the page")
                 return finish("blocked", "a human check (CAPTCHA) stopped the test", "a human check appeared")
 
@@ -282,7 +299,10 @@ def execute_plan(
 
     # The final judgement against the plan's expected result.
     snapshot = trim(driver.snapshot(), cfg.snapshot_chars)
-    if looks_like_captcha(snapshot):
+    check = human_check(snapshot, plan.expected_result)
+    if check == "solved":
+        snapshot = trim(driver.snapshot(), cfg.snapshot_chars)
+    elif check == "blocked":
         return finish("blocked", "a human check (CAPTCHA) stopped the test", "a human check appeared")
     look = final_look(client, plan, claim_text=claim_text, history=history, url=driver.url(), snapshot=snapshot,
                       job_id=job_id)
