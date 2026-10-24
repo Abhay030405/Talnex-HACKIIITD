@@ -2133,6 +2133,39 @@ a.meta:hover {
   gap: var(--space-2);
 }
 
+/* What the browser's developer tools saw during a step: API calls with latency, failures, console, masked leaks. */
+.network {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.network > summary {
+  width: fit-content;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.network__table {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.network__url {
+  word-break: break-all;
+}
+
+.network__bad {
+  color: var(--color-danger);
+}
+
+.network__console {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-warning);
+}
+
 /* A screenshot shows small and opens to full width on click. */
 .shot {
   margin-top: var(--space-2);
