@@ -41,6 +41,10 @@ export const env = {
   get devLogin(): boolean {
     return optional("ENABLE_DEV_LOGIN") === "true";
   },
+  /** Address shown on the contact page. Empty hides it. */
+  get contactEmail(): string {
+    return optional("CONTACT_EMAIL");
+  },
   /** Cookies are marked secure (https only) outside local development. */
   get secureCookies(): boolean {
     return optional("NODE_ENV") === "production" && !optional("AUTH_URL").startsWith("http://");
