@@ -16,6 +16,7 @@ from psycopg_pool import ConnectionPool
 from talnex_ai.checks.authorship import report as authorship_report
 from talnex_ai.checks.authorship.identity import identity_of
 from talnex_ai.claims.store import Subject
+from talnex_ai.reports.sandbox import sandbox_facts
 from talnex_ai.reports.proof import features
 from talnex_ai.reports.run_cost import run_usage
 
@@ -94,20 +95,6 @@ def _checks(conn, project_id: str) -> list[dict]:
     return out
 
 
-def _sandbox(conn, project_id: str) -> dict:
-    row = conn.execute("""SELECT status, status_detail, recipe, resources FROM sandbox_runs
-                           WHERE project_id = %s::uuid ORDER BY created_at DESC LIMIT 1""", (project_id,)).fetchone()
-    if row is None:
-        return {"ran": False, "reason": "no repository was run in a sandbox"}
-    status, detail, recipe, resources = row
-    recipe, resources = recipe or {}, resources or {}
-    discovery = resources.get("discovery") or {}
-    return {"ran": status in ("running", "done"), "status": status, "detail": detail, "stack": recipe.get("stack"),
-            "recipe_source": recipe.get("source"), "needed_a_fix": recipe.get("source") == "model_fix",
-            "notes": recipe.get("notes") or [], "routes_found": len(discovery.get("routes") or []),
-            "spec_found": bool(discovery.get("spec_found"))}
-
-
 def _opinion(conn, project_id: str, live: Optional[str]) -> Optional[dict]:
     """The AI opinion box, or None until the event-level opinion stage has run. Never part of any score."""
     rows = {kind: (parts, models) for kind, parts, models in conn.execute(
@@ -164,7 +151,7 @@ def build_project_card(pool: ConnectionPool, project_id: str) -> dict:
             "SELECT flag_type, level, reason, evidence FROM flags WHERE project_id = %s::uuid ORDER BY created_at, id",
             (project_id,))]
         checks = _checks(conn, project_id)
-        sandbox = _sandbox(conn, project_id)
+        sandbox = sandbox_facts(conn, "project_id", project_id, "hackathon", live)
         opinion = _opinion(conn, project_id, live)
         run = run_usage(conn, [("project", project_id)])
 

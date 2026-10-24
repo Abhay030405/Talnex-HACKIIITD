@@ -4,10 +4,11 @@ import NextAuth, { type DefaultSession } from "next-auth";
 import type { Provider } from "next-auth/providers";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { headers } from "next/headers";
 
 import { forgetDoor, recallDoor } from "@/lib/door";
 import { env } from "@/lib/env";
-import { checkDoor, cleanEmail } from "@/lib/signin";
+import { checkDoor, checkPassword, cleanEmail } from "@/lib/signin";
 import { isRole, type Role } from "@/lib/types";
 
 declare module "next-auth" {
@@ -19,8 +20,28 @@ declare module "next-auth" {
 /** A week: long enough not to annoy, short enough that a forgotten laptop does not stay signed in for a month. */
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
 
+/** The visitor's address, for the API's sign-in rate limit. Empty when unknown. */
+async function clientIp(): Promise<string> {
+  const h = await headers();
+  return (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "";
+}
+
 function providers(): Provider[] {
-  const list: Provider[] = [];
+  const list: Provider[] = [
+    // Email and password: the API checks the password (bcrypt) and rate-limits tries; nothing is stored here.
+    Credentials({
+      id: "password",
+      name: "Email and password",
+      credentials: { email: { label: "Email", type: "email" }, password: { label: "Password", type: "password" } },
+      async authorize(credentials) {
+        const email = cleanEmail(credentials?.email);
+        const password = String(credentials?.password ?? "");
+        if (!email || !password) return null;
+        const account = await checkPassword(email, password, await clientIp());
+        return account ? { id: account.email, email: account.email, name: account.name || email.split("@")[0] } : null;
+      },
+    }),
+  ];
   if (env.googleClientId && env.googleClientSecret) {
     list.push(Google({ clientId: env.googleClientId, clientSecret: env.googleClientSecret }));
   }
@@ -74,5 +95,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
 
 /** Which sign-in ways are switched on, for the sign-in page. */
 export function signInOptions() {
-  return { google: Boolean(env.googleClientId && env.googleClientSecret), dev: env.devLogin };
+  return { google: Boolean(env.googleClientId && env.googleClientSecret), dev: env.devLogin, password: true };
 }

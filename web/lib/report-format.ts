@@ -162,19 +162,65 @@ export function signalWeightInfo(weight: string): { text: string; tone: Tone } {
   return SIGNAL_WEIGHTS[weight] ?? { text: weight.replace(/_/g, " "), tone: "neutral" };
 }
 
-/** Evidence as label and value pairs: "max_rating" becomes "Max rating"; lists and objects become short text. */
-export function evidenceFacts(evidence: Record<string, unknown>): { label: string; value: string }[] {
+export interface EvidenceFact {
+  label: string;
+  /** Plain text for a single value or a list of plain values. */
+  value?: string;
+  /** A list of records, shown as a small table. */
+  table?: { columns: string[]; rows: string[][] };
+  /** An object, shown as nested label and value rows. */
+  rows?: EvidenceFact[];
+}
+
+/** "busiest_day_share" → "Busiest day share". */
+export function humanKey(key: string): string {
+  return key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
+
+/** One plain value in words: yes/no, numbers with separators, shares as %, ISO dates as dates. Never JSON. */
+export function plainValue(value: unknown, key = ""): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  if (typeof value === "number") {
+    if (/(share|ratio|rate)$/.test(key) && value >= 0 && value <= 1) return `${Math.round(value * 100)}%`;
+    return Number.isInteger(value) ? value.toLocaleString("en-US") : value.toFixed(2).replace(/\.?0+$/, "");
+  }
+  if (typeof value === "string") {
+    if (ISO_DATE.test(value)) {
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime()))
+        return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    }
+    return value.length > 300 ? `${value.slice(0, 300)}…` : value;
+  }
+  if (Array.isArray(value)) return value.map((v) => plainValue(v, key)).join(", ");
+  return Object.entries(value as Record<string, unknown>)
+    .map(([k, v]) => `${humanKey(k)}: ${plainValue(v, k)}`)
+    .join(" · ");
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** Evidence as readable facts: plain values as text, lists of records as a table, objects as nested rows. */
+export function evidenceFacts(evidence: Record<string, unknown>): EvidenceFact[] {
   return Object.entries(evidence ?? {})
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .map(([key, value]) => {
-      const label = key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
-      let text: string;
-      if (typeof value === "boolean") text = value ? "yes" : "no";
-      else if (Array.isArray(value))
-        text = value.map((v) => (typeof v === "object" ? JSON.stringify(v) : String(v))).join(", ");
-      else if (typeof value === "object") text = JSON.stringify(value);
-      else text = String(value);
-      return { label, value: text.length > 300 ? `${text.slice(0, 300)}…` : text };
+    .filter(([, v]) => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0))
+    .map(([key, value]): EvidenceFact => {
+      const label = humanKey(key);
+      if (Array.isArray(value) && value.some(isRecord)) {
+        const records = value.filter(isRecord);
+        const columns = [...new Set(records.flatMap((r) => Object.keys(r)))];
+        return {
+          label,
+          table: { columns: columns.map(humanKey), rows: records.map((r) => columns.map((c) => plainValue(r[c], c))) },
+        };
+      }
+      if (isRecord(value)) return { label, rows: evidenceFacts(value) };
+      return { label, value: plainValue(value, key) };
     });
 }
 

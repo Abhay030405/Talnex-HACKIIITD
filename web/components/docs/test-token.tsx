@@ -3,6 +3,8 @@
 // It works only when the site runs with TALNEX_DOCS_DEV_TOKENS=true, on this computer.
 import { type FormEvent, useEffect, useState } from 'react';
 
+import { storeSessionToken } from '@/lib/docs/playground-auth';
+
 type State =
   | { kind: 'checking' }
   | { kind: 'off' }
@@ -46,6 +48,7 @@ export function TestToken() {
   }
 
   if (state.kind === 'checking') return <div className="tx-token">Checking whether test tokens are on…</div>;
+  // Signed-in people use their own session (above); the local helper is only for testing other accounts.
   if (state.kind === 'off') {
     return (
       <div className="tx-token">
@@ -98,5 +101,64 @@ export function TestToken() {
         </div>
       ) : null}
     </form>
+  );
+}
+
+type Session =
+  | { kind: 'idle' }
+  | { kind: 'error'; message: string }
+  | { kind: 'done'; token: string; expiresAt: string; role: string; email: string };
+
+/** "Use my session": a short-lived token for whoever is signed in to the website, to try the API as yourself. */
+export function SessionToken() {
+  const [state, setState] = useState<Session>({ kind: 'idle' });
+  const [copied, setCopied] = useState(false);
+
+  async function copy(token: string) {
+    await navigator.clipboard.writeText(token);
+    setCopied(true);
+  }
+
+  async function use() {
+    setCopied(false);
+    const r = await fetch('/api/docs/session-token', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok) return setState({ kind: 'error', message: d.error ?? 'Could not make a token.' });
+    // Fill every playground's Authorization field with it, then show it here too.
+    storeSessionToken(d);
+    setState({ kind: 'done', token: d.token, expiresAt: d.expires_at, role: d.role, email: d.email });
+  }
+
+  return (
+    <div className="tx-token">
+      <p className="tx-token__title">Use my session</p>
+      <p className="tx-token__note">
+        Signed in to TalNex? Every playground&apos;s Authorization field is filled with a short-lived token for your own
+        account, so you can press Send on any API page. Press the button for a fresh one.
+      </p>
+      <div className="tx-token__row">
+        <button type="button" className="button button--primary" onClick={use}>
+          Use my session
+        </button>
+        {state.kind === 'error' ? (
+          <span className="tx-token__error">
+            {state.message} <a href="/login">Sign in</a>
+          </span>
+        ) : null}
+      </div>
+      {state.kind === 'done' ? (
+        <div className="tx-token__result">
+          <code className="tx-token__value">{state.token}</code>
+          <div className="tx-token__row">
+            <button type="button" className="button button--ghost" onClick={() => copy(state.token)}>
+              {copied ? 'Copied' : 'Copy token'}
+            </button>
+            <span className="tx-token__note">
+              {state.email} ({state.role || 'no role yet'}), works until {new Date(state.expiresAt).toLocaleTimeString()}
+            </span>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
