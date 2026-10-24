@@ -111,13 +111,24 @@ def _openapi_body_fields(op: dict, doc: dict) -> list[str]:
 
 
 _JS_ROUTE = re.compile(r"""(?P<recv>[$\w.]+)\.(?P<m>get|post|put|patch|delete|options|head|all)\(\s*(?P<q>['"`])(?P<p>/[^'"`]*)(?P=q)""")
-_JS_MOUNT = re.compile(r"""\.use\(\s*(?P<q>['"`])(?P<p>/[^'"`]*)(?P=q)\s*,\s*(?P<arg>[^\n]+)""")
+_JS_MOUNT = re.compile(r"""\.(?:use|route)\(\s*(?P<q>['"`])(?P<p>/[^'"`]*)(?P=q)\s*,\s*(?P<arg>[^\n]+)""")  # Express use, Hono route
+# Express: app.route('/book').get(h).post(h) — one path, several methods chained on it.
+_JS_CHAIN = re.compile(r"""\.route\(\s*(?P<q>['"`])(?P<p>/[^'"`]*)(?P=q)\s*\)(?P<chain>(?:\s*\.\s*(?:get|post|put|patch|delete|all)\([^)]*\))+)""")
+_JS_CHAIN_METHOD = re.compile(r"""\.\s*(get|post|put|patch|delete|all)\(""")
+# Koa-router: const router = new Router({ prefix: '/api' })
+_JS_ROUTER_PREFIX = re.compile(r"""(?:const|let|var)\s+(?P<n>\w+)\s*=\s*new\s+(?:Koa)?Router\(\s*\{[^}]*?prefix\s*:\s*(?P<q>['"`])(?P<p>[^'"`]*)(?P=q)""")
 _JS_IMPORT = re.compile(r"""(?:const|let|var)\s+(?P<n>\w+)\s*=\s*require\(\s*['"](?P<f>[^'"]+)['"]\s*\)|import\s+(?P<n2>\w+)\s+from\s+['"](?P<f2>[^'"]+)['"]""")
 _PY_DECORATOR = re.compile(r"""^\s*@(?P<recv>\w+)\.(?P<m>get|post|put|patch|delete|route)\(\s*(?P<q>['"])(?P<p>[^'"]*)(?P=q)(?P<rest>[^)]*)\)""", re.M)
 _PY_METHODS = re.compile(r"methods\s*=\s*[\[(]([^\])]*)[\])]")
 _PY_BLUEPRINT = re.compile(r"""(?P<n>\w+)\s*=\s*(?:flask\.)?Blueprint\([^)]*?url_prefix\s*=\s*['"](?P<p>[^'"]*)['"]""")
 _PY_ROUTER = re.compile(r"""(?P<n>\w+)\s*=\s*(?:fastapi\.)?APIRouter\([^)]*?prefix\s*=\s*['"](?P<p>[^'"]*)['"]""")
 _PY_REGISTER = re.compile(r"""\.(?:register_blueprint|include_router)\(\s*(?P<n>[\w.]+)[^)]*?(?:url_prefix|prefix)\s*=\s*['"](?P<p>[^'"]*)['"]""")
+# aiohttp: app.router.add_get('/x', h) · add_route('POST', '/x', h) · route tables web.get('/x', h) / web.route('POST', '/x', h)
+_PY_ADD_METHOD = re.compile(r"""\.add_(?P<m>get|post|put|patch|delete|head)\(\s*(?P<q>['"])(?P<p>/[^'"]*)(?P=q)""")
+_PY_ADD_ROUTE = re.compile(r"""(?:\.add_route|\bweb\.route)\(\s*(?P<q>['"])(?P<m>[A-Za-z*]+)(?P=q)\s*,\s*(?P<q2>['"])(?P<p>/[^'"]*)(?P=q2)""")
+_PY_WEB_TABLE = re.compile(r"""\bweb\.(?P<m>get|post|put|patch|delete|head)\(\s*(?P<q>['"])(?P<p>/[^'"]*)(?P=q)""")
+# Flask app.add_url_rule('/x', ..., methods=[...]) and Starlette Route('/x', endpoint, methods=[...]).
+_PY_URL_RULE = re.compile(r"""(?:\.add_url_rule|\bRoute)\(\s*(?P<q>['"])(?P<p>/[^'"]*)(?P=q)(?P<rest>[^)\n]*)\)""")
 _DJANGO = re.compile(r"""\bpath\(\s*['"](?P<p>[^'"]*)['"]""")
 _SPRING = re.compile(r"""@(?P<m>Get|Post|Put|Delete|Patch)Mapping\(\s*(?:value\s*=\s*)?['"](?P<p>[^'"]*)['"]""")
 _GIN = re.compile(r"""\.(?P<m>GET|POST|PUT|DELETE|PATCH)\(\s*"(?P<p>/[^"]*)\"""")
@@ -167,12 +178,18 @@ def from_code(files: Mapping[str, str]) -> list[FoundRoute]:
             continue
         file_prefix = prefixes.get(path, "")
         if suffix in {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"}:
+            local = {m["n"]: m["p"] for m in _JS_ROUTER_PREFIX.finditer(text)}
             for m in _JS_ROUTE.finditer(text):
                 if m["recv"].split(".")[0].lower() in NOT_ROUTERS or m["recv"].lower() in NOT_ROUTERS:
                     continue
                 method = "ANY" if m["m"] == "all" else m["m"].upper()
-                out.append(FoundRoute(method, join_paths(file_prefix, m["p"]), "code", path, _line_of(text, m.start()),
+                full = join_paths(join_paths(file_prefix, local.get(m["recv"], "")), m["p"])
+                out.append(FoundRoute(method, full, "code", path, _line_of(text, m.start()),
                                       body_fields=body_fields_near(text, m.start(), suffix) if method in ("POST", "PUT", "PATCH") else ()))
+            for m in _JS_CHAIN.finditer(text):
+                for verb in _JS_CHAIN_METHOD.findall(m["chain"]):
+                    out.append(FoundRoute("ANY" if verb == "all" else verb.upper(), join_paths(file_prefix, m["p"]), "code",
+                                          path, _line_of(text, m.start())))
         elif suffix == ".py":
             out += _python_routes(path, text, file_prefix)
         elif suffix in {".java", ".kt"}:
@@ -198,6 +215,21 @@ def _python_routes(path: str, text: str, file_prefix: str) -> list[FoundRoute]:
         for method in methods:
             out.append(FoundRoute(method, join_paths(prefix, m["p"]), "code", path, _line_of(text, m.start()),
                                   body_fields=body_fields_near(text, m.start(), ".py") if method in ("POST", "PUT", "PATCH") else ()))
+    def add(method: str, route: str, at: int) -> None:
+        out.append(FoundRoute(method, join_paths(file_prefix, route), "code", path, _line_of(text, at),
+                              body_fields=body_fields_near(text, at, ".py") if method in ("POST", "PUT", "PATCH") else ()))
+
+    for m in _PY_ADD_METHOD.finditer(text):
+        add(m["m"].upper(), m["p"], m.start())
+    for m in _PY_ADD_ROUTE.finditer(text):
+        add("ANY" if m["m"] == "*" else m["m"].upper(), m["p"], m.start())
+    for m in _PY_WEB_TABLE.finditer(text):
+        add(m["m"].upper(), m["p"], m.start())
+    for m in _PY_URL_RULE.finditer(text):
+        found = _PY_METHODS.search(m["rest"])
+        methods = [x.strip(" '\"").upper() for x in found.group(1).split(",") if x.strip(" '\"")] if found else ["GET"]
+        for method in methods:
+            add(method, m["p"], m.start())
     if PurePosixPath(path).name == "urls.py":
         for m in _DJANGO.finditer(text):
             out.append(FoundRoute("ANY", join_paths(file_prefix, m["p"]), "code", path, _line_of(text, m.start())))

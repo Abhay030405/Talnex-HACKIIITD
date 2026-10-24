@@ -57,7 +57,7 @@ def test_the_card_shows_proof_and_gaps_and_never_ranks(pool, hackathon):
     assert any("could not be tested" in n for n in card["notes"]) and any("No team is ranked" in n for n in card["notes"])
     assert card["ai_opinion"]["label"] == OPINION_LABEL and card["ai_opinion"]["innovation"]["disagreement_note"]
     assert "screens" in card["ai_opinion"]["ui_note"] or "screenshots" in card["ai_opinion"]["ui_note"]
-    assert card["sandbox"] == {"ran": False, "reason": "no repository was run in a sandbox"}
+    assert card["sandbox"]["ran"] is False and card["sandbox"]["reason"] == "no repository was run in a VM"
 
 
 def test_a_failed_or_skipped_stage_is_listed(pool, hackathon):

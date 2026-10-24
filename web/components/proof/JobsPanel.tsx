@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 
 import { retryJobAction, runStagesAction } from "@/app/jobs-actions";
+import { PipelineFlow } from "@/components/proof/PipelineFlow";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
+import { jobSummary } from "@/lib/pipeline-flow";
 import type { JobRow } from "@/lib/types";
 
 const STATUS_BADGE: Record<JobRow["status"], string> = {
@@ -23,33 +25,22 @@ function runPath(job: JobRow): string | null {
   return null;
 }
 
-function summary(job: JobRow): string {
-  const r = job.result;
-  if (!r) return "";
-  if (r.reused_from_run) return `reused from run ${r.reused_from_run}`;
-  if (r.skipped) return `skipped${r.reason ? `: ${r.reason}` : ""}`;
-  return Object.entries(r)
-    .filter(([, v]) => ["string", "number", "boolean"].includes(typeof v))
-    .slice(0, 3)
-    .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
-    .join(" · ");
-}
-
 /**
  * Every job of a check, grouped by project and pipeline: pick a run, then run one stage again, several chosen stages,
  * or retry a failed job. Earlier stages are reused, the stages after the chosen ones run again, and the live view opens.
  */
-export function JobsPanel({ jobs, liveHref }: { jobs: JobRow[]; liveHref: string }) {
+export function JobsPanel({ jobs, liveHref, open = false }: { jobs: JobRow[]; liveHref: string; open?: boolean }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string[]>>({});
+  const [view, setView] = useState<"flow" | "table">("flow");
   const groups = new Map<string, JobRow[]>();
   for (const job of jobs) {
     const key = `${job.pipeline}|${job.target_id}`;
     groups.set(key, [...(groups.get(key) ?? []), job]);
   }
   const busy = jobs.some((j) => j.status === "queued" || j.status === "running" || j.status === "retrying");
-  if (jobs.length === 0) return null;
+  if (jobs.length === 0) return <p className="note">No jobs have run yet.</p>;
 
   const go = (action: () => Promise<{ error?: string }>) =>
     start(async () => {
@@ -58,9 +49,22 @@ export function JobsPanel({ jobs, liveHref }: { jobs: JobRow[]; liveHref: string
     });
 
   return (
-    <details className="proof-viewer">
+    <details className="proof-viewer" open={open}>
       <summary>Jobs ({jobs.length})</summary>
       <AutoRefresh active={busy} />
+      <div className="row jobs-panel__view" role="group" aria-label="Show jobs as">
+        {(["flow", "table"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            className={view === v ? "button button--sm" : "button button--ghost button--sm"}
+            aria-pressed={view === v}
+            onClick={() => setView(v)}
+          >
+            {v === "flow" ? "Flow" : "Table"}
+          </button>
+        ))}
+      </div>
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -70,6 +74,7 @@ export function JobsPanel({ jobs, liveHref }: { jobs: JobRow[]; liveHref: string
         <JobGroup
           key={key}
           rows={rows}
+          view={view}
           picked={picked[key] ?? []}
           onPick={(stages) => setPicked({ ...picked, [key]: stages })}
           pending={pending}
@@ -83,6 +88,7 @@ export function JobsPanel({ jobs, liveHref }: { jobs: JobRow[]; liveHref: string
 
 function JobGroup({
   rows,
+  view,
   picked,
   onPick,
   pending,
@@ -90,6 +96,7 @@ function JobGroup({
   retry,
 }: {
   rows: JobRow[];
+  view: "flow" | "table";
   picked: string[];
   onPick: (stages: string[]) => void;
   pending: boolean;
@@ -129,6 +136,16 @@ function JobGroup({
           </button>
         )}
       </div>
+      {view === "flow" ? (
+        <PipelineFlow
+          rows={inRun}
+          allRows={rows}
+          pending={pending}
+          canRun={path !== null}
+          run={(stages) => path && run(path, stages)}
+          retry={retry}
+        />
+      ) : (
       <div className="table__wrap">
         <table className="table">
           <thead>
@@ -169,7 +186,7 @@ function JobGroup({
                   {job.tries}/{job.max_tries}
                 </td>
                 <td>{job.status === "done" || job.status === "failed" ? `${Math.round(job.seconds)}s` : "…"}</td>
-                <td className="table__wrap-text">{job.error || summary(job)}</td>
+                <td className="table__wrap-text">{job.error || jobSummary(job)}</td>
                 <td className="table__end">
                   {job.status === "failed" && (
                     <button type="button" className="button button--ghost button--sm" disabled={pending} onClick={() => retry(job.id)}>
@@ -187,6 +204,7 @@ function JobGroup({
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

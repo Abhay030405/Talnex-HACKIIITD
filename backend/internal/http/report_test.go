@@ -28,7 +28,8 @@ const sampleReport = `{"version":1,"candidate_id":"x","has_gaps":false,"projects
   {"text":"converts units","proof":[
     {"step":1,"action":"open","observed":"home","proof_key":"screens/p/r/1"},
     {"step":2,"action":"type","observed":"no screenshot"}]},
-  {"text":"no proof at all"}]}],
+  {"text":"no proof at all"}],
+  "sandbox":{"ran":true,"build_log_key":"sandbox/p/r/build.log"}}],
  "coding_signals":[],"flags":[],"notes":[]}`
 
 func setupReport(t *testing.T, links apihttp.ProofLinks) *httptest.Server {
@@ -69,6 +70,10 @@ func TestReportSwapsStorageKeysForViewLinks(t *testing.T) {
 	}
 	if strings.Contains(string(out), "proof_key") || strings.Contains(string(out), "screens/p/r/1\"") {
 		t.Errorf("a raw storage key left the server: %s", out)
+	}
+	if strings.Contains(string(out), "build_log_key") ||
+		!strings.Contains(string(out), `"build_log_url":"https://files.example/view/sandbox/p/r/build.log?sig=abc"`) {
+		t.Errorf("the VM build log should leave only as a short-lived link: %s", out)
 	}
 	var got struct {
 		HasGaps  bool `json:"has_gaps"`

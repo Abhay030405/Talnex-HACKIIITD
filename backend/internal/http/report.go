@@ -73,6 +73,11 @@ func (s *server) swapProofKeys(ctx context.Context, report map[string]any) {
 	projects, _ := report["projects"].([]any)
 	for _, p := range projects {
 		project, _ := p.(map[string]any)
+		// The VM track's build and run logs, like screenshots, only leave as short-lived links.
+		if sandbox, ok := project["sandbox"].(map[string]any); ok {
+			s.viewLinkInto(ctx, sandbox, "build_log_key", "build_log_url")
+			s.viewLinkInto(ctx, sandbox, "run_log_key", "run_log_url")
+		}
 		features, _ := project["features"].([]any)
 		for _, f := range features {
 			feature, _ := f.(map[string]any)

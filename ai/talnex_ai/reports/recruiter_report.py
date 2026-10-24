@@ -16,6 +16,7 @@ from psycopg_pool import ConnectionPool
 from talnex_ai.checks.authorship import report as authorship_report
 from talnex_ai.coding.insights import build_insights
 from talnex_ai.reports.interview_kit import build_kit
+from talnex_ai.reports.sandbox import sandbox_facts
 from talnex_ai.settings import InsightSettings
 from talnex_ai.reports.proof import features
 from talnex_ai.reports.run_cost import run_usage
@@ -104,6 +105,7 @@ def _project(conn, row, candidate: Optional[str] = None) -> dict:
         "talnex": {"score10": score10, "coverage": coverage, "features_scored": len(scored),
                    "features_total": len(testable), "low_coverage": coverage < LOW_COVERAGE_PERCENT},
         "features": features, "flags": flags, "originality": _originality(conn, repo_url, pid),
+        "sandbox": sandbox_facts(conn, "candidate_project_id", pid, "recruiter", live_url),
     }
 
 
