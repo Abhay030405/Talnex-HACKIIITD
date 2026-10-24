@@ -62,6 +62,11 @@ export const env = {
     const minutes = Number(optional("TALNEX_DOCS_DEV_TOKEN_MINUTES") || "30");
     return Number.isFinite(minutes) && minutes > 0 ? Math.min(minutes, 24 * 60) : 30;
   },
+  /** How long a docs "Use my session" token lasts, in minutes (5 to 60). */
+  get docsSessionTokenMinutes(): number {
+    const minutes = Number(optional("TALNEX_DOCS_SESSION_TOKEN_MINUTES") || "15");
+    return Number.isFinite(minutes) && minutes > 0 ? Math.min(Math.max(minutes, 5), 60) : 15;
+  },
   /** Cookies are marked secure (https only) outside local development. */
   get secureCookies(): boolean {
     return optional("NODE_ENV") === "production" && !optional("AUTH_URL").startsWith("http://");

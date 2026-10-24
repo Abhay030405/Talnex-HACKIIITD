@@ -13,6 +13,7 @@ export async function signApiToken(
   email: string,
   name?: string | null,
   role?: string | null,
+  seconds: number = API_TOKEN_SECONDS,
 ): Promise<string> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) throw new Error("An API token needs the person's email");
@@ -21,6 +22,6 @@ export async function signApiToken(
   return new SignJWT({ email: cleanEmail, name: name?.trim() ?? "", ...(role ? { role } : {}) })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt(now)
-    .setExpirationTime(now + API_TOKEN_SECONDS)
+    .setExpirationTime(now + seconds)
     .sign(new TextEncoder().encode(secret));
 }

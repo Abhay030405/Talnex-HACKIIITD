@@ -103,6 +103,72 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/RoleTaken' }
 
+  /v1/auth/register:
+    post:
+      operationId: registerPassword
+      tags: [Account]
+      summary: Set a password (create an email and password account)
+      description: |
+        Called by the website's sign-up form. The token names the email and the role (the sign-in door); the account is
+        made with that role if it is new. An email that already has a password is refused: sign in instead. The password
+        is stored only as a bcrypt hash and is never returned. Too many refused tries from one address are slowed down.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        '201':
+          description: The account now has a password.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email: { type: string }
+                  role: { type: string, enum: [organizer, recruiter] }
+        '400': { description: 'No role in the token, or the password is not 8 to 128 characters.' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/RoleTaken' }
+        '409': { description: 'This email already has an account; sign in instead.' }
+        '429': { description: 'Too many tries; wait a few minutes.' }
+
+  /v1/auth/password-login:
+    post:
+      operationId: passwordLogin
+      tags: [Account]
+      summary: Check an email and password
+      description: |
+        Called by the website's sign-in form. The token names the email (no role needed). A wrong password and an unknown
+        email get the same answer, and an unknown email never creates an account. Five failures within 15 minutes for one
+        email, or from one address, are refused for a while (429).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        '200':
+          description: The password is right.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email: { type: string }
+                  name: { type: string }
+                  role: { type: string, enum: [organizer, recruiter, ''] }
+        '401': { description: 'Email or password is wrong, or no valid token.' }
+        '429': { description: 'Too many failed tries; wait a few minutes.' }
+
   /v1/events:
     post:
       operationId: createEvent

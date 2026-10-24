@@ -33,6 +33,8 @@ export interface ApiRequest {
   form?: FormData;
   /** Gives up after this long. Uploads may need longer than the default. */
   timeoutMs?: number;
+  /** Extra headers, for example the visitor's address for the sign-in rate limit. */
+  headers?: Record<string, string>;
 }
 
 export interface ApiDeps {
@@ -57,7 +59,7 @@ export async function callApi<T>(
 ): Promise<T> {
   if (!path.startsWith("/")) throw new Error(`API paths start with "/": ${path}`);
   const token = await signApiToken(deps.secret, caller.email, caller.name, caller.role);
-  const headers: Record<string, string> = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+  const headers: Record<string, string> = { ...request.headers, Authorization: `Bearer ${token}`, Accept: "application/json" };
   // A form upload sets its own content type, with the boundary, so only JSON bodies get one here.
   if (request.body !== undefined && !request.form) headers["Content-Type"] = "application/json";
 
