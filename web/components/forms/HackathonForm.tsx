@@ -12,7 +12,7 @@ import type { EventMode } from "@/lib/types";
 const INITIAL: FormState = {};
 
 const MODES: { value: EventMode; title: string; text: string }[] = [
-  { value: "open_theme", title: "Open theme", text: "Teams build anything. Claims come from each demo video." },
+  { value: "open_theme", title: "Open theme", text: "Teams build anything. TalNex reads what each team built from its repository." },
   { value: "fixed_problem", title: "Fixed problem", text: "One problem for everyone, scored on your own criteria." },
 ];
 

@@ -24,7 +24,7 @@ const DOORS = [
 const STEPS = [
   {
     title: "Read what the project claims",
-    text: "From the demo video, your scoring criteria, or the resume and README.",
+    text: "From the team's code, your scoring criteria, or the resume and README.",
   },
   {
     title: "Use it like a real person",

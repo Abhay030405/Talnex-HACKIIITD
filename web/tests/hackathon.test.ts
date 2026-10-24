@@ -93,3 +93,21 @@ describe("running checks", () => {
     expect(await to(runProjectAction("e1", "p1"))).toBe("/events/e1/projects/p1?run=busy");
   });
 });
+
+describe("checks that did not run", () => {
+  it("folds the repository checks into one line when no repository was given, but never a failed check", async () => {
+    const { checkRows } = await import("@/lib/hackathon-format");
+    const checks = [
+      { stage: "sandbox_run", status: "skipped", reason: "no repository link was given" },
+      { stage: "video_read", status: "skipped", reason: "no demo video was given" },
+      { stage: "route_discovery", status: "skipped", reason: "the app is not running" },
+      { stage: "repo_checks: repo_vs_live", status: "skipped", reason: "no repository link was given" },
+      { stage: "code_review", status: "failed", reason: "the stage failed" },
+    ];
+    const rows = checkRows(checks, false);
+    expect(rows[0].label).toBe("Repository checks");
+    expect(rows[0].stages).toEqual(["sandbox run", "route discovery", "repo checks: repo vs live"]);
+    expect(rows.map((r) => r.label)).toEqual(["Repository checks", "video read", "code review"]);
+    expect(checkRows(checks, true)).toHaveLength(5);
+  });
+});

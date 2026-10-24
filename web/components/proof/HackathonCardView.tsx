@@ -4,7 +4,7 @@ import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { WhoBuiltWhat } from "@/components/proof/WhoBuiltWhat";
 import { ProjectScore } from "@/components/scores/ProjectScore";
 import { BADGE_CLASS } from "@/lib/format";
-import { groupKindLabel } from "@/lib/hackathon-format";
+import { checkRows, groupKindLabel } from "@/lib/hackathon-format";
 import { formatCoverage, formatScore } from "@/lib/report-format";
 import type { AiOpinion, HackathonCard, OpinionPart } from "@/lib/types";
 
@@ -159,13 +159,18 @@ export function HackathonCardView({ card }: { card: HackathonCard }) {
             </h2>
           </div>
           <ul className="panel__body plain-list stack stack--tight">
-            {card.checks.map((check, i) => (
-              <li key={`${check.stage}-${i}`} className="row">
-                <span className={BADGE_CLASS[check.status === "failed" ? "danger" : "neutral"]}>
-                  {check.status === "failed" ? "Could not finish" : "Skipped"}
+            {checkRows(card.checks, Boolean(card.links.repo)).map((row, i) => (
+              <li key={`${row.label}-${i}`} className="row">
+                <span className={BADGE_CLASS[row.status === "failed" ? "danger" : "neutral"]}>
+                  {row.status === "failed" ? "Could not finish" : "Skipped"}
                 </span>
-                <span>{check.stage.replace(/_/g, " ")}</span>
-                {check.reason && <span className="note">{check.reason}</span>}
+                <span>{row.label}</span>
+                {row.reason && <span className="note">{row.reason}</span>}
+                {row.stages && (
+                  <span className="note">
+                    ({row.stages.length} checks: {row.stages.join(", ")})
+                  </span>
+                )}
               </li>
             ))}
           </ul>
