@@ -1,0 +1,321 @@
+{
+  "when": "2026-10-24 16:58 UTC",
+  "runs": [
+    {
+      "index": 1,
+      "subject_id": "526d72ee-dc05-418a-ba09-19b1925998d3",
+      "finished": true,
+      "seconds": 324.21800000000076,
+      "cost_usd": 0.01378,
+      "talnex": 0.0,
+      "coverage": 11.1,
+      "flags": [],
+      "claims": {
+        "Create an account with an email and a password": {
+          "verdict": "broken",
+          "confidence": "medium",
+          "feature_score": 0.0,
+          "reason": "0/10 for fresher: tested and not working"
+        },
+        "Sign in and sign out": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Add a book with a title and an author": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "See your books and search them by title or author": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Edit a book's details or delete it": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Mark a book as Want to read, Reading or Finished and its badge changes": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Rate finished books from 1 to 5 and see the average rating": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Export the shelf as a CSV file": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Set a yearly reading goal and a progress bar shows how many books are finished": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "subject_id": "9401357f-a1aa-426c-a40a-0ed3ae8a6e84",
+      "finished": true,
+      "seconds": 183.10900000000038,
+      "cost_usd": 0.01494,
+      "talnex": null,
+      "coverage": 0.0,
+      "flags": [],
+      "claims": {
+        "Create an account with an email and a password": {
+          "verdict": "could_not_test",
+          "confidence": "disagree",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Sign in and sign out": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Add a book with a title and an author": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "See your books and search them by title or author": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Edit a book's details or delete it": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Mark a book as Want to read, Reading or Finished and its badge changes": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Rate finished books from 1 to 5 and see the average rating": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Export the shelf as a CSV file": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        },
+        "Set a yearly reading goal and a progress bar shows how many books are finished": {
+          "verdict": "could_not_test",
+          "confidence": "low",
+          "feature_score": null,
+          "reason": "not scored: it could not be tested"
+        }
+      }
+    }
+  ],
+  "analysis": {
+    "app": "shelfmate",
+    "runs": 2,
+    "claims": [
+      {
+        "claim": "Create an account with an email and a password",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "broken",
+          "could_not_test"
+        ],
+        "majority": "broken",
+        "agreeing_runs": 1,
+        "steady": false,
+        "majority_is_expected": false,
+        "wrong_runs": 1,
+        "feature_scores": [
+          0.0
+        ],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Sign in and sign out",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Add a book with a title and an author",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "See your books and search them by title or author",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Edit a book's details or delete it",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Mark a book as Want to read, Reading or Finished and its badge changes",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Rate finished books from 1 to 5 and see the average rating",
+        "control": false,
+        "expected": "works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Export the shelf as a CSV file",
+        "control": false,
+        "expected": "broken or partly_works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      },
+      {
+        "claim": "Set a yearly reading goal and a progress bar shows how many books are finished",
+        "control": false,
+        "expected": "broken or partly_works",
+        "verdicts": [
+          "could_not_test",
+          "could_not_test"
+        ],
+        "majority": "could_not_test",
+        "agreeing_runs": 2,
+        "steady": true,
+        "majority_is_expected": false,
+        "wrong_runs": 0,
+        "feature_scores": [],
+        "score_spread": 0.0
+      }
+    ],
+    "pairs": {
+      "correct": 0,
+      "wrong": 1,
+      "unconfirmed": 17,
+      "total": 18
+    },
+    "accuracy": 0.0,
+    "talnex_scores": [
+      0.0
+    ],
+    "talnex_spread": 0.0,
+    "flags_per_run": [
+      0,
+      0
+    ],
+    "seconds_per_run": [
+      324,
+      183
+    ],
+    "cost_per_run": [
+      0.0138,
+      0.0149
+    ],
+    "checks": {
+      "every run finished": true,
+      "no wrong verdicts": false,
+      "every claim steady (same verdict in 2 of 2 runs)": false,
+      "majority verdict is the expected one for every claim": false,
+      "TalNex score spread within 10 points": true,
+      "no unexpected red flags": true
+    },
+    "passed": false
+  }
+}
