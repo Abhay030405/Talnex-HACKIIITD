@@ -1,0 +1,21 @@
+{
+  "title": "Candidates",
+  "description": "Recruiter only. Hiring roles, candidates, their resumes, confirmation, progress and the proof report.",
+  "pages": [
+    "listRoles",
+    "createRole",
+    "getRole",
+    "updateRole",
+    "listCandidates",
+    "createCandidate",
+    "getCandidate",
+    "deleteCandidate",
+    "uploadResume",
+    "getFound",
+    "confirmCandidate",
+    "getProgress",
+    "getReport",
+    "rerunCoding",
+    "rerunCandidateProject"
+  ]
+}

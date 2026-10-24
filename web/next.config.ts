@@ -1,3 +1,4 @@
+import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 
 // The API takes a resume of up to 5 MB plus 1 MB for the rest of the form (backend/internal/http/resume.go).
@@ -9,6 +10,9 @@ const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   experimental: { serverActions: { bodySizeLimit: FORM_BODY_LIMIT } },
+  // The docs API reference reads the spec copy when its pages are built (lib/docs/openapi.ts).
+  outputFileTracingIncludes: { "/docs/**": ["./content/openapi.yaml"] },
 };
 
-export default config;
+// The docs section (/docs) is MDX through fumadocs.
+export default createMDX()(config);

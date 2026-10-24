@@ -1,0 +1,7 @@
+{
+  "title": "S M S gateway",
+  "description": "The team phone forwards one-time codes it receives. No user token; checked by its gateway key.",
+  "pages": [
+    "incomingSms"
+  ]
+}

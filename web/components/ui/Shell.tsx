@@ -8,10 +8,12 @@ const NAV: Record<Role, ShellNavItem[]> = {
   recruiter: [
     { href: "/recruiter", label: "Candidates", icon: "users", also: ["/candidates"] },
     { href: "/new/recruiter", label: "New check", icon: "plus" },
+    { href: "/docs", label: "Docs", icon: "docs" },
   ],
   organizer: [
     { href: "/organizer", label: "Events", icon: "calendar", also: ["/events"] },
     { href: "/new/hackathon", label: "New event", icon: "plus" },
+    { href: "/docs", label: "Docs", icon: "docs" },
   ],
 };
 

@@ -176,20 +176,14 @@ npm run e2e           # builds, then runs the real server against the local stac
 The e2e check reads `AUTH_SECRET` from the repository's `.env` (never printed), acts as `edge-organizer@talnex.test`
 and `edge-recruiter@talnex.test`, and creates a small event and a candidate from `testdata/resumes/test_resume.pdf`.
 
-## Docs site
+## Docs
 
-`mcp/docs/` is the documentation site (Next.js + Fumadocs): these guides with diagrams, and an **API reference** for
-the Go API generated from `backend/api/openapi.yaml`, one page per endpoint with code samples (cURL, JavaScript, Go,
-Python, Java, C#) and a Try-it playground.
+The docs are part of the website, at **`/docs`** ("Docs" in the header): these guides with diagrams, the system design,
+and an **API reference** for the Go API generated from `backend/api/openapi.yaml`, one page per endpoint with code
+samples (cURL, JavaScript, Go, Python, Java, C#) and a Try-it playground. After the spec changes, run
+`npm run docs:generate` in `web/` and commit the result.
 
-```bash
-cd mcp/docs
-npm install
-npm run build && npm start     # http://localhost:3100  (or: npm run dev)
-```
-
-The playground sends requests through the site to the addresses in `TALNEX_DOCS_API_ORIGINS` (default
-`http://localhost:8080`), so the API needs no CORS change. To get a test token on the API reference page, start the
-site with `TALNEX_DOCS_DEV_TOKENS=true` (PowerShell: `$env:TALNEX_DOCS_DEV_TOKENS='true'; npm start`). Local testing
-only: it signs with `AUTH_SECRET` from the repository's `.env`, the secret never reaches the browser, and it only
-answers on this computer.
+The playground sends requests through the website (`/api/docs/proxy`) to the addresses in `TALNEX_DOCS_API_ORIGINS`
+(default `http://localhost:8080`), passed on to `API_BASE_URL`, so the API needs no CORS change and it works inside
+Docker. To get a test token on the API reference page, run the website with `TALNEX_DOCS_DEV_TOKENS=true`. Local
+testing only: it signs with `AUTH_SECRET`, the secret never reaches the browser, and it only answers on this computer.

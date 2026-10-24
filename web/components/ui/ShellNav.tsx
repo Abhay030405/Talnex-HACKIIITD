@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { CalendarIcon, PlusIcon, UsersIcon } from "@/components/ui/Icons";
+import { CalendarIcon, DocsIcon, PlusIcon, UsersIcon } from "@/components/ui/Icons";
 
-const ICONS = { users: UsersIcon, calendar: CalendarIcon, plus: PlusIcon };
+const ICONS = { users: UsersIcon, calendar: CalendarIcon, plus: PlusIcon, docs: DocsIcon };
 
 export interface ShellNavItem {
   href: string;

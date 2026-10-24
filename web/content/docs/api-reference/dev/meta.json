@@ -1,0 +1,11 @@
+{
+  "title": "Dev",
+  "description": "**Dev only.** These routes exist only when the API runs with `ENABLE_DEV_ENDPOINTS=true` (local demos and\ntests). They answer 404 in production.\n",
+  "pages": [
+    "startSelfTest",
+    "getSelfTest",
+    "getDevLive",
+    "getDevLiveView",
+    "getDevLiveNames"
+  ]
+}

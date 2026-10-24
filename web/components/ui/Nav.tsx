@@ -24,6 +24,9 @@ export async function Nav() {
           <Link className="site-nav__link" href="/about">
             About
           </Link>
+          <Link className="site-nav__link" href="/docs">
+            Docs
+          </Link>
           {signedIn ? (
             <form action={leave}>
               <Button variant="ghost">Sign out</Button>

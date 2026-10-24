@@ -1,0 +1,7 @@
+{
+  "title": "Account",
+  "description": "Who the token signs in as.",
+  "pages": [
+    "getMe"
+  ]
+}

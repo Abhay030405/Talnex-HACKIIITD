@@ -1,0 +1,8 @@
+{
+  "title": "Health",
+  "description": "Liveness and readiness checks for Docker and load balancers. No sign-in.",
+  "pages": [
+    "healthz",
+    "readyz"
+  ]
+}
