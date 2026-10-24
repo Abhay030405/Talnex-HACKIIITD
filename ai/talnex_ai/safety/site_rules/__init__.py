@@ -1,6 +1,6 @@
 """Rules for working on someone else's live site (AGENTS.md section 8, rules 7 to 10).
 
-- Never pay, delete or message real people, and label every piece of test data "TalNex test".
+- Never pay, delete or message real people, and label the free text we create "TalNex test".
 - Run limits: tries per claim and live agent runs per project, counted in the database so a
   restart can't reset them.
 """
@@ -15,11 +15,20 @@ from talnex_ai.safety.untrusted import DATA_NOT_ORDERS
 
 TEST_LABEL = "TalNex test"
 
+# The label goes only where a person would type free text. A number, email or date field labelled
+# "TalNex test 100" is invalid input, and the site rightly refuses it: that made a working app look broken.
+LABEL_RULE = (
+    f'Start free text that the site will save and show (a todo, a name, a title, a note, a comment, a message) with "{TEST_LABEL}". '
+    "Never put the label into a field that needs a set format: numbers, amounts, prices, quantities, dates, times, emails, "
+    "phone numbers, passwords, codes, web addresses, search boxes or drop-down choices. Type a plain valid value there "
+    "(for example 100 or 2026-11-01), unless the step is testing bad input on purpose."
+)
+
 SAFETY_PREAMBLE = f"""You are testing a website that belongs to someone else, on behalf of a reviewer. Follow these rules in everything you do:
 1. Never pay for anything, never enter real payment details, and never click a final "buy", "subscribe" or "donate" button.
 2. Never delete accounts, data or content that you did not create in this test, and never change account settings or passwords.
 3. Never send messages, emails, invitations or posts to real people. If the site would contact someone, stop.
-4. Label every piece of test data you create with "{TEST_LABEL}", for example a name, title or message that starts with "{TEST_LABEL}".
+4. {LABEL_RULE}
 5. Never solve a CAPTCHA or try to get around a security check. If you hit one, stop and report "blocked".
 6. Do only what the task says. Do not explore unrelated pages.
 7. {DATA_NOT_ORDERS}"""

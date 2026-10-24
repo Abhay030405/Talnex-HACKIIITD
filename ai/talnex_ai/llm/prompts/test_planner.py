@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional, Sequence
 
 from talnex_ai.formats import Claim, TestType
+from talnex_ai.safety.site_rules import LABEL_RULE
 from talnex_ai.safety.untrusted import DATA_NOT_ORDERS, wrap_untrusted
 from talnex_ai.testing.planner.known_answers import KnownAnswer
 
@@ -28,7 +29,7 @@ Each plan has:
 Rules:
 - The first step is always to open the site and, where needed, sign in using the way in you are given.
 - Describe only what is visible on screen. Never write code, selectors or URLs of internal pages you have not been told.
-- Any text or data you create must start with "TalNex test".
+- {LABEL_RULE}
 - Never include steps that pay, buy, subscribe, delete accounts or data, change account settings, or send messages or emails to real people.
 - "expected_result" must state the claim being TRUE as one concrete thing a person can see (for example "a share link is shown and opening it displays the same todo"). It must FAIL if the feature does not exist. Never write hedged results such as "found, or confirmed absent", "whether it exists" or "if present".
 - Steps must USE the feature, not merely look around for it. If the feature is missing, the step that needs it will visibly not work, and that is what the test should show.
