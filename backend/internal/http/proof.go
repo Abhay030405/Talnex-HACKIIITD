@@ -188,7 +188,24 @@ type overviewProject struct {
 	Groups        []overviewGroup `json:"groups"`
 	Flags         map[string]int  `json:"flags"`
 	ReportReady   bool            `json:"report_ready"`
+	// The latest check's time (first job started to last job ended, so far while it runs) and its cost from
+	// usage_log (model calls and browser sessions). Nil when the project was never checked.
+	RunSeconds *float64 `json:"run_seconds"`
+	RunCostUSD *float64 `json:"run_cost_usd"`
 }
+
+// overviewRunSQL measures each project's latest hackathon run: how long it took and what its jobs cost.
+const overviewRunSQL = `
+	WITH latest AS (
+	    SELECT j.target_id, max(j.run_number) AS run FROM jobs j JOIN projects p ON p.id = j.target_id
+	     WHERE p.event_id = $1::uuid AND j.target_type = 'project' GROUP BY j.target_id),
+	     run_jobs AS (
+	    SELECT j.id, j.target_id, j.created_at, j.updated_at FROM jobs j
+	      JOIN latest l ON l.target_id = j.target_id AND l.run = j.run_number AND j.target_type = 'project')
+	SELECT r.target_id::text, extract(epoch FROM max(r.updated_at) - min(r.created_at))::float8,
+	       coalesce((SELECT sum(u.cost_usd) FROM usage_log u
+	                  WHERE u.job_id IN (SELECT id FROM run_jobs x WHERE x.target_id = r.target_id)), 0)::float8
+	  FROM run_jobs r GROUP BY r.target_id`
 
 // getEventOverview is the organizer's dashboard data: every project of the event with its status, its TalNex score, its group
 // scores and how many flags of each level it has. Projects are ordered by team name, never by score: TalNex does not rank teams
@@ -288,6 +305,27 @@ func (s *server) getEventOverview(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := flags.Err(); err != nil {
 		s.fail(w, "read flags", err)
+		return
+	}
+	runs, err := s.opts.Pool.Query(r.Context(), overviewRunSQL, eventID)
+	if err != nil {
+		s.fail(w, "read run times and costs", err)
+		return
+	}
+	defer runs.Close()
+	for runs.Next() {
+		var pid string
+		var seconds, cost float64
+		if err := runs.Scan(&pid, &seconds, &cost); err != nil {
+			s.fail(w, "read run times and costs", err)
+			return
+		}
+		if p := byID[pid]; p != nil {
+			p.RunSeconds, p.RunCostUSD = &seconds, &cost
+		}
+	}
+	if err := runs.Err(); err != nil {
+		s.fail(w, "read run times and costs", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"event": event, "projects": projects})

@@ -83,10 +83,10 @@ def test_sending_never_raises():
 
 
 def test_events_are_saved_for_replay_once_the_table_exists(pool):
+    # The table comes from migration 26. Never create or drop it here: other tests (and the Go API tests) need it.
     with pool.connection() as conn:
-        conn.execute("""CREATE TABLE IF NOT EXISTS live_events (id bigserial PRIMARY KEY, subject_kind text NOT NULL,
-                        subject_id uuid NOT NULL, job_id uuid, kind text NOT NULL, payload jsonb NOT NULL,
-                        created_at timestamptz NOT NULL DEFAULT now())""")
+        if conn.execute("SELECT to_regclass('public.live_events')").fetchone()[0] is None:
+            pytest.skip("the live_events migration (26) is not applied to the test database")
     live._table_seen.clear()
     subject = str(uuid.uuid4())
     try:
@@ -96,7 +96,7 @@ def test_events_are_saved_for_replay_once_the_table_exists(pool):
         assert rows[0][0] == "verdict" and rows[0][1]["data"] == {"verdict": "works"}
     finally:
         with pool.connection() as conn:
-            conn.execute("DROP TABLE live_events")
+            conn.execute("DELETE FROM live_events WHERE subject_id = %s", (subject,))
         live._table_seen.clear()
 
 
