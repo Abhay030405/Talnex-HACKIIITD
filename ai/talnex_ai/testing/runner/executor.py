@@ -18,17 +18,14 @@ from pathlib import Path
 from typing import Any, Callable, Literal, Optional, Protocol
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from talnex_ai.formats import FormatError, StepRecord, TestPlan, parse_model
-from talnex_ai.llm.prompts.runner import FINAL_PARTS_SYSTEM, FINAL_SYSTEM, STEP_SYSTEM, final_parts_user, final_user, step_user
-from talnex_ai.scoring.claim_points import outcome_from_parts
-from talnex_ai.testing.checks import PartMark, numbered, read_marks
-from talnex_ai.testing.scope import unchanged_value
+from talnex_ai.formats import StepRecord, TestPlan, parse_model
+from talnex_ai.llm.prompts.runner import STEP_SYSTEM, step_user
+# The final look is the judging layer; it lives in judge.py. The names are kept here for older imports.
+from talnex_ai.testing.runner.judge import INCOMPLETE, _final, _final_parts, final_look  # noqa: F401
 from talnex_ai.llm.structured import ChatClient, ask_json
 from talnex_ai.login.email.extract import EmailHint
 from talnex_ai.testing.runner.actions import (
-    Decision, FinalVerdict, Navigate, ReadEmail, ReadSms, Scroll, describe, looks_like_captcha, seen_address,
+    Decision, Navigate, ReadEmail, ReadSms, Scroll, describe, looks_like_captcha, seen_address,
     unsafe_reason,
 )
 from talnex_ai.testing.runner.driver import ActionError, PageDriver
@@ -91,38 +88,6 @@ def list_test_files(uploads_root: Path) -> list[str]:
         return []
     return sorted(p.relative_to(uploads_root).as_posix() for p in root.rglob("*")
                   if p.is_file() and p.suffix.lower() in UPLOADABLE and not p.name.lower().startswith("readme"))[:30]
-
-
-INCOMPLETE = "the test could not show every part of the claim"
-
-
-class _FinalParts(BaseModel):
-    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
-    checks: list[PartMark] = Field(min_length=1)
-    observed: str = Field(min_length=1, max_length=600)
-
-
-def _final_parts(text: str, claim_text: str, count: int) -> tuple[tuple[str, ...], str]:
-    """The run's marks for each check, and what it saw. A count or progress "seen" at its starting value is sent back."""
-    answer = parse_model(_FinalParts, text)
-    marks = read_marks(answer.checks, count)
-    for m in answer.checks:
-        start = unchanged_value(claim_text, m.note) if m.status == "seen" else None
-        if start:
-            raise FormatError(f'check {m.n} is marked seen, but its note describes a starting value ("{start}"), which would '
-                              "look the same if the feature did nothing. Mark it not_seen, or say how the value changed.")
-    return marks, answer.observed
-
-
-def _final(text: str, claim_text: str) -> FinalVerdict:
-    """The run's own verdict. "works" resting on a count or progress still at its starting value is sent back."""
-    verdict = parse_model(FinalVerdict, text)
-    start = unchanged_value(claim_text, verdict.observed) if verdict.verdict == "works" else None
-    if start:
-        raise FormatError(f'the verdict is works, but the value you describe ("{start}") is still at its starting point, '
-                          "which would look the same if the feature did nothing. Answer partly_works or broken, unless "
-                          'the test changed the value on purpose: then say how it changed ("went from 1 to 0").')
-    return verdict
 
 
 def _read_code(kind: str, box: Optional[Any], since: datetime) -> tuple[Optional[str], Optional[str]]:
@@ -318,23 +283,9 @@ def execute_plan(
     snapshot = trim(driver.snapshot(), cfg.snapshot_chars)
     if looks_like_captcha(snapshot):
         return finish("blocked", "a human check (CAPTCHA) stopped the test", "a human check appeared")
-    if plan.checks:
-        marks, observed = ask_json(
-            client, "agent", FINAL_PARTS_SYSTEM,
-            final_parts_user(claim=claim_text, checks=numbered(plan.checks), history=history, url=driver.url(),
-                             snapshot=snapshot),
-            lambda text: _final_parts(text, claim_text, len(plan.checks)), job_id=job_id,
-        )
-        record("Final check", plan.expected_result, observed)
-        outcome = outcome_from_parts(marks, [c.promise for c in plan.checks])
-        done = finish(outcome, observed, INCOMPLETE if outcome == "blocked" else None)
-        done.parts = marks
-        return done
-    verdict = ask_json(
-        client, "agent", FINAL_SYSTEM,
-        final_user(claim=claim_text, expected_result=plan.expected_result, history=history, url=driver.url(),
-                   snapshot=snapshot),
-        lambda text: _final(text, claim_text), job_id=job_id,
-    )
-    record("Final check", plan.expected_result, verdict.observed)
-    return finish(verdict.verdict, verdict.observed, "blocked" if verdict.verdict == "blocked" else None)
+    look = final_look(client, plan, claim_text=claim_text, history=history, url=driver.url(), snapshot=snapshot,
+                      job_id=job_id)
+    record("Final check", plan.expected_result, look.observed)
+    done = finish(look.outcome, look.observed, look.stop_reason)
+    done.parts = look.parts
+    return done
