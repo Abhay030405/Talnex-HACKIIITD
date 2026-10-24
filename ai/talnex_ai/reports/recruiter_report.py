@@ -138,9 +138,10 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
         rows = conn.execute("SELECT id::text, name, live_url, repo_url FROM candidate_projects "
                             "WHERE candidate_id = %s::uuid ORDER BY created_at, id", (candidate_id,)).fetchall()
         projects = [_project(conn, r, authorship_report.candidate_account(pool, r[0])) for r in rows]
-        signals = [{"site": site, "signal": signal, "weight": weight, "contest": contest, "evidence": evidence or {}}
-                   for site, signal, weight, contest, evidence in conn.execute(
-                       "SELECT site, signal, weight, contest, evidence FROM coding_signals "
+        signals = [{"site": site, "signal": signal, "weight": weight, "contest": contest, "problem": problem,
+                    "evidence": evidence or {}}
+                   for site, signal, weight, contest, problem, evidence in conn.execute(
+                       "SELECT site, signal, weight, contest, problem, evidence FROM coding_signals "
                        "WHERE candidate_id = %s::uuid ORDER BY created_at, id", (candidate_id,))]
         flags = [{"type": t, "level": lvl, "reason": why} for t, lvl, why in conn.execute(
             "SELECT flag_type, level, reason FROM flags WHERE candidate_id = %s::uuid ORDER BY created_at, id", (candidate_id,))]
@@ -174,5 +175,8 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
         "projects": projects, "coding_signals": signals, "flags": flags, "notes": notes,
     }
     report["role"] = role_fit(role_row[0], role_row[1] or [], projects) if role_row else None
+    for p in projects:   # the checklists were written with the role brief when there is a role
+        for f in p["features"]:
+            f["checked_for_role"] = bool(role_row) and bool(f.get("checklist"))
     report["interview_kit"] = build_kit(report)
     return report

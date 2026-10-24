@@ -12,6 +12,7 @@ import { BADGE_CLASS, EVENT_STATE_BADGE, formatCost, formatDate, formatDuration 
 import { anyRunning, flagCountText, linksGiven, projectStatus, runAllText } from "@/lib/hackathon-format";
 import { getEventOverview } from "@/lib/project-card";
 import { formatCoverage, formatScore } from "@/lib/report-format";
+import { weightedFromGroups } from "@/lib/role-score";
 import { requireRole } from "@/lib/session";
 import { eventState, modeLabel, roleLabel } from "@/lib/types";
 
@@ -36,6 +37,9 @@ export default async function EventPage({
   const state = EVENT_STATE_BADGE[eventState(event)];
   const path = `/events/${encodeURIComponent(event.id)}`;
   const criteria = event.criteria ?? [];
+  // The weighted total from the event's weights as they are now, like the proof card; the saved one is the fallback.
+  const liveTotal = (p: (typeof projects)[number]) =>
+    criteria.length ? (weightedFromGroups(p.groups, criteria).score ?? p.weighted_total) : p.weighted_total;
   const hasResults = projects.some((p) => p.report_ready);
   // Time and cost of every team's latest check, for the line under the teams table.
   const checked = projects.filter((p) => p.run_seconds != null && p.run_cost_usd != null);
@@ -134,7 +138,7 @@ export default async function EventPage({
                       <td>{p.talnex_score10 === null ? "–" : `${formatScore(p.talnex_score10)}/10`}</td>
                       <td>{p.coverage === null ? "–" : formatCoverage(p.coverage)}</td>
                       {event.mode === "fixed_problem" && (
-                        <td>{p.weighted_total === null ? "–" : `${formatScore(p.weighted_total / 10)}/10`}</td>
+                        <td>{liveTotal(p) === null ? "–" : `${formatScore((liveTotal(p) as number) / 10)}/10`}</td>
                       )}
                       <td>{flagCountText(p.flags)}</td>
                       <td>{linksGiven(p)}</td>
