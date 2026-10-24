@@ -263,7 +263,7 @@ The candidate is never involved.
 | 4 | Test plan | Same as hackathon | Python |
 | 5 | Live test + proof check | Sign up via the login ladder, then test features | Python |
 | 6 | GitHub data + originality | Repo data (Go); repo vs live and tutorial copy (Python) | Go + Python |
-| 7 | Coding profiles | Codeforces (Go); LeetCode replay and CodeChef (Python) | Go + Python |
+| 7 | Coding profiles | Codeforces and the GitHub account behind the resume's repos (Go); LeetCode replay and CodeChef (Python) | Go + Python |
 | 8 | Proof report | Claims, proof, a score out of 10 per feature, originality, signals, time saved. | Python |
 
 **The form has two stages.** Stage 1 takes the resume (PDF) and the role level (fresher, junior, mid, senior), with an optional name for the recruiter's own list. The resume is read. Stage 2 shows what was found; nothing is tested until the recruiter confirms. Confirming starts the project and coding-profile checks with the run number of that resume read, so checking again with a new resume is a new run with a new report.
@@ -544,6 +544,11 @@ Recruiter mode only. These give evidence, never a verdict.
 One Medium signal alone is **never** shown as a flag, because many honest coders write in their own editor and paste. Output looks like: "suspicious pattern in contest X, problem Y, at replay time 03:12", so the recruiter can watch those seconds.
 
 **CodeChef** (Python): built around whatever plagiarism information CodeChef shows publicly.
+
+**GitHub profile** (official API, Go, stage `github_profile`): looks past the resume at the whole public account that owns most of the resume's repos.
+- Account age, public repos, original repos vs forks, and each original repo's main language.
+- For up to 20 original repos pushed in the last 12 months, one page of the account's own commits: commits per month, active months, the longest quiet stretch, and per repo whether most commits landed on one day (5+ commits, 80%+ on the busiest day).
+- One `coding_signals` row (`site = 'github'`, weight `not_suspicious`): evidence beside the score, never a verdict. A quiet account is never a mark against anyone, since much work happens in private repos.
 
 ---
 

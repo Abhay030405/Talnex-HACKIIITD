@@ -4,6 +4,8 @@
 package pipeline
 
 import (
+	"time"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Abhay030405/Talnex-HACKIIITD/backend/internal/codeforces"
@@ -40,5 +42,6 @@ func GoHandlers(pool *pgxpool.Pool, gh *github.Client, cf *codeforces.Client, fi
 		StageSponsorFiles:  SponsorFiles(pool, gh),
 		StageResumeCleanup: ResumeCleanup(pool, files),
 		StageGithubHistory: GithubHistory(pool, gh, history),
+		StageGithubProfile: GithubProfile(pool, gh, time.Now),
 	}
 }
