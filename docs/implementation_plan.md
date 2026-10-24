@@ -149,3 +149,10 @@ Architecture section 31. Built after Phase 8, since answers use the code map and
 3. Then the queue and worker skeletons, then the OpenRouter client.
 
 Each step is small, runs on its own and gets a test before the branch is merged.
+
+### Phase 9 — Guided tour walkthrough (both modes)
+Architecture section 32. Builds on the sandbox track (code VM), the live events stream and the runner. One branch per part, in this order:
+1. `ai/tour-guide`: the code-only VM mode, the three read tools, the guide agent, the tour plan and its check, the driver, the `tour_message` handler. Tested with scripted models and a fake VM.
+2. `backend/tour-sessions`: migration for `tour_sessions` and `tour_messages`, the Go endpoints and the daily limit, the `tour_session` live subject.
+3. `web/walkthrough`: the two-panel page and its components.
+4. Check with the planted apps (32.7).

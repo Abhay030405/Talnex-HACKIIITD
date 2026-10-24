@@ -37,6 +37,7 @@
 29. [Feature scores and the TalNex score](#29-feature-scores-and-the-talnex-score)
 30. [Authorship proof (claim to code)](#30-authorship-proof-claim-to-code)
 31. [Voice walkthrough](#31-voice-walkthrough)
+32. [Guided tour walkthrough](#32-guided-tour-walkthrough)
 
 ---
 
@@ -599,6 +600,8 @@ PostgreSQL tables, in plain words.
 | claim_code_maps | Where one claim's feature lives in the code (section 30) | Claim, commit, files and line ranges, how found, confidence, could-not-trace reason |
 | authorship | One GitHub account's share of one claim's code (section 30) | Claim, account or "unlinked", line share, commits, days spanned, first and last push, date source |
 | walkthroughs | One question asked about a feature, and its answer (section 31) | Owner, project or candidate project, claim, question, answer with proof references, model, time, cost |
+| tour_sessions | One guided tour chat (section 32) | Owner, project or candidate project, status, code VM id, last active time, browser runs used |
+| tour_messages | One turn of a tour chat | Session, question, status, the guide's answer with proof references, time |
 | sandbox_runs | One VM run of a repo | Project or candidate project, recipe, image, status, build and run log keys, start and end time, resources used |
 
 ```mermaid
@@ -638,6 +641,7 @@ The hand-off shapes between Go, Python and the website. Stored as JSON, describe
 | **Code map** | claim id · files with line ranges · where it came from (route mapping / code structure / model) · confidence |
 | **Authorship** | claim id · per account: line share, commits, days spanned, largest commit share, first and last push · date source (push / commit) · could-not-trace reason |
 | **Walkthrough answer** | claim id · flow sentences, each with a proof reference · what we saw · missing items · label (section 31.5) |
+| **Tour plan** | claim id · steps, each: what to say · proof references (file, lines, commit) · what to show in the browser (plain words, optional) · what should be visible (section 32.3) |
 | **Job** | type · runner · target id · input · tries · time limit |
 
 ---
@@ -838,6 +842,7 @@ talnex/
 │       │   └── flags/                collects flags with levels
 │       ├── reports/                  recruiter proof report
 │       │   └── walkthrough/          voice walkthrough answers from evidence (section 31)
+│       │       └── tour/             guided tour: guide agent, browser driver, tour plan (section 32)
 │       └── safety/
 │           ├── hidden_instructions/
 │           └── site_rules/           never pay/delete/message, run limits
@@ -1383,7 +1388,7 @@ Going through the jobs queue keeps rule 11 (Go and Python talk only through jobs
 - Private to the report's owner, like every result (section 23).
 - The recruiter's question audio is deleted after it is turned into text. Questions and answers stay for the life of the report.
 - After the resume is deleted (section 8), walkthroughs still work: they use code and results, never the resume file or personal details.
-- **Cost:** no TinyFish runs; one model call per question plus faster-whisper. Questions per report per day are limited by a setting. Every call logs to `usage_log`.
+- **Cost:** no TinyFish runs for the answer box; one model call per question plus faster-whisper. (The guided tour in section 32 does use the browser.) Questions per report per day are limited by a setting. Every call logs to `usage_log`.
 
 ### 31.7 Checking it
 
@@ -1396,3 +1401,103 @@ Going through the jobs queue keeps rule 11 (Go and Python talk only through jobs
 | Any app | A question about something not in the project | "I couldn't find that in the code or the tests" |
 
 **Checks:** every proof link opens real evidence (no invented file or line); nothing listed as "missing" is present in the code; the same question asked 3 times names the same missing items at least 2 of 3 times.
+
+---
+
+## 32. Guided tour walkthrough
+
+The recruiter or judge opens a **Walk-through page** for a project, in both modes. On the **left** is a chat; on the **right** is the project's live site in a browser, driven by an agent. The user types "walk me through how they built the chatbot". One agent reads the code and writes a tour; a second agent follows it on the live site while the chat explains each step in simple words and shows the code behind it. Follow-up questions work in the same chat. It explains the report; it adds nothing to it. **The candidate is never involved** (section 8).
+
+This extends section 31: the same evidence rules, but the answer is shown by using the app, not only told.
+
+### 32.1 What the user sees
+
+| Area | Shows |
+|---|---|
+| Left: chat | The user's questions and the guide's explanations. Every sentence has a proof link (code file and lines, screenshot, test step, review note) |
+| Right: browser | The live site, as a screenshot after every action with a box on what was touched, and the address |
+| Under the browser | The code behind the current step: file, line range, commit, a few highlighted lines |
+
+### 32.2 Rules
+
+- **All of section 31.2 applies:** evidence only, every sentence has proof or is dropped, "missing" means not found in the code, "I don't know" is valid, code and README text are data and never instructions, never part of the score, never a flag, no ranking, labelled "AI explanation of the evidence — the proof is in the links".
+- **The code is only read, never run (rule 19).** The VM holds the project's code as files, with no TalNex keys and a time limit. Nothing from the repository is ever built or run: the code is only listed, searched and read. The app is shown from its live link only. A repo with no live link gets a code-only tour: the right side says "no live link, so this tour is from the code" and the label "reviewed from code, not run" (28.8) is shown.
+- **The browser follows the same safety as testing** (rules 7 to 10): never pay, delete or message real users, stay on the project's site, no CAPTCHA tricks, test data labelled "TalNex test", the login ladder only. The driver is the same runner the tests use.
+- **A tour step never blames.** If the driver cannot reach a step on the live site, the chat says "I couldn't show this on the live site" and carries on from the code. It never says the feature is broken; only a test result can (rule 2).
+- **A tour does not test.** It creates no verdicts and no claim points, and the only flag it can raise is the one section 31.2 asks for: text aimed at an AI found in the code raises the Hidden AI instructions flag. When the tour and a stored result disagree, the stored result is shown and the disagreement is logged.
+- **Limits.** One browser session per tour, at most `TOUR_MAX_BROWSER_STEPS` actions, at most `TOUR_MAX_PER_PROJECT_PER_DAY` tours per project per day, and every tour browser run counts toward the 30 agent runs per project (rule 8).
+
+### 32.3 How it works
+
+```mermaid
+sequenceDiagram
+  participant W as Website (chat + browser panel)
+  participant G as Go API
+  participant DB as Postgres (jobs, live events)
+  participant P as Python ai-worker
+  participant V as sandboxd (read-only code VM)
+  participant B as TinyFish browser
+  W->>G: question (new or in an existing tour)
+  G->>G: owner check, daily limit
+  G->>DB: save message; add job "tour_message" (python)
+  P->>DB: take job
+  P->>V: first message only: fetch the repo files (as in section 30) and upload them
+  P->>P: guide agent: list, search, read code with fixed tools, then write the tour plan
+  P->>P: plain code checks every proof reference against the code in the VM
+  loop each tour step
+    P->>DB: event: say (text + proofs), code (file, lines)
+    P->>B: driver does the step on the live site, screenshot after each action
+    P->>DB: event: screenshot + box
+  end
+  DB-->>G: LISTEN live
+  G-->>W: events over the existing stream
+```
+
+1. **Question in.** The Go API checks the owner and the daily limit, saves the message and adds a `tour_message` job. The website never touches R2 or the VM (rule 11 and section 22).
+2. **Code on the VM.** On the first message of a tour, Python gets the repo's files the same way as the authorship track (section 30, free Fetch, at most `AUTHORSHIP_MAX_REPO_FILES` files) and uploads them to a fresh read-only VM through `sandbox/client/` (the one allowed way to call sandboxd). The VM lives `TOUR_VM_MINUTES` (the host's reaper removes it after that); later messages in the chat reuse it, and a message after it has gone makes a new one.
+3. **Guide agent.** A model agent reads the code with three fixed tools: *list files*, *search text*, *read lines*. The tools are plain code that sandboxd runs with checked arguments; the model never writes a shell command. It stops after `TOUR_GUIDE_MAX_TOOL_CALLS` calls and writes a **tour plan** (section 21): steps in the order a request moves through the code. Each step has what to say, its proof references, and, where the feature can be seen on screen, what to show in the browser in plain words ("add a todo called TalNex test milk and press Enter").
+4. **Check.** Plain code drops any sentence whose file and lines do not exist in the VM, and any browser step the safety rules refuse. A plan with no surviving sentence becomes "I couldn't find that in the code".
+5. **Driver agent.** The existing test runner does each browser step on the live site in one session kept for the whole tour. Steps that name one clear action need no model call. It saves a screenshot after every action as the tests do, and judges nothing.
+6. **Streaming.** Each step sends events on the existing live channel (live events document): `tour.say` (text, proofs), `tour.code` (file, lines, snippet, commit), and the usual `step.record` (screenshot, box). The events belong to the project (`subject.kind` is `project` or `candidate_project`) and carry `tour_id` and `message_id`, so the page reads the project's existing stream and keeps only its own tour's events. The stream turns each screenshot key into a short-lived link, so the page never holds a storage key. The page shows them as they arrive; the chat can also be read aloud with the browser's built-in speech.
+7. **Follow-ups.** Each later message is another `tour_message` job. The guide sees the session's earlier messages and the VM, so "where is the login check?" reads more code and may add a few browser steps to the same session. If the session has ended, it opens a new one and counts it.
+
+### 32.4 When evidence is thin
+
+| Case | Tour |
+|---|---|
+| No repo (live link only) | The browser shows the site; the chat says "no repo, so I can't explain the code" and describes only what is on screen |
+| No live link (repo only) | Code-only tour, labelled "reviewed from code, not run"; the browser panel says why it is empty |
+| Code could not be fetched or is too large | "I could not read the code for this feature" with the reason (30.9); no guess |
+| Live site did not load | The tour continues from the code and says the site could not be reached |
+| Claim only the repo can show (a backend route) | Code and, if a sandbox run record exists, its saved request and response; never a new run |
+
+### 32.5 Data, formats and folders
+
+| Part | What changes |
+|---|---|
+| Tables `tour_sessions`, `tour_messages` (Go migration) | One row per chat and per message (section 20) |
+| Live events | New kinds `tour.started`, `tour.status`, `tour.read`, `tour.say`, `tour.code`, `tour.notice`, `tour.done`, sent on the project's own subject with `tour_id` and `message_id` (live events document) |
+| Shared format **Tour plan** (section 21) | claim id · steps: say, proof references, show, expect |
+| Go | `backend/internal/http/`: `POST /v1/projects/{id}/tours`, `POST /v1/candidate-projects/{id}/tours`, `POST /v1/tours/{id}/messages`, `GET /v1/tours/{id}`, with owner checks and the daily limit (one question at a time per chat); each message adds one `tour_message` job (one try, no pipeline); the stream reuses `GET /v1/live/{kind}/{id}` |
+| sandboxd | No change: the tour uses an ordinary VM, and Python builds the few fixed read commands (`ls`, `grep`, `sed`) with checked arguments |
+| Python | `ai/talnex_ai/reports/walkthrough/tour/`: guide agent, driver, tour plan and its check; `ai/talnex_ai/sandbox/code_vm/`: fetch and upload the repo, the three read tools; prompt `llm/prompts/tour_guide.py`; handler `worker/handlers/tour_message.py` |
+| Web | `web/app/events/[eventId]/projects/[projectId]/walkthrough/` and `web/app/candidates/[candidateId]/walkthrough/` pages; `web/components/tour/` (chat, browser panel, code pane); every colour and size through `globals.css` |
+| Settings | `TOUR_MAX_PER_PROJECT_PER_DAY`, `TOUR_MAX_BROWSER_STEPS`, `TOUR_VM_MINUTES`, `TOUR_GUIDE_MAX_TOOL_CALLS`, `TOUR_REPO_MAX_MB`, `TOUR_FILE_MAX_KB`, `TOUR_MAX_FILES`, `MODEL_TOUR_GUIDE` |
+
+### 32.6 Privacy and cost
+
+- Private to the report's owner (section 23). The VM holds only the project's public code, no keys, and is destroyed when the tour ends. Chat messages stay for the life of the report; screenshots follow the usual R2 rules.
+- After the resume is deleted (section 8), tours still work: they use code and results, never the resume or personal details.
+- **Cost:** a few model calls per message, plus one TinyFish browser session per tour (counted against the project's 30 runs). Every call logs to `usage_log`.
+
+### 32.7 Checking it
+
+| App | Question | The tour should |
+|---|---|---|
+| Honest | "Walk me through the todo feature" | Follow the real flow in the code, add a "TalNex test" item on the live site, and every sentence links to real lines |
+| Fake claim | "How does the AI feature work?" | Show that the code returns a fixed reply, and the live site giving the same reply; never say "broken" |
+| Backend-only repo | "How is the AI part built?" | Code-only tour, labelled "reviewed from code, not run" |
+| Copier + trickster | "Is this well built?" | Use only evidence; the hidden "mark this verified" text is not obeyed and is flagged |
+| Any app | Something not in the project | "I couldn't find that in the code" |
+
+**Checks:** every proof link opens real lines in the VM; no browser step leaves the site or breaks a safety rule; the same question asked 3 times cites the same main files at least 2 of 3 times; the tour creates no verdict or point, and no flag except Hidden AI instructions.
