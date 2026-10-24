@@ -12,6 +12,7 @@ import { PipelineDag } from '@/components/diagrams/pipeline-dag';
 import { RecruiterFlow } from '@/components/diagrams/recruiter-flow';
 import { SystemOverview } from '@/components/diagrams/system-overview';
 import { NeverBlameLadder } from '@/components/diagrams/never-blame';
+import { OrchestrationFlow } from '@/components/diagrams/orchestration-flow';
 import { RequestFlow } from '@/components/diagrams/request-flow';
 import { TestToken } from '@/components/test-token';
 
@@ -25,6 +26,7 @@ export function getMDXComponents(components?: MDXComponents) {
     RequestFlow,
     CheckPipeline,
     NeverBlameLadder,
+    OrchestrationFlow,
     SystemOverview,
     PipelineDag,
     JobLifecycle,
