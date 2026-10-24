@@ -325,6 +325,38 @@ paths:
         '403': { $ref: '#/components/responses/WrongRole' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/projects/{id}/custom-test:
+    post:
+      operationId: customTestProject
+      tags: [Walkthroughs]
+      summary: Run a custom test on a team's live site
+      description: |
+        **Spends money.** Organizer only. Ask TalNex to try one thing on the team's live site, described in your own
+        words ("add three todos, reload, check they are still there"). The agent plans it, runs it with a screenshot
+        per step and says what happened. The result never changes a score. Read it with
+        `GET /v1/projects/{id}/custom-tests`.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/CustomTest' }
+      responses:
+        '202': { $ref: '#/components/responses/AskQueued' }
+        '400': { $ref: '#/components/responses/CustomTestBad' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}/custom-tests:
+    get:
+      operationId: listProjectCustomTests
+      tags: [Walkthroughs]
+      summary: Custom tests run on a team's site
+      description: Organizer only. The latest 20, newest first, each with its result once done.
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200': { $ref: '#/components/responses/CustomTestList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/projects/{id}/proof:
     get:
       operationId: getProjectProof
@@ -768,6 +800,36 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               example: { error: this project is still being checked }
 
+  /v1/candidate-projects/{id}/custom-test:
+    post:
+      operationId: customTestCandidateProject
+      tags: [Walkthroughs]
+      summary: Run a custom test on a resume project's live site
+      description: |
+        **Spends money.** Recruiter only. Like the team version, for one project on a candidate's resume. The result
+        never changes a score. Read it with `GET /v1/candidate-projects/{id}/custom-tests`.
+      parameters: [{ $ref: '#/components/parameters/CandidateProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/CustomTest' }
+      responses:
+        '202': { $ref: '#/components/responses/AskQueued' }
+        '400': { $ref: '#/components/responses/CustomTestBad' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidate-projects/{id}/custom-tests:
+    get:
+      operationId: listCandidateProjectCustomTests
+      tags: [Walkthroughs]
+      summary: Custom tests run on a resume project
+      description: Recruiter only. The latest 20, newest first, each with its result once done.
+      parameters: [{ $ref: '#/components/parameters/CandidateProjectId' }]
+      responses:
+        '200': { $ref: '#/components/responses/CustomTestList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/projects/{id}/walkthroughs:
     post:
       operationId: askProjectWalkthrough
@@ -1109,6 +1171,20 @@ components:
       { name: id, in: path, required: true, description: The id of one project on a candidate's resume., schema: { type: string, format: uuid } }
 
   requestBodies:
+    CustomTest:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [instruction]
+            properties:
+              instruction:
+                type: string
+                maxLength: 500
+                description: What to try on the live site, in plain words, up to 500 characters.
+                example: Add three todos, reload the page, and check they are still there.
     Ask:
       required: true
       content:
@@ -1177,6 +1253,19 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           example: { error: ask a question of up to 1000 characters }
+    CustomTestBad:
+      description: No description of the test, or longer than 500 characters.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: describe the test in up to 500 characters }
+    CustomTestList:
+      description: The custom tests, newest first (at most 20).
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/CustomTest' }
     AskList:
       description: The questions, newest first.
       content:
@@ -1742,6 +1831,29 @@ components:
           properties:
             answer: { type: string }
             action: { type: [object, 'null'] }
+        asked_at: { type: string, format: date-time }
+
+    CustomTest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        instruction: { type: string, description: The test as the reviewer described it. }
+        status: { type: string, enum: [queued, running, retrying, done, failed] }
+        result:
+          type: object
+          description: Empty until done. Never part of any score.
+          properties:
+            verdict: { $ref: '#/components/schemas/Verdict' }
+            observed: { type: string, description: What the agent saw happen. }
+            expected: { type: string, description: What the planned test expected. }
+            steps:
+              type: array
+              items:
+                type: object
+                properties:
+                  action: { type: string }
+                  observed: { type: [string, 'null'] }
+                  proof_url: { type: string, description: A short-lived link to the step's screenshot. }
         asked_at: { type: string, format: date-time }
 
     WalkthroughQueued:
