@@ -236,6 +236,22 @@ class LeetCodeReplaySettings:
 
 
 @dataclass(frozen=True)
+class InsightSettings:
+    """Profile insights (coding/insights.py): when a reading counts as a strength or worth a look. Never scored."""
+
+    quiet_months: int = 3          # trailing months without public commits -> worth a look
+    slowing_share: float = 0.5     # last 3 months below this share of the 3 before -> slowing
+    consistent_months: int = 9     # active months of 12 for a strength
+    sparse_months: int = 3         # active months of 12 at or below this -> worth a look
+    rating_points: int = 30        # rating change over recent contests that counts as rising or falling
+    min_solved: int = 20           # fewer LeetCode problems than this: no problem-mix reading
+    easy_share: float = 0.7        # easy share at or above this -> worth a look
+    hard_share: float = 0.1        # hard share at or above this (with 35% medium) -> strength
+    stars_strength: int = 20       # stars across original repos for a strength
+    collab_prs: int = 3            # pull requests on others' repos for a strength
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
@@ -254,6 +270,7 @@ class Settings:
     repo_quality: RepoQualitySettings = field(default_factory=RepoQualitySettings)
     # The candidate report waits this long for the coding profile checks before it is built without them
     report_coding_wait_seconds: int = 480
+    insights: InsightSettings = field(default_factory=InsightSettings)
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
     leetcode_graphql_url: str = ""
     # Read-only lookups for Ask TalNex (the same GitHub and Codeforces settings the Go side uses). Empty token: anonymous.
@@ -498,7 +515,17 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
                     walkthrough=walkthrough, leetcode_replay=leetcode_replay, repo_quality=repo_quality,
-                    report_coding_wait_seconds=env.whole("REPORT_CODING_WAIT_SECONDS", 480), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                    report_coding_wait_seconds=env.whole("REPORT_CODING_WAIT_SECONDS", 480), insights=InsightSettings(
+                        quiet_months=env.whole("INSIGHT_QUIET_MONTHS", 3),
+                        slowing_share=env.decimal("INSIGHT_SLOWING_SHARE", 0.5, 0.05, 1.0),
+                        consistent_months=env.whole("INSIGHT_CONSISTENT_MONTHS", 9),
+                        sparse_months=env.whole("INSIGHT_SPARSE_MONTHS", 3),
+                        rating_points=env.whole("INSIGHT_RATING_POINTS", 30),
+                        min_solved=env.whole("INSIGHT_MIN_SOLVED", 20),
+                        easy_share=env.decimal("INSIGHT_EASY_SHARE", 0.7, 0.1, 1.0),
+                        hard_share=env.decimal("INSIGHT_HARD_SHARE", 0.1, 0.01, 1.0),
+                        stars_strength=env.whole("INSIGHT_STARS_STRENGTH", 20),
+                        collab_prs=env.whole("INSIGHT_COLLAB_PRS", 3)), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
                     github_api_base_url=env.url("GITHUB_API_BASE_URL", required=False) or "https://api.github.com",
                     github_token=env.optional("GITHUB_TOKEN"),
                     codeforces_api_base_url=env.url("CODEFORCES_API_BASE_URL", required=False) or "https://codeforces.com/api",

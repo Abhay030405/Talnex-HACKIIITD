@@ -134,19 +134,29 @@ type Found struct {
 	Projects      []FoundProject    `json:"projects"`
 	CodingHandles map[string]string `json:"coding_handles"`
 	CodingLinks   map[string]string `json:"coding_links"`
+	// ProfileLinks are GitHub, LinkedIn, portfolio and other profile pages on the resume: kind -> address. Never email
+	// or phone numbers.
+	ProfileLinks map[string]string `json:"profile_links"`
 }
 
 // Confirmation is the confirmed list the recruiter sends back.
 type Confirmation struct {
 	Projects       []FoundProject    `json:"projects"`
 	CodingProfiles map[string]string `json:"coding_profiles"` // site -> handle or profile link; empty removes it
+	// ProfileLinks replaces the profile links when sent (kind -> http(s) address; empty removes it). Nil keeps them.
+	ProfileLinks map[string]string `json:"profile_links"`
 }
 
 type confirmed struct {
 	projects []FoundProject
 	handles  map[string]string
 	links    map[string]string
+	profiles map[string]string // nil: keep what is saved
 }
+
+const maxProfileLinks = 15
+
+var profileKind = regexp.MustCompile(`^[a-z][a-z0-9_]{1,19}$`)
 
 // check turns the recruiter's input into clean values or a plain-words problem.
 func (c Confirmation) check() (confirmed, error) {
@@ -194,18 +204,37 @@ func (c Confirmation) check() (confirmed, error) {
 			out.links[site] = link
 		}
 	}
+	if c.ProfileLinks != nil {
+		out.profiles = map[string]string{}
+		for kind, raw := range c.ProfileLinks {
+			kind = strings.ToLower(strings.TrimSpace(kind))
+			if !profileKind.MatchString(kind) {
+				return out, ErrBadInput(fmt.Sprintf("%q is not a link name", kind))
+			}
+			link, err := cleanLink("the "+kind+" link", raw)
+			if err != nil {
+				return out, err
+			}
+			if link != "" {
+				out.profiles[kind] = link
+			}
+		}
+		if len(out.profiles) > maxProfileLinks {
+			return out, ErrBadInput(fmt.Sprintf("at most %d profile links", maxProfileLinks))
+		}
+	}
 	return out, nil
 }
 
 // Found returns what was read from the resume. The caller has already checked the owner.
 func (s *Store) Found(ctx context.Context, candidateID string) (Found, error) {
 	var (
-		f              Found
-		handles, links []byte
+		f                        Found
+		handles, links, profiles []byte
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT status, coalesce(status_detail, ''), role_level, coding_handles, coding_links
-		  FROM candidates WHERE id = $1::uuid`, candidateID).Scan(&f.Status, &f.StatusDetail, &f.RoleLevel, &handles, &links)
+		SELECT status, coalesce(status_detail, ''), role_level, coding_handles, coding_links, profile_links
+		  FROM candidates WHERE id = $1::uuid`, candidateID).Scan(&f.Status, &f.StatusDetail, &f.RoleLevel, &handles, &links, &profiles)
 	if err != nil {
 		return Found{}, fmt.Errorf("read candidate: %w", err)
 	}
@@ -215,6 +244,10 @@ func (s *Store) Found(ctx context.Context, candidateID string) (Found, error) {
 	}
 	if err := json.Unmarshal(links, &f.CodingLinks); err != nil {
 		return Found{}, fmt.Errorf("read coding links: %w", err)
+	}
+	f.ProfileLinks = map[string]string{}
+	if err := json.Unmarshal(profiles, &f.ProfileLinks); err != nil {
+		return Found{}, fmt.Errorf("read profile links: %w", err)
 	}
 	f.Projects = []FoundProject{}
 	rows, err := s.pool.Query(ctx, `
@@ -321,6 +354,12 @@ func (s *Store) Confirm(ctx context.Context, candidateID string, in Confirmation
 		UPDATE candidates SET coding_handles = $2::jsonb, coding_links = $3::jsonb, updated_at = now() WHERE id = $1::uuid`,
 		candidateID, handles, links); err != nil {
 		return nil, fmt.Errorf("save coding profiles: %w", err)
+	}
+	if c.profiles != nil {
+		profiles, _ := json.Marshal(c.profiles)
+		if _, err := tx.Exec(ctx, `UPDATE candidates SET profile_links = $2::jsonb WHERE id = $1::uuid`, candidateID, profiles); err != nil {
+			return nil, fmt.Errorf("save profile links: %w", err)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit confirm: %w", err)
