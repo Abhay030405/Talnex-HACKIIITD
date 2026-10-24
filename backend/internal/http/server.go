@@ -92,6 +92,8 @@ func NewHandler(o Options) http.Handler {
 	private.HandleFunc("POST /v1/candidates/{id}/confirm", auth.RequireRole(auth.RoleRecruiter, s.confirmCandidate))
 	private.HandleFunc("DELETE /v1/candidates/{id}", auth.RequireRole(auth.RoleRecruiter, s.deleteCandidate))
 	private.HandleFunc("POST /v1/candidates/{id}/rerun-coding", auth.RequireRole(auth.RoleRecruiter, s.rerunCoding))
+	private.HandleFunc("POST /v1/candidates/{id}/ask", auth.RequireRole(auth.RoleRecruiter, s.askCandidate))
+	private.HandleFunc("GET /v1/candidates/{id}/asks", auth.RequireRole(auth.RoleRecruiter, s.listAsks))
 	private.HandleFunc("POST /v1/candidate-projects/{id}/rerun", auth.RequireRole(auth.RoleRecruiter, s.rerunCandidateProject))
 	private.HandleFunc("POST /v1/projects/{id}/walkthroughs", auth.RequireRole(auth.RoleOrganizer, s.askProjectWalkthrough))
 	private.HandleFunc("GET /v1/projects/{id}/walkthroughs", auth.RequireRole(auth.RoleOrganizer, s.listProjectWalkthroughs))
