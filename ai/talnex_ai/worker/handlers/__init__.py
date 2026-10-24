@@ -22,3 +22,4 @@ from talnex_ai.worker.handlers import authorship_read, code_locate, walkthrough_
 
 # Ask TalNex: a recruiter question answered from the saved report.
 from talnex_ai.worker.handlers import report_answer  # noqa: F401
+from talnex_ai.worker.handlers import custom_test  # noqa: F401  (Ask TalNex: a one-off test in the user's words)

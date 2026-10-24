@@ -226,6 +226,18 @@ def claim_row(pool):
 RUNNER = RunnerSettings(max_actions=40, max_actions_per_step=6, max_seconds=240, snapshot_chars=6000, uploads_dir=".")
 
 
+def test_a_one_off_custom_test_runs_without_touching_the_database():
+    """Ask TalNex custom tests pass record_as: no claim, no run rows, so they can never change a result or a score."""
+    claim = Claim(text="Try adding a very long todo", claim_group="Core", importance=2, source="criteria")
+    files = FakeFiles()
+    rec = run_plan(pool=None, store_files=files, tinyfish=FakeTinyFish(),
+                   client=ScriptedModel(act(type="press", key="Enter"), done(), verdict()), claim=claim, plan=PLAN,
+                   site_url=SITE, subject_id="p1", limits=RunLimits(3, 30), runner_cfg=RUNNER, uploads_root=Path("."),
+                   connect=connector(FakeDriver()), record_as="job-1")
+    assert (rec.outcome, rec.run_id) == ("works", "job-1")
+    assert len(files.saved) == 2 and all(key.startswith("screens/p1/job-1/") for key in files.saved)
+
+
 def full_run(pool, claim, project, model, tinyfish, files, driver=None, limits=RunLimits(3, 30)):
     return run_plan(pool=pool, store_files=files, tinyfish=tinyfish, client=model, claim=claim, plan=PLAN,
                     site_url=SITE, subject_id=project, limits=limits, runner_cfg=RUNNER, uploads_root=Path("."),
