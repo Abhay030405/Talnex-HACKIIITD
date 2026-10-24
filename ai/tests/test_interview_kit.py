@@ -44,5 +44,14 @@ def test_one_medium_paste_is_never_raised_but_a_repeat_is():
 def test_info_flags_and_untestable_claims_raise_nothing_and_the_kit_is_capped():
     assert build_kit(report([feature("Needs hardware", "could_not_test", testable=False)],
                             flags=[{"type": "tutorial_copy", "level": "info", "reason": "x"}])) == []
-    many = report([feature(f"Broken {i}", "broken") for i in range(9)])
-    assert len(build_kit(many)) == MAX_QUESTIONS
+    many = report([feature(f"Broken {i}", "broken") for i in range(9)] + [feature(f"Demo {i}", "could_not_test") for i in range(9)])
+    kit = build_kit(many)
+    assert len(kit) == MAX_QUESTIONS and [q["kind"] for q in kit] == ["feature"] * 3 + ["demo"] * 2
+
+
+def test_questions_read_cleanly():
+    f = feature("Save pages as bookmarks.", "broken", "No bookmark control exists. The sidebar was inspected too.")
+    (q,) = build_kit(report([f]))
+    assert '"Save pages as bookmarks" for TodoApp. Our test found: No bookmark control exists. The sidebar was inspected too. Walk us' in q["question"]
+    long_ = build_kit(report([feature("X", "broken", "word " * 200)]))[0]["question"]
+    assert "…" in long_ and len(long_) < 420

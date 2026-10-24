@@ -11,14 +11,27 @@ from __future__ import annotations
 from typing import Any, Iterator, Mapping
 
 MAX_QUESTIONS = 5
+MAX_SAME_KIND = 3          # so one long list (five broken features) cannot crowd out everything else
 PASTE_SIGNAL = "leetcode_paste"
+
+
+def _sentence(text: str, limit: int = 300) -> str:
+    """What the test saw, as one clean run of text without a closing full stop. Long text is cut at a word."""
+    text = " ".join(str(text or "").split()).rstrip(". ")
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    return text
 
 
 def _first_seen(feature: Mapping[str, Any]) -> str:
     for step in reversed(feature.get("proof") or []):
         if step.get("observed"):
-            return str(step["observed"])
-    return str(feature.get("reason") or "")
+            return _sentence(step["observed"])
+    return _sentence(feature.get("reason") or "")
+
+
+def _claim(feature: Mapping[str, Any]) -> str:
+    return str(feature.get("text") or "").strip().rstrip(".")
 
 
 def _features(report: Mapping[str, Any], verdicts: tuple[str, ...]) -> Iterator[tuple[Mapping, Mapping]]:
@@ -52,7 +65,7 @@ def build_kit(report: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "proof": {"contest": s.get("contest")}})
 
     for project, f in _features(report, ("broken",)):
-        out.append({"kind": "feature", "question": f"Your resume says \"{f['text']}\" for {project.get('name')}. In our test, "
+        out.append({"kind": "feature", "question": f"Your resume says \"{_claim(f)}\" for {project.get('name')}. Our test found: "
                                                    f"{_first_seen(f) or 'it did not work'}. Walk us through how you built it "
                                                    "and what could cause that.",
                     "why": "TalNex tested this feature on the live site and it did not work.",
@@ -66,7 +79,7 @@ def build_kit(report: Mapping[str, Any]) -> list[dict[str, Any]]:
                         "proof": {"flag": flag.get("type")}})
 
     for project, f in _features(report, ("partly_works",)):
-        out.append({"kind": "feature", "question": f"\"{f['text']}\" in {project.get('name')} only partly worked in our test: "
+        out.append({"kind": "feature", "question": f"\"{_claim(f)}\" in {project.get('name')} only partly worked in our test: "
                                                    f"{_first_seen(f) or 'some parts did not'}. What is finished, and what would "
                                                    "you do next?",
                     "why": "TalNex found part of this feature working and part not.",
@@ -78,9 +91,14 @@ def build_kit(report: Mapping[str, Any]) -> list[dict[str, Any]]:
 
     for project, f in _features(report, ("could_not_test",)):
         if f.get("testable"):
-            out.append({"kind": "demo", "question": f"Could you show us \"{f['text']}\" in {project.get('name')} live?",
+            out.append({"kind": "demo", "question": f"Could you show us \"{_claim(f)}\" in {project.get('name')} live?",
                         "why": "TalNex could not test this one. That never counts against the candidate, so a short demo "
                                "settles it.",
                         "proof": {"project": project.get("name"), "claim_id": f.get("claim_id")}})
 
-    return out[:MAX_QUESTIONS]
+    kit, per_kind = [], {}
+    for q in out:
+        if per_kind.get(q["kind"], 0) < MAX_SAME_KIND:
+            per_kind[q["kind"]] = per_kind.get(q["kind"], 0) + 1
+            kit.append(q)
+    return kit[:MAX_QUESTIONS]
