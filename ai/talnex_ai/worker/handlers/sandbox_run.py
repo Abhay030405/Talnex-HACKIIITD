@@ -59,7 +59,7 @@ def sandbox_run(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     update_run(ctx.pool, run_id, status="building")
     try:
         result = prepare_and_run(
-            lambda image: sv.sandbox.open_vm(image),
+            lambda image, services=(): sv.sandbox.open_vm(image, services=list(services)),
             sv.model, info.repo_url,
             build_timeout_seconds=sv.cfg.sandbox.build_timeout_seconds, job_id=job.id,
         )

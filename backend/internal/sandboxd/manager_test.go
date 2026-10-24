@@ -265,3 +265,23 @@ func TestRequestRefusesWhatCouldSmuggleExtraCommandsOrHeaders(t *testing.T) {
 		}
 	}
 }
+
+func TestServicesAreCleanedValidatedAndPassedToTheDriver(t *testing.T) {
+	d := newFake()
+	m := sandboxd.NewManager(d, limits)
+
+	vm, err := m.Create(context.Background(), sandboxd.CreateRequest{Image: "talnex-sandbox-full", Services: []string{"Postgres", "redis", "postgres"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := d.created[vm.ID].Services; len(got) != 2 || got[0] != "postgres" || got[1] != "redis" {
+		t.Errorf("services = %v (should be deduped and lowercased)", got)
+	}
+
+	if _, err := m.Create(context.Background(), sandboxd.CreateRequest{Image: "talnex-sandbox-full", Services: []string{"mysql"}}); err == nil {
+		t.Error("an unknown service should be refused")
+	}
+	if _, err := m.Create(context.Background(), sandboxd.CreateRequest{Image: "talnex-sandbox-full", Services: []string{"postgres", "redis", "mongo"}}); err == nil {
+		t.Errorf("more than %d services should be refused", sandboxd.MaxServices)
+	}
+}

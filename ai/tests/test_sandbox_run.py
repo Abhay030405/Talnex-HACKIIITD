@@ -30,9 +30,10 @@ PY_REPO = {"requirements.txt": "fastapi\nuvicorn\n", "main.py": "from fastapi im
 class FakeVm:
     """A pretend VM holding a pretend repo. `fail` maps a piece of a command to the result it should give."""
 
-    def __init__(self, image, repo=None, fail=None, listens=True, private=False):
+    def __init__(self, image, repo=None, fail=None, listens=True, private=False, services=()):
         self.id, self.image = str(uuid.uuid4()), image
         self.repo, self.fail, self.listens, self.private = repo or {}, fail or {}, listens, private
+        self.services = list(services)
         self.commands: list[str] = []
         self.started = False
         self.destroyed = False
@@ -74,8 +75,8 @@ class Factory:
     def __init__(self, repo, **vm_kw):
         self.repo, self.vm_kw, self.made = repo, vm_kw, []
 
-    def __call__(self, image):
-        vm = FakeVm(image, self.repo, **self.vm_kw)
+    def __call__(self, image, services=()):
+        vm = FakeVm(image, self.repo, services=services, **self.vm_kw)
         self.made.append(vm)
         return vm
 
@@ -239,11 +240,22 @@ def test_a_model_that_changes_nothing_or_answers_badly_leaves_the_first_failure_
     assert res.status == "could_not_run" and not res.fix_used
 
 
-def test_a_repo_that_needs_a_database_says_so_when_it_cannot_start():
+def test_a_repo_that_needs_a_database_gets_one_started_beside_it_with_real_settings():
     pkg = json.dumps({"scripts": {"start": "node a.js"}, "dependencies": {"express": "4", "mongoose": "8"}})
+    factory = Factory({"package.json": pkg, "a.js": "x"}, listens=True)
+    res = prepare_and_run(factory, None, URL)
+    assert res.status == "running"
+    # the VM that ran the app was created with the mongo service and given its real connection settings, not a fake
+    app_vm = factory.made[-1]
+    assert app_vm.services == ["mongodb"]
+    assert res.recipe.env.get("MONGO_URL") == "mongodb://mongodb:27017"
+
+
+def test_a_repo_that_needs_a_service_but_still_will_not_start_is_an_honest_could_not_run():
+    pkg = json.dumps({"scripts": {"start": "node a.js"}, "dependencies": {"express": "4", "pg": "8"}})
     factory = Factory({"package.json": pkg, "a.js": "x"}, listens=False)
     res = prepare_and_run(factory, None, URL)
-    assert res.status == "could_not_run" and "mongodb" in res.reason and "cannot start yet" in res.reason
+    assert res.status == "could_not_run" and factory.made[-1].services == ["postgres"]
 
 
 def test_a_fix_may_only_name_folders_that_exist_in_the_repo():
@@ -270,8 +282,8 @@ class FakeSandboxClient:
     def __init__(self, repo, **vm_kw):
         self.factory, self.destroyed = Factory(repo, **vm_kw), []
 
-    def open_vm(self, image):
-        return self.factory(image)
+    def open_vm(self, image, services=()):
+        return self.factory(image, services=services)
 
     def destroy(self, vm_id):
         self.destroyed.append(vm_id)
@@ -320,7 +332,7 @@ class TestSandboxRunStage:
 
     def test_a_host_that_fails_makes_the_stage_fail_so_the_queue_tries_again_and_the_project_is_not_blamed(self, pool, project):
         class Down(FakeSandboxClient):
-            def open_vm(self, image):
+            def open_vm(self, image, services=()):
                 raise SandboxUnavailable("the sandbox host did not answer")
 
         with pytest.raises(SandboxUnavailable):

@@ -31,7 +31,32 @@ type VMSpec struct {
 	CPUs      int
 	MemoryMB  int
 	TimeLimit time.Duration
+	// Services are backing stores the repo needs (for example "postgres", "redis"). Each runs as its own throwaway
+	// container on a private network beside the VM, reachable from it by the service name. Only names in ServiceCatalog
+	// are allowed; anything else is refused. Empty = the VM runs on its own, as before.
+	Services []string
 }
+
+// ServiceSpec is one backing store the sandbox can start beside a VM. Fixed, local-only credentials: a sandbox holds no
+// real data and is destroyed after the run.
+type ServiceSpec struct {
+	Image string            // the official image to run
+	Port  int               // the port it listens on, inside the private network
+	Env   map[string]string // environment the container needs to start
+	URL   string            // how the repo reaches it; {host} is the service name on the network
+}
+
+// ServiceCatalog is every backing store the sandbox knows how to start. Nothing outside it can be started.
+var ServiceCatalog = map[string]ServiceSpec{
+	"postgres": {Image: "postgres:16-alpine", Port: 5432,
+		Env: map[string]string{"POSTGRES_USER": "talnex", "POSTGRES_PASSWORD": "talnex", "POSTGRES_DB": "talnex"},
+		URL: "postgres://talnex:talnex@{host}:5432/talnex"},
+	"redis":   {Image: "redis:7-alpine", Port: 6379, URL: "redis://{host}:6379"},
+	"mongodb": {Image: "mongo:7", Port: 27017, URL: "mongodb://{host}:27017"},
+}
+
+// MaxServices is the most backing stores one VM may ask for.
+const MaxServices = 2
 
 // ExecSpec is one command to run inside a VM.
 type ExecSpec struct {
