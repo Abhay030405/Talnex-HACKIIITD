@@ -536,7 +536,7 @@ Recruiter mode only. These give evidence, never a verdict.
 | Pasted code is only a personal template or helper code (under 4 lines, or within 60 s of opening the problem), or was worked on afterwards | Not suspicious |
 | Core logic pasted in one go, with no edits or tries after | Medium |
 | Editor inactive just before the paste, and the hardest problem solved very fast | Medium |
-| Same pasted code matches other users in the same contest (not built yet) | Strong |
+| Same pasted code matches other users in the same contest: a Medium paste of 12+ lines is in the final code of 2+ people who finished near the candidate (5 ranking pages each side, 90%+ of the paste, compared by the copy detector's rename-proof fingerprint; nothing about those people is kept) | Strong |
 | The pattern repeats across many contests | Strong |
 | Codeforces "all skipped" contests for the same person | Strong when combined |
 

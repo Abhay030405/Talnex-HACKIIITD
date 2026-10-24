@@ -12,6 +12,8 @@ from typing import Optional
 
 import httpx
 
+from talnex_ai.browser.bql import BqlError, run_bql
+
 log = logging.getLogger("talnex.linkedin")
 
 # LinkedIn's login page has random ids, scrambled classes, text in the proxy's language and two copies of the form (one
@@ -58,7 +60,7 @@ _SIGNED_OUT = ("/login", "/authwall", "/checkpoint", "/uas/")
 _NOT_FOUND = ("/404", "/in/unavailable")
 
 
-class LinkedInError(RuntimeError):
+class LinkedInError(BqlError):
     """Browserless failed or answered with BQL errors: "could not check", never a verdict on the candidate."""
 
 
@@ -85,17 +87,10 @@ class LinkedInClient:
 
     def _run(self, query: str, variables: dict) -> dict:
         # residential proxy + human-like typing; LinkedIn blocks data-centre addresses on sight
-        params = {"token": self.token, "proxy": "residential", "humanlike": "true", "blockConsentModals": "true"}
         try:
-            response = self.http.post(self.bql_url, params=params, json={"query": query, "variables": variables})
-        except httpx.TransportError as err:
-            raise LinkedInError(f"browserless unreachable: {err}") from err
-        if response.status_code != 200:
-            raise LinkedInError(f"browserless answered {response.status_code}: {response.text[:200]}")
-        body = response.json()
-        if body.get("errors"):
-            raise LinkedInError("; ".join(e.get("message", "?") for e in body["errors"])[:300])
-        return body["data"]
+            return run_bql(self.bql_url, self.token, query, variables, http=self.http)
+        except BqlError as err:
+            raise LinkedInError(str(err)) from err
 
     def login(self, email: str, password: str) -> LinkedInSession:
         data = self._run(_LOGIN, {"email": email, "password": password, "mark": _MARK_FORM})

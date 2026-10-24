@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Mapping, Optional
 
+from talnex_ai.browser.bql import BqlError
+from talnex_ai.coding.leetcode_capture.same_code import bql_neighbours, default_code, match_paste, score_of
 from talnex_ai.coding.profile import HANDLE_OK
 from talnex_ai.coding.store import replace_signals, save_signal
 from talnex_ai.db.jobs import Job
@@ -35,12 +37,12 @@ IDLE_NOTE_SECONDS = 60
 HISTORY = """
 query talnexHistory($username: String!) {
   userContestRankingHistory(username: $username) {
-    attended rating problemsSolved contest { title titleSlug startTime }
+    attended rating problemsSolved finishTimeInSeconds contest { title titleSlug startTime }
   }
 }""".strip()
 QUESTIONS = """
 query talnexQuestions($slug: String!) {
-  contestQuestionList(contestSlug: $slug) { title titleSlug credit }
+  contestQuestionList(contestSlug: $slug) { title titleSlug credit questionId }
 }""".strip()
 REPLAY = """
 query talnexReplay($contest: String!, $question: String!, $username: String!) {
@@ -60,6 +62,7 @@ class Paste:
     edits_after: int     # typing events after the paste
     idle_before_s: int   # seconds the editor was quiet just before the paste
     snippet: str
+    text: str = ""       # the whole paste, for comparing with other contestants; never saved
 
 
 def _seconds(ts: str) -> float:
@@ -87,7 +90,7 @@ def find_pastes(events: list[Mapping[str, Any]]) -> list[Paste]:
         before = _seconds(events[i - 1]["timestamp"]) if i else at
         out.append(Paste(at_s=int(at - opened), lines=text.count("\n") + 1, chars=len(text),
                          edits_after=sum(1 for x in events[i + 1:] if x.get("eventType") == TYPING),
-                         idle_before_s=int(at - before), snippet=text[:SNIPPET_CHARS]))
+                         idle_before_s=int(at - before), snippet=text[:SNIPPET_CHARS], text=text))
     return out
 
 
@@ -151,34 +154,78 @@ def default_post(url: str, query: str, variables: dict) -> dict:
     return body["data"]
 
 
+def _lang(events: list[Mapping[str, Any]]) -> str:
+    for e in events:
+        try:
+            lang = json.loads(e.get("eventData") or "{}").get("lang")
+        except ValueError:
+            lang = None
+        if lang:
+            return lang
+    return ""
+
+
+def _same_code(r: dict, *, slug: str, events: list, score: int, finish: Optional[int], handle: str,
+               cfg: LeetCodeReplaySettings, neighbours: Callable[..., list[dict]], code: Callable, near_cache: dict) -> None:
+    """Compare one Medium paste with the code of the people who finished near the candidate; Strong on enough matches."""
+    if finish is None:
+        r["same_code"] = {"reason": "could not check: no finish time in the public history"}
+        return
+    qid = r["question"].get("questionId")
+    try:
+        if (slug, qid) not in near_cache:
+            near_cache[(slug, qid)] = neighbours(slug, qid, score, finish, handle, cfg.match_pages)
+    except (BqlError, ValueError, KeyError) as err:
+        r["same_code"] = {"reason": f"could not check: {err}"[:200]}
+        return
+    found = match_paste(r["paste"].text, _lang(events), near_cache[(slug, qid)], min_pct=cfg.match_pct, code=code)
+    r["same_code"] = found
+    if found["matches"] >= cfg.match_min_users:
+        r["weight"] = "strong"
+        r["reason"] += (f"; {found['matches']} people who finished near them submitted the same code "
+                        f"(at least {cfg.match_pct:g}% alike, closest {found['best_pct']:g}%)")
+
+
 def check_replays(url: str, handle: str, cfg: LeetCodeReplaySettings, *, post: Callable[[str, str, dict], dict] = default_post,
-                  now: Optional[float] = None, contests: Optional[list[str]] = None) -> dict[str, Any]:
-    """Read and judge the candidate's replays. `contests` (slugs) skips the history pick, for a manual check."""
+                  now: Optional[float] = None, contests: Optional[list[str]] = None,
+                  neighbours: Optional[Callable[..., list[dict]]] = None, code: Callable = default_code) -> dict[str, Any]:
+    """Read and judge the candidate's replays. `contests` (slugs) skips the history pick, for a manual check. With
+    `neighbours` (a Browserless ranking walk), long Medium pastes are also compared with nearby contestants' code."""
     history = post(url, HISTORY, {"username": handle}).get("userContestRankingHistory") or []
     gains = rating_jumps(history)
+    finishes = {(c.get("contest") or {}).get("titleSlug"): (c.get("contest") or {}).get("startTime", 0) + c["finishTimeInSeconds"]
+                for c in history if c.get("attended") and isinstance(c.get("finishTimeInSeconds"), int)}
     if contests is None:
         chosen = [((c.get("contest") or {}).get("titleSlug"), (c.get("contest") or {}).get("title"))
                   for c in pick_contests(history, cfg, now if now is not None else time.time())]
     else:
         chosen = [(slug, slug) for slug in contests]
 
-    pastes, checked, replays, kept = [], [], 0, {}
+    pastes, checked, replays, kept, near_cache = [], [], 0, {}, {}
     for slug, title in chosen:
         if not slug:
             continue
         questions = post(url, QUESTIONS, {"slug": slug}).get("contestQuestionList") or []
         checked.append(title or slug)
+        contest_pastes, contest_replays = [], {}
         for q in questions:
             events = post(url, REPLAY, {"contest": slug, "question": q["titleSlug"], "username": handle}).get("userContestReplayEvents")
             if not events:
                 continue   # not attempted, or no replay kept
             replays += 1
-            kept[(slug, q["titleSlug"])] = events
+            kept[(slug, q["titleSlug"])] = contest_replays[q["titleSlug"]] = events
             for p in find_pastes(events):
                 weight, reason = judge(p, cfg)
-                pastes.append({"contest": title or slug, "contest_slug": slug, "problem": q.get("title") or q["titleSlug"],
+                contest_pastes.append({"contest": title or slug, "contest_slug": slug, "problem": q.get("title") or q["titleSlug"],
                                "problem_slug": q["titleSlug"], "rating_jump": gains.get(slug), "weight": weight,
-                               "reason": reason, "paste": p})
+                               "reason": reason, "paste": p, "question": q})
+        if neighbours is not None:
+            score = score_of(contest_replays, {q["titleSlug"]: q.get("credit") or 0 for q in questions})
+            for r in contest_pastes:
+                if r["weight"] == "medium" and r["paste"].lines >= cfg.match_min_lines:
+                    _same_code(r, slug=slug, events=contest_replays[r["problem_slug"]], score=score, finish=finishes.get(slug),
+                               handle=handle, cfg=cfg, neighbours=neighbours, code=code, near_cache=near_cache)
+        pastes += contest_pastes
 
     suspicious_contests = {r["contest_slug"] for r in pastes if r["weight"] == "medium"}
     if len(suspicious_contests) >= cfg.repeat_contests:
@@ -199,7 +246,8 @@ def _paste_row(r: Mapping[str, Any], saved: Mapping[tuple, str]) -> dict[str, An
             "evidence": {"reason": r["reason"], "at": f"{p.at_s // 60:02d}:{p.at_s % 60:02d}", "lines": p.lines,
                          "chars": p.chars, "edits_after": p.edits_after, "idle_before_s": p.idle_before_s,
                          "snippet": p.snippet, "ranking_url": f"https://leetcode.com/contest/{r['contest_slug']}/ranking/",
-                         "rating_jump": r.get("rating_jump"), "replay_key": saved.get((r["contest_slug"], r["problem_slug"]))}}
+                         "rating_jump": r.get("rating_jump"), "same_code": r.get("same_code"),
+                         "replay_key": saved.get((r["contest_slug"], r["problem_slug"]))}}
 
 
 @stage("leetcode_replay")
@@ -221,7 +269,9 @@ def leetcode_replay(job: Job, ctx: JobContext) -> Mapping[str, Any]:
         return {"found": False, "handle": handle[:60], "reason": "the leetcode handle has characters a profile name cannot have"}
 
     try:
-        result = check_replays(url, handle, cfg.leetcode_replay)
+        near = bql_neighbours(cfg.browserless_bql_url, cfg.browserless_token) \
+            if cfg.browserless_bql_url and cfg.browserless_token else None   # off: pastes are judged on the replay alone
+        result = check_replays(url, handle, cfg.leetcode_replay, neighbours=near)
     except ReplayBlocked as err:
         replace_signals(ctx.pool, job.target_id, SITE, PASTE_SIGNAL, [])
         replace_signals(ctx.pool, job.target_id, SITE, SUMMARY_SIGNAL, [])

@@ -11,6 +11,7 @@ import sys
 
 from talnex_ai import settings as settings_module
 from talnex_ai.coding.leetcode_capture import check_replays
+from talnex_ai.coding.leetcode_capture.same_code import bql_neighbours
 
 
 def main() -> int:
@@ -22,12 +23,15 @@ def main() -> int:
     if not cfg.leetcode_graphql_url:
         print("set LEETCODE_GRAPHQL_URL first")
         return 2
-    result = check_replays(cfg.leetcode_graphql_url, args.user, cfg.leetcode_replay, contests=args.contest)
+    near = bql_neighbours(cfg.browserless_bql_url, cfg.browserless_token) if cfg.browserless_bql_url and cfg.browserless_token else None
+    result = check_replays(cfg.leetcode_graphql_url, args.user, cfg.leetcode_replay, contests=args.contest, neighbours=near)
     print(f"contests: {', '.join(result['contests_checked']) or 'none'} | replays read: {result['replays_read']} | "
           f"pastes: {len(result['pastes'])} | suspicious: {result['suspicious']}")
     for r in result["pastes"]:
         p = r["paste"]
         print(f"[{r['weight']}] {r['contest']} / {r['problem']} at {p.at_s // 60:02d}:{p.at_s % 60:02d}: {r['reason']}")
+        if r.get("same_code"):
+            print(f"    same code check: {r['same_code']}")
     return 0
 
 

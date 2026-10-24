@@ -122,3 +122,75 @@ def test_rating_jumps_are_measured_and_flagged_replays_kept():
     r = check_replays("https://lc/graphql", "van_zhang", CFG, post=post, contests=["weekly-524"])
     assert r["pastes"][0]["rating_jump"] == 420
     assert list(r["flagged_replays"]) == [("weekly-524", "q1")] and r["flagged_replays"][("weekly-524", "q1")] == PASTED_IN_ONE_GO
+
+
+LONG = """m, n := len(grid), len(grid[0])
+v := make([]bool, m*n)
+x, y := 0, 0
+for {
+    v[x*n+y] = true
+    a, b := x, y
+    switch grid[x][y] {
+    case 'L':
+        b--
+    case 'R':
+        b++
+    case 'U':
+        a--
+    default:
+        a++
+    }
+    if a < 0 || b < 0 || a >= m || b >= n || v[a*n+b] {
+        return []int{x, y}
+    }
+    x, y = a, b
+}"""
+RENAMED = LONG.replace("grid", "g").replace("v[", "seen[").replace("v :=", "seen :=")   # same code, names changed
+OTHER = "\n".join(f"total += nums[{i}] * {i}" for i in range(30))                       # a different solution
+
+
+def long_paste_replay():
+    accepted = {"eventType": "5", "eventData": json.dumps({"result": {"status": 10}}), "timestamp": "2026-10-18T02:05:00+00:00"}
+    opened = {"eventType": "0", "eventData": json.dumps({"lang": "golang"}), "timestamp": "2026-10-18T02:00:00+00:00"}
+    return [opened, ev("7", 0, "func lastVisited(grid []string) []int {\n}"), ev("10", 253, LONG), ev("4", 256), accepted]
+
+
+def test_containment_and_score():
+    from talnex_ai.coding.leetcode_capture.same_code import containment, score_of
+    assert containment([1, 2, 3, 4], [1, 2, 3, 9]) == 75.0 and containment([], [1]) == 0.0
+    assert score_of({"q1": long_paste_replay(), "q2": typed(3)}, {"q1": 4, "q2": 5}) == 4   # q2 was never accepted
+
+
+def test_renamed_copies_match_and_different_code_does_not():
+    from talnex_ai.coding.leetcode_capture.same_code import match_paste
+    codes = {1: RENAMED, 2: RENAMED, 3: OTHER, 4: None}
+    others = [{"id": i, "lang": "golang"} for i in codes] + [{"id": 5, "lang": "java"}]
+    found = match_paste(LONG, "golang", others, min_pct=90, code=codes.get)
+    assert (found["compared"], found["matches"], found["best_pct"]) == (3, 2, 100.0)
+
+
+def test_a_long_paste_shared_with_nearby_contestants_is_strong():
+    history = [contest("weekly-524", 0, 1836, solved=4)]
+    history[0]["finishTimeInSeconds"] = 300
+    post = FakeEndpoint({("weekly-524", "q1"): long_paste_replay()}, history=history)
+    asked = []
+    def near(contest_slug, qid, score, finish, me, pages):
+        asked.append((contest_slug, score, finish, me))
+        return [{"id": 1, "lang": "golang"}, {"id": 2, "lang": "golang"}]
+    r = check_replays("https://lc/graphql", "van_zhang", CFG, post=post, contests=["weekly-524"], neighbours=near,
+                      code={1: RENAMED, 2: RENAMED}.get)
+    (p,) = r["pastes"]
+    assert p["weight"] == "strong" and "2 people who finished near them submitted the same code" in p["reason"]
+    assert asked == [("weekly-524", 0, 300, "van_zhang")]   # Q1/Q2 credits are unknown to the fake list, so score 0
+
+
+def test_short_pastes_are_never_compared_and_a_failed_walk_is_could_not_check():
+    from talnex_ai.browser.bql import BqlError
+    post = FakeEndpoint({("weekly-524", "q1"): PASTED_IN_ONE_GO, ("weekly-524", "q2"): long_paste_replay()},
+                        history=[dict(contest("weekly-524", 0, 1836), finishTimeInSeconds=300)])
+    def broken(*_):
+        raise BqlError("ranking page 1 answered 403")
+    r = check_replays("https://lc/graphql", "van_zhang", CFG, post=post, contests=["weekly-524"], neighbours=broken)
+    short, long_ = r["pastes"]
+    assert "same_code" not in short and short["weight"] == "medium"
+    assert long_["weight"] == "medium" and long_["same_code"]["reason"].startswith("could not check: ranking page 1 answered 403")

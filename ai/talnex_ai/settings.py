@@ -215,6 +215,10 @@ class LeetCodeReplaySettings:
     template_seconds: int = 60      # a paste this soon after opening the problem is a personal template
     max_edits_after: int = 3        # a core paste with at most this many edits after it is "pasted in one go"
     repeat_contests: int = 3        # suspicious pastes in this many contests make every one of them strong
+    match_min_lines: int = 12       # a Medium paste at least this long is compared with nearby contestants' code
+    match_pages: int = 5            # ranking pages read on each side of the candidate's own (25 people a page)
+    match_pct: float = 90.0         # how much of the paste must be in someone else's code to count as the same
+    match_min_users: int = 2        # this many matching people make the paste strong
 
 
 @dataclass(frozen=True)
@@ -452,6 +456,10 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         template_seconds=env.whole("LEETCODE_PASTE_TEMPLATE_SECONDS", 60),
         max_edits_after=env.whole("LEETCODE_PASTE_MAX_EDITS_AFTER", 3),
         repeat_contests=env.whole("LEETCODE_PASTE_REPEAT_CONTESTS", 3),
+        match_min_lines=env.whole("LEETCODE_MATCH_MIN_LINES", 12),
+        match_pages=env.whole("LEETCODE_MATCH_PAGES", 5),
+        match_pct=env.decimal("LEETCODE_MATCH_PCT", 90.0, 50.0, 100.0),
+        match_min_users=env.whole("LEETCODE_MATCH_MIN_USERS", 2),
     )
     database_url = env.required("DATABASE_URL")
 
