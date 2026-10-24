@@ -7,207 +7,295 @@
 <style>
 :root {
   color-scheme: dark;
-  --bg: #0a0a0a; --panel: #111; --line: #262626; --line-strong: #3a3a3a;
+  --bg: #0a0a0a; --panel: #111; --panel-2: #151515; --line: #262626; --line-strong: #3a3a3a;
   --fg: #ededed; --muted: #8f8f8f; --faint: #5c5c5c;
   --works: #3fb950; --broken: #f85149; --maybe: #d29922; --run: #e5e5e5;
   --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+html, body { min-height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; }
-.app { height: 100%; display: grid; grid-template-rows: auto auto 1fr; }
-header { display: flex; align-items: center; gap: 18px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+header { position: sticky; top: 0; z-index: 2; background: var(--bg); display: flex; align-items: center; gap: 18px; padding: 14px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .brand { font-weight: 700; letter-spacing: -0.02em; font-size: 16px; }
 .conn { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .conn i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); display: inline-block; }
 .conn.on i { background: var(--works); }
-.meters { margin-left: auto; display: flex; gap: 22px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.meters { margin-left: auto; display: flex; gap: 22px; font-family: var(--mono); font-size: 12px; color: var(--muted); flex-wrap: wrap; }
 .meters b { color: var(--fg); font-weight: 500; margin-left: 6px; }
-select { background: var(--panel); color: var(--fg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 12px; }
-.stages { display: flex; gap: 6px; padding: 10px 18px; border-bottom: 1px solid var(--line); overflow-x: auto; min-height: 44px; }
-.stage { font-family: var(--mono); font-size: 11px; padding: 4px 9px; border-radius: 5px; border: 1px solid var(--line); color: var(--faint); white-space: nowrap; }
+.back { font-family: var(--mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 6px; padding: 4px 10px; }
+.back:hover { color: var(--fg); }
+
+/* overview: one panel per project */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; padding: 20px; }
+.empty { color: var(--faint); font-family: var(--mono); font-size: 13px; padding: 60px 20px; text-align: center; }
+.card { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); display: grid; grid-template-rows: auto auto auto 1fr; min-width: 0; overflow: hidden; }
+.card.busy { border-color: var(--line-strong); }
+.card-head { display: flex; align-items: baseline; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); text-align: left; width: 100%; }
+.card-head:hover .name { text-decoration: underline; text-underline-offset: 3px; }
+.name { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.kind { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.status { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.status.running { color: var(--run); }
+.counts { display: flex; gap: 14px; padding: 8px 16px; font-family: var(--mono); font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.counts .w { color: var(--works); } .counts .b { color: var(--broken); } .counts .m { color: var(--maybe); }
+.stages { display: flex; gap: 5px; padding: 10px 16px; overflow-x: auto; border-bottom: 1px solid var(--line); min-height: 40px; }
+.stage { font-family: var(--mono); font-size: 10px; padding: 3px 7px; border-radius: 4px; border: 1px solid var(--line); color: var(--faint); white-space: nowrap; }
 .stage.running { color: var(--run); border-color: var(--run); }
 .stage.done { color: var(--muted); border-color: var(--line-strong); }
-.stage.skipped { color: var(--faint); border-style: dashed; }
+.stage.skipped { border-style: dashed; }
 .stage.failed { color: var(--broken); border-color: var(--broken); }
 .stage.retrying { color: var(--maybe); border-color: var(--maybe); }
-main { display: grid; grid-template-columns: 280px minmax(0, 1fr) 360px; min-height: 0; }
-.col { border-right: 1px solid var(--line); min-height: 0; overflow-y: auto; }
-.col:last-child { border-right: 0; }
-.col h2 { font-size: 11px; font-family: var(--mono); color: var(--faint); font-weight: 500; letter-spacing: 0.06em; margin: 0; padding: 14px 16px 8px; position: sticky; top: 0; background: var(--bg); }
-.claim { padding: 10px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
-.claim .t { line-height: 1.35; }
-.claim .s { font-family: var(--mono); font-size: 11px; color: var(--faint); }
-.claim.testing .s { color: var(--run); }
-.claim.works .s, .claim.partly_works .s { color: var(--works); }
-.claim.broken .s { color: var(--broken); }
-.claim.could_not_test .s, .claim.reviewed_from_code .s { color: var(--maybe); }
-.claim .r { color: var(--muted); font-size: 12px; }
-.browser { padding: 16px; display: grid; gap: 12px; align-content: start; }
-.shot { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); min-height: 240px; display: grid; place-items: center; }
-.shot img { display: block; width: 100%; height: auto; }
-.shot .empty { color: var(--faint); font-family: var(--mono); font-size: 12px; padding: 40px; text-align: center; }
-.ring { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border: 2px solid var(--maybe); border-radius: 50%; pointer-events: none; }
-.caption { display: grid; gap: 6px; }
-.caption .label { font-size: 15px; }
-.caption .why { color: var(--muted); font-style: italic; }
-.caption .url { font-family: var(--mono); font-size: 11px; color: var(--faint); overflow-wrap: anywhere; }
-.log { font-family: var(--mono); font-size: 12px; }
-.line { padding: 6px 16px; border-bottom: 1px solid #181818; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; }
+.card-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 0; }
+.mini-shot { position: relative; border-right: 1px solid var(--line); background: var(--panel-2); min-height: 170px; display: grid; place-items: center; overflow: hidden; }
+.mini-shot img { display: block; width: 100%; height: auto; }
+.mini-shot .none { color: var(--faint); font-family: var(--mono); font-size: 11px; padding: 12px; text-align: center; }
+.mini-claims { overflow-y: auto; max-height: 240px; }
+.mini-claim { padding: 7px 12px; border-bottom: 1px solid var(--line); font-size: 12px; line-height: 1.35; display: grid; gap: 2px; }
+.mini-log { grid-column: 1 / -1; border-top: 1px solid var(--line); max-height: 190px; overflow-y: auto; font-family: var(--mono); font-size: 11px; }
+
+/* shared pieces */
+.v { font-family: var(--mono); font-size: 10px; color: var(--faint); }
+.v.testing { color: var(--run); }
+.v.works, .v.partly_works { color: var(--works); }
+.v.partly_works { color: var(--maybe); }
+.v.broken { color: var(--broken); }
+.v.could_not_test, .v.reviewed_from_code { color: var(--maybe); }
+.ring { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border: 2px solid var(--maybe); border-radius: 50%; pointer-events: none; }
+.line { padding: 5px 12px; border-bottom: 1px solid #181818; display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 8px; }
 .line .at { color: var(--faint); }
 .line .msg { overflow-wrap: anywhere; color: var(--muted); }
 .line .k { color: var(--fg); margin-right: 6px; }
 .line.reason .msg { font-style: italic; }
-.line.verdict-works .k, .line.verdict-partly_works .k { color: var(--works); }
-.line.verdict-broken .k { color: var(--broken); }
-.line.verdict-could_not_test .k { color: var(--maybe); }
-.line.failed .k { color: var(--broken); }
-@media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } .col { border-right: 0; border-bottom: 1px solid var(--line); max-height: 60vh; } }
+.line.verdict-works .k { color: var(--works); }
+.line.verdict-partly_works .k, .line.verdict-could_not_test .k { color: var(--maybe); }
+.line.verdict-broken .k, .line.failed .k { color: var(--broken); }
+
+/* focus: one project, full size */
+.focus { display: grid; grid-template-rows: auto 1fr; min-height: calc(100vh - 58px); }
+.focus .stages { padding: 12px 20px; }
+.focus main { display: grid; grid-template-columns: 300px minmax(0, 1fr) 380px; min-height: 0; }
+.col { border-right: 1px solid var(--line); overflow-y: auto; max-height: calc(100vh - 110px); }
+.col:last-child { border-right: 0; }
+.col h2 { font-size: 11px; font-family: var(--mono); color: var(--faint); font-weight: 500; letter-spacing: 0.06em; margin: 0; padding: 14px 16px 8px; position: sticky; top: 0; background: var(--bg); }
+.claim { padding: 10px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; line-height: 1.35; }
+.claim .r { color: var(--muted); font-size: 12px; }
+.browser { padding: 16px; display: grid; gap: 12px; align-content: start; }
+.shot { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); min-height: 260px; display: grid; place-items: center; }
+.shot img { display: block; width: 100%; height: auto; }
+.label { font-size: 15px; }
+.why { color: var(--muted); font-style: italic; }
+.url { font-family: var(--mono); font-size: 11px; color: var(--faint); overflow-wrap: anywhere; }
+.log { font-family: var(--mono); font-size: 12px; }
+@media (max-width: 1000px) { .focus main { grid-template-columns: minmax(0, 1fr); } .col { border-right: 0; border-bottom: 1px solid var(--line); max-height: 60vh; } }
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="brand">TalNex Live</div>
-    <div class="conn" id="conn"><i></i><span>connecting</span></div>
-    <label class="conn">watching <select id="subject"><option value="">everything</option></select></label>
-    <div class="meters">
-      <span>time<b id="m-time">0:00</b></span>
-      <span>actions<b id="m-actions">0</b></span>
-      <span>browser cost<b id="m-cost">$0.0000</b></span>
-      <span>verdicts<b id="m-verdicts">0</b></span>
-    </div>
-  </header>
-  <div class="stages" id="stages"></div>
+<header>
+  <div class="brand">TalNex Live</div>
+  <div class="conn" id="conn"><i></i><span>connecting</span></div>
+  <button class="back" id="back" hidden>← all projects</button>
+  <div class="meters">
+    <span>projects<b id="m-projects">0</b></span>
+    <span>actions<b id="m-actions">0</b></span>
+    <span>browser cost<b id="m-cost">$0.0000</b></span>
+    <span>verdicts<b id="m-verdicts">0</b></span>
+  </div>
+</header>
+<div id="overview"><div class="grid" id="grid"></div><div class="empty" id="empty">Waiting for a check to start. Each project gets its own panel here as soon as TalNex begins working on it.</div></div>
+<div class="focus" id="focus" hidden>
+  <div class="stages" id="f-stages"></div>
   <main>
-    <section class="col"><h2>CLAIMS</h2><div id="claims"></div></section>
+    <section class="col"><h2 id="f-title">CLAIMS</h2><div id="f-claims"></div></section>
     <section class="col browser">
-      <div class="shot" id="shot"><div class="empty">The agent's screen appears here as soon as it takes its first step.</div></div>
-      <div class="caption">
-        <div class="label" id="label"></div>
-        <div class="why" id="why"></div>
-        <div class="url" id="url"></div>
-      </div>
+      <div class="shot" id="f-shot"></div>
+      <div class="label" id="f-label"></div>
+      <div class="why" id="f-why"></div>
+      <div class="url" id="f-url"></div>
     </section>
-    <section class="col"><h2>WHAT IT IS DOING</h2><div class="log" id="log"></div></section>
+    <section class="col"><h2>WHAT IT IS DOING</h2><div class="log" id="f-log"></div></section>
   </main>
 </div>
 <script>
 (() => {
   // Everything from the stream is text from the outside world: it is only ever set with textContent.
   const $ = (id) => document.getElementById(id);
-  const state = { subjects: new Map(), stages: new Map(), claims: new Map(), actions: 0, cost: 0, verdicts: 0, first: null, last: null };
-  const VERDICT = { works: "works", partly_works: "partly works", broken: "broken", could_not_test: "could not test", reviewed_from_code: "reviewed from code" };
-  let watching = "";
-
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
   const clock = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toTimeString().slice(0, 8); };
-  const mine = (ev) => !watching || ev.subject?.id === watching;
+  const VERDICT = { works: "works", partly_works: "partly works", broken: "broken", could_not_test: "could not test", reviewed_from_code: "reviewed from code" };
+  const STAGE_WORD = { precheck: "checking the site", claims: "reading claims", test_plan: "planning tests", live_test: "testing live",
+                       proof_check: "checking proof", feature_score: "scoring", project_score: "scoring", project_report: "writing the card",
+                       feature_compare: "comparing teams", ai_opinion: "AI opinion" };
 
-  function noteSubject(ev) {
-    const s = ev.subject; if (!s?.id || state.subjects.has(s.id)) return;
-    state.subjects.set(s.id, s.kind);
-    const o = el("option", null, `${s.kind} ${s.id.slice(0, 8)}`); o.value = s.id; $("subject").append(o);
+  let names = {};
+  let focusId = null;
+  let subjects = new Map();
+  const totals = { actions: 0, cost: 0, verdicts: 0 };
+
+  async function loadNames() {
+    try { const r = await fetch("/v1/dev/live/names"); if (r.ok) names = await r.json(); } catch (_) {}
+    for (const [id, s] of subjects) { if (names[id]) s.name = names[id].name; }
+    drawAll();
   }
 
-  function log(ev, kind, text, cls) {
-    const line = el("div", "line " + (cls || ""));
-    line.append(el("span", "at", clock(ev.at)));
-    const msg = el("span", "msg"); msg.append(el("span", "k", kind)); msg.append(document.createTextNode(text || ""));
-    line.append(msg);
-    const box = $("log"); box.prepend(line);
-    while (box.childElementCount > 400) box.lastElementChild.remove();
-  }
-
-  function drawStages() {
-    const box = $("stages"); box.replaceChildren();
-    for (const [key, st] of state.stages) {
-      const [subject, name] = key.split("|");
-      if (watching && subject !== watching) continue;
-      box.append(el("span", "stage " + st, name));
+  function subject(ev) {
+    const id = ev.subject?.id; if (!id) return null;
+    if (!subjects.has(id)) {
+      subjects.set(id, { id, kind: ev.subject.kind, name: names[id]?.name || null, stages: new Map(), claims: new Map(),
+                         log: [], shot: null, label: "", why: "", url: "", actions: 0, current: "", order: subjects.size });
+      if (!names[id]) loadNames();
     }
+    return subjects.get(id);
   }
 
-  function drawClaims() {
-    const box = $("claims"); box.replaceChildren();
-    for (const c of state.claims.values()) {
-      if (watching && c.subject !== watching) continue;
-      const card = el("div", "claim " + c.status);
-      card.append(el("div", "t", c.text || "claim"));
-      card.append(el("div", "s", c.status === "testing" ? "testing…" : (VERDICT[c.status] || c.status) + (c.confidence ? ` · ${c.confidence}` : "")));
-      if (c.reason) card.append(el("div", "r", c.reason));
-      box.append(card);
-    }
-  }
-
-  function showStep(d) {
-    if (d.proof_url) {
-      const img = new Image(); img.alt = d.label || "screenshot"; img.src = d.proof_url;
-      const shot = $("shot");
-      img.onload = () => {
-        shot.replaceChildren(img);
-        if (d.box && img.naturalWidth) {
-          const r = el("div", "ring");
-          r.style.left = ((d.box.x + d.box.w / 2) / img.naturalWidth * 100) + "%";
-          r.style.top = ((d.box.y + d.box.h / 2) / img.naturalHeight * 100) + "%";
-          shot.append(r);
-        }
-      };
-    }
-    $("label").textContent = d.label || "";
-    $("url").textContent = d.url || "";
-  }
-
-  function claim(ev) {
+  function claimOf(s, ev) {
     const id = ev.claim_id; if (!id) return null;
-    if (!state.claims.has(id)) state.claims.set(id, { subject: ev.subject?.id, text: "", status: "queued" });
-    return state.claims.get(id);
+    if (!s.claims.has(id)) s.claims.set(id, { text: "", status: "queued" });
+    return s.claims.get(id);
+  }
+
+  function addLog(s, ev, kind, text, cls) {
+    s.log.push({ at: ev.at, kind, text: text || "", cls: cls || "" });
+    if (s.log.length > 500) s.log.shift();
   }
 
   function handle(kind, ev) {
-    noteSubject(ev);
+    const s = subject(ev); if (!s) return;
     const d = ev.data || {};
-    if (ev.at) { state.first = state.first || ev.at; state.last = ev.at; }
-    const key = `${ev.subject?.id}|${ev.stage}`;
     switch (kind) {
-      case "stage.started": state.stages.set(key, "running"); drawStages(); if (mine(ev)) log(ev, ev.stage, " started"); break;
-      case "stage.finished": state.stages.set(key, d.skipped ? "skipped" : "done"); drawStages();
-        if (mine(ev)) log(ev, ev.stage, d.skipped ? ` skipped: ${d.reason || ""}` : ` done in ${d.seconds ?? "?"} s`); break;
-      case "stage.failed": state.stages.set(key, d.status === "retrying" ? "retrying" : "failed"); drawStages();
-        if (mine(ev)) log(ev, ev.stage, ` ${d.status}: ${d.error || ""}`, "failed"); break;
-      case "claims.queued":
-        for (const c of d.claims || []) state.claims.set(c.id, { subject: ev.subject?.id, text: c.text, status: "queued" });
-        drawClaims(); if (mine(ev)) log(ev, "claims", ` ${d.total} to test`); break;
-      case "claim.started": { const c = claim(ev); if (c) { c.text = d.text || c.text; c.status = "testing"; drawClaims(); }
-        if (mine(ev)) log(ev, "testing", ` ${d.text || ""}`); break; }
-      case "run.started": if (mine(ev)) log(ev, "browser", ` try ${d.try_number ?? 1}, ${d.test_type || "normal"} test`); break;
-      case "reason": if (mine(ev)) { $("why").textContent = d.text ? `“${d.text}”` : ""; log(ev, "why", ` ${d.text || ""}`, "reason"); } break;
-      case "step.record": state.actions += 1; if (mine(ev)) { showStep(d); log(ev, "step", ` ${d.label || ""}`); } break;
-      case "step.result": if (mine(ev)) log(ev, "result", ` step ${d.step}/${d.steps}: ${d.result}`); break;
-      case "ladder": if (mine(ev)) log(ev, "ladder", ` ${d.line || ""}`); break;
-      case "run.finished": state.cost += Number(d.cost_usd || 0); if (mine(ev)) log(ev, "browser", ` closed: ${d.outcome || ""}`); break;
-      case "check.started": if (mine(ev)) log(ev, "check", ` a separate AI looks at ${d.images} screenshots`); break;
-      case "check": if (mine(ev)) log(ev, "check", ` ${d.outcome}: ${d.seen || ""}`); break;
-      case "verdict": { state.verdicts += 1; const c = claim(ev);
-        if (c) { c.status = d.verdict; c.confidence = d.confidence; c.reason = d.reason; drawClaims(); }
-        if (mine(ev)) log(ev, VERDICT[d.verdict] || d.verdict, ` ${d.reason || ""}`, "verdict-" + d.verdict); break; }
-      default: if (mine(ev)) log(ev, kind, "");
+      case "stage.started": s.stages.set(ev.stage, "running"); s.current = STAGE_WORD[ev.stage] || ev.stage; addLog(s, ev, ev.stage, " started"); break;
+      case "stage.finished": s.stages.set(ev.stage, d.skipped ? "skipped" : "done");
+        if (s.current === (STAGE_WORD[ev.stage] || ev.stage)) s.current = "";
+        addLog(s, ev, ev.stage, d.skipped ? ` skipped: ${d.reason || ""}` : ` done in ${d.seconds ?? "?"} s`); break;
+      case "stage.failed": s.stages.set(ev.stage, d.status === "retrying" ? "retrying" : "failed"); addLog(s, ev, ev.stage, ` ${d.status}: ${d.error || ""}`, "failed"); break;
+      case "claims.queued": for (const c of d.claims || []) if (!s.claims.has(c.id)) s.claims.set(c.id, { text: c.text, status: "queued" });
+        addLog(s, ev, "claims", ` ${d.total} to test`); break;
+      case "claim.started": { const c = claimOf(s, ev); if (c) { c.text = d.text || c.text; c.status = "testing"; } addLog(s, ev, "testing", ` ${d.text || ""}`); break; }
+      case "run.started": addLog(s, ev, "browser", ` try ${d.try_number ?? 1}, ${d.test_type || "normal"} test`); break;
+      case "reason": s.why = d.text || ""; addLog(s, ev, "why", ` ${d.text || ""}`, "reason"); break;
+      case "step.record": s.actions += 1; totals.actions += 1; s.label = d.label || ""; s.url = d.url || "";
+        if (d.proof_url) s.shot = { url: d.proof_url, box: d.box }; addLog(s, ev, "step", ` ${d.label || ""}`); break;
+      case "step.result": addLog(s, ev, "result", ` step ${d.step}/${d.steps}: ${d.result}`); break;
+      case "ladder": addLog(s, ev, "ladder", ` ${d.line || ""}`); break;
+      case "run.finished": totals.cost += Number(d.cost_usd || 0); addLog(s, ev, "browser", ` closed: ${d.outcome || ""}`); break;
+      case "check.started": addLog(s, ev, "check", ` a separate AI looks at ${d.images} screenshots`); break;
+      case "check": addLog(s, ev, "check", ` ${d.outcome}: ${d.seen || ""}`); break;
+      case "verdict": { totals.verdicts += 1; const c = claimOf(s, ev);
+        if (c) { c.status = d.verdict; c.confidence = d.confidence; c.reason = d.reason; }
+        addLog(s, ev, VERDICT[d.verdict] || d.verdict, ` ${d.reason || ""}`, "verdict-" + d.verdict); break; }
+      default: addLog(s, ev, kind, "");
     }
-    meters();
+    schedule();
   }
 
-  function meters() {
-    $("m-actions").textContent = state.actions;
-    $("m-cost").textContent = "$" + state.cost.toFixed(4);
-    $("m-verdicts").textContent = state.verdicts;
-    if (state.first && state.last) {
-      const s = Math.max(0, Math.round((new Date(state.last) - new Date(state.first)) / 1000));
-      $("m-time").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-    }
+  let pending = false;
+  function schedule() { if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; drawAll(); }); } }
+
+  function drawShot(box, shot) {
+    if (!shot) { box.replaceChildren(el("div", "none", "no screen yet")); return; }
+    if (box.dataset.src === shot.url) return;
+    box.dataset.src = shot.url;
+    const img = new Image(); img.alt = "the agent's screen"; img.src = shot.url;
+    img.onload = () => {
+      box.replaceChildren(img);
+      if (shot.box && img.naturalWidth) {
+        const r = el("div", "ring");
+        r.style.left = ((shot.box.x + shot.box.w / 2) / img.naturalWidth * 100) + "%";
+        r.style.top = ((shot.box.y + shot.box.h / 2) / img.naturalHeight * 100) + "%";
+        box.append(r);
+      }
+    };
   }
 
-  $("subject").addEventListener("change", (e) => { watching = e.target.value; drawStages(); drawClaims(); $("log").replaceChildren(); });
+  function drawStages(box, s) {
+    box.replaceChildren(...[...s.stages].map(([name, st]) => el("span", "stage " + st, name)));
+  }
+
+  function logLines(entries) {
+    return entries.slice().reverse().map((e) => {
+      const line = el("div", "line " + e.cls);
+      line.append(el("span", "at", clock(e.at)));
+      const msg = el("span", "msg"); msg.append(el("span", "k", e.kind)); msg.append(document.createTextNode(e.text)); line.append(msg);
+      return line;
+    });
+  }
+
+  function tally(s) {
+    const t = { works: 0, broken: 0, other: 0, testing: 0, total: s.claims.size };
+    for (const c of s.claims.values()) {
+      if (c.status === "works") t.works++; else if (c.status === "broken") t.broken++;
+      else if (c.status === "testing") t.testing++; else if (c.status !== "queued") t.other++;
+    }
+    return t;
+  }
+
+  const cards = new Map();
+  function card(s) {
+    if (cards.has(s.id)) return cards.get(s.id);
+    const c = el("article", "card");
+    const head = el("button", "card-head"); head.title = "Open this project full size";
+    head.append(el("span", "name"), el("span", "kind"), el("span", "status"));
+    head.addEventListener("click", () => openFocus(s.id));
+    const counts = el("div", "counts");
+    const stages = el("div", "stages");
+    const body = el("div", "card-body");
+    const shot = el("div", "mini-shot"); const claims = el("div", "mini-claims"); const log = el("div", "mini-log");
+    body.append(shot, claims, log);
+    c.append(head, counts, stages, body);
+    const parts = { c, head, counts, stages, shot, claims, log };
+    cards.set(s.id, parts);
+    return parts;
+  }
+
+  function drawCard(s) {
+    const p = card(s);
+    p.head.querySelector(".name").textContent = s.name || `${s.kind} ${s.id.slice(0, 8)}`;
+    p.head.querySelector(".kind").textContent = s.kind === "project" ? "" : s.kind.replace("_", " ");
+    const status = p.head.querySelector(".status");
+    status.textContent = s.current || ([...s.stages.values()].includes("running") ? "working" : (s.stages.size ? "waiting / done" : ""));
+    status.className = "status" + (s.current ? " running" : "");
+    p.c.classList.toggle("busy", !!s.current);
+    const t = tally(s);
+    p.counts.replaceChildren(el("span", null, `claims ${t.total}`), el("span", "w", `works ${t.works}`), el("span", "b", `broken ${t.broken}`),
+                             el("span", "m", `other ${t.other}`), el("span", null, `testing ${t.testing}`), el("span", null, `actions ${s.actions}`));
+    drawStages(p.stages, s);
+    drawShot(p.shot, s.shot);
+    p.claims.replaceChildren(...[...s.claims.values()].map((c) => {
+      const row = el("div", "mini-claim"); row.append(el("span", null, c.text || "claim"),
+        el("span", "v " + c.status, c.status === "testing" ? "testing…" : (VERDICT[c.status] || c.status))); return row; }));
+    if (!s.claims.size) p.claims.replaceChildren(el("div", "mini-claim", "no claims yet"));
+    p.log.replaceChildren(...logLines(s.log.slice(-60)));
+  }
+
+  function drawFocus() {
+    const s = subjects.get(focusId); if (!s) return;
+    $("f-title").textContent = (s.name || s.id.slice(0, 8)).toUpperCase() + " · CLAIMS";
+    drawStages($("f-stages"), s);
+    $("f-claims").replaceChildren(...[...s.claims.values()].map((c) => {
+      const row = el("div", "claim"); row.append(el("div", null, c.text || "claim"),
+        el("div", "v " + c.status, c.status === "testing" ? "testing…" : (VERDICT[c.status] || c.status) + (c.confidence ? ` · ${c.confidence}` : "")));
+      if (c.reason) row.append(el("div", "r", c.reason)); return row; }));
+    drawShot($("f-shot"), s.shot);
+    $("f-label").textContent = s.label; $("f-why").textContent = s.why ? `“${s.why}”` : ""; $("f-url").textContent = s.url;
+    $("f-log").replaceChildren(...logLines(s.log));
+  }
+
+  function drawAll() {
+    const list = [...subjects.values()].sort((a, b) => (a.kind === "event") - (b.kind === "event") || a.order - b.order);
+    $("empty").hidden = list.length > 0;
+    const grid = $("grid");
+    for (const s of list) { drawCard(s); if (cards.get(s.id).c.parentNode !== grid) grid.append(cards.get(s.id).c); }
+    if (focusId) drawFocus();
+    $("m-projects").textContent = list.filter((s) => s.kind !== "event").length;
+    $("m-actions").textContent = totals.actions;
+    $("m-cost").textContent = "$" + totals.cost.toFixed(4);
+    $("m-verdicts").textContent = totals.verdicts;
+  }
+
+  function openFocus(id) { focusId = id; $("overview").hidden = true; $("focus").hidden = false; $("back").hidden = false; $("f-shot").dataset.src = ""; drawFocus(); }
+  $("back").addEventListener("click", () => { focusId = null; $("overview").hidden = false; $("focus").hidden = true; $("back").hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && focusId) $("back").click(); });
 
   const KINDS = ["stage.started", "stage.finished", "stage.failed", "claims.queued", "claim.started", "ladder", "run.started", "reason",
                  "step.record", "step.result", "run.outcome", "run.finished", "check.started", "check", "verdict"];
@@ -215,12 +303,12 @@ main { display: grid; grid-template-columns: 280px minmax(0, 1fr) 360px; min-hei
   const conn = (on, text) => { $("conn").classList.toggle("on", on); $("conn").querySelector("span").textContent = text; };
   source.onopen = () => conn(true, "live");
   source.onerror = () => conn(false, "reconnecting");
-  for (const k of KINDS) source.addEventListener(k, (m) => { try { handle(k, JSON.parse(m.data)); } catch (_) {} });
   source.addEventListener("replay.start", () => {
-    Object.assign(state, { stages: new Map(), claims: new Map(), actions: 0, cost: 0, verdicts: 0, first: null, last: null });
-    $("log").replaceChildren(); drawStages(); drawClaims(); meters();
+    subjects = new Map(); cards.clear(); $("grid").replaceChildren(); Object.assign(totals, { actions: 0, cost: 0, verdicts: 0 }); drawAll();
   });
   source.addEventListener("replay.done", () => conn(true, "live"));
+  for (const k of KINDS) source.addEventListener(k, (m) => { try { handle(k, JSON.parse(m.data)); } catch (_) {} });
+  loadNames();
 })();
 </script>
 </body>
