@@ -64,7 +64,9 @@ describe("stylesheet", () => {
   });
 
   it("defines every token it uses", () => {
-    const defined = new Set([...tokenBlock.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+    // The font variables are set on <html> by the self-hosted fonts (app/layout.tsx), not in the stylesheet.
+    const fromFonts = ["--font-geist-sans", "--font-geist-mono", "--font-archivo"];
+    const defined = new Set([...tokenBlock.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]).concat(fromFonts));
     const used = new Set([...css.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]));
     expect([...used].filter((t) => !defined.has(t))).toEqual([]);
   });
