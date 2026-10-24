@@ -150,3 +150,110 @@ export interface CandidateProgress {
   report_ready: boolean;
 }
 
+// ---------- The recruiter proof report ----------
+// Built by ai/talnex_ai/reports/recruiter_report.py and proof.py; the API swaps each step's storage key for a short-lived
+// proof_url (backend/internal/http/report.go). Allowed values follow the CHECK rules in backend/migrations.
+
+export type Verdict = "works" | "partly_works" | "broken" | "could_not_test" | "reviewed_from_code";
+export type Confidence = "high" | "medium" | "low" | "disagree";
+export type FlagLevel = "info" | "review" | "strong";
+export type ProjectStatus = "tested" | "could_not_test" | "no_live_link";
+/** screen: a screenshot. http: a saved request and answer (backend test). command: a saved command's output. */
+export type ProofKind = "screen" | "http" | "command";
+
+export interface ProofStep {
+  step: number;
+  action: string;
+  observed: string | null;
+  kind: ProofKind;
+  test_type?: string | null;
+  track?: string | null;
+  /** Missing when there is no proof file or no link could be made. */
+  proof_url?: string;
+}
+
+/** What reading the code found for a claim that was not run. Always shown as "reviewed from code, not run". */
+export interface CodeReview {
+  label: string;
+  mechanism: string | null;
+  summary: string | null;
+  evidence: unknown[];
+  quality: unknown[];
+  files_read: string[];
+}
+
+export interface ReportFeature {
+  claim_id: string;
+  text: string;
+  group: string | null;
+  importance: number;
+  testable: boolean;
+  untestable_reason: string | null;
+  track?: string | null;
+  source?: string | null;
+  verdict: Verdict | null;
+  confidence: Confidence | null;
+  reason: string | null;
+  score10: number | null;
+  score_reason: string | null;
+  proof: ProofStep[];
+  code_review?: CodeReview | null;
+}
+
+export interface ReportFlag {
+  type: string;
+  level: FlagLevel;
+  reason: string;
+}
+
+export interface ProjectTalnex {
+  score10: number | null;
+  coverage: number;
+  features_scored: number;
+  features_total: number;
+  low_coverage: boolean;
+}
+
+export interface ProjectOriginality {
+  repo_found: boolean;
+  created_at: string | null;
+  pushed_at: string | null;
+  fork: boolean;
+  languages: Record<string, number>;
+  notes: string[];
+}
+
+export interface ReportProject {
+  id: string;
+  name: string;
+  live_url: string | null;
+  repo_url: string | null;
+  status: ProjectStatus;
+  status_reason: string;
+  talnex: ProjectTalnex | null;
+  features: ReportFeature[];
+  flags: ReportFlag[];
+  originality: ProjectOriginality | null;
+}
+
+export interface CodingSignal {
+  site: "codeforces" | "leetcode" | "codechef" | "github" | string;
+  signal: string;
+  weight: "not_suspicious" | "medium" | "strong" | string;
+  contest: string | null;
+  evidence: Record<string, unknown>;
+}
+
+export interface CandidateReport {
+  version: number;
+  candidate_id: string;
+  generated_at: string;
+  role_level: RoleLevel;
+  has_gaps: boolean;
+  time_saved: { manual_minutes_estimate: number; talnex_minutes: number; saved_minutes: number };
+  projects: ReportProject[];
+  coding_signals: CodingSignal[];
+  flags: ReportFlag[];
+  notes: string[];
+}
+

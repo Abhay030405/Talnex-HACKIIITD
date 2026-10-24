@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ExampleProofCard } from "@/components/proof/ExampleProofCard";
 import { ArrowIcon, BriefcaseIcon, ShieldIcon, TrophyIcon } from "@/components/ui/Icons";
 import { redirectIfSignedIn } from "@/lib/session";
 
@@ -21,7 +22,10 @@ const DOORS = [
 ];
 
 const STEPS = [
-  { title: "Read what the project claims", text: "From the demo video, your scoring criteria, or the resume and README." },
+  {
+    title: "Read what the project claims",
+    text: "From the demo video, your scoring criteria, or the resume and README.",
+  },
   {
     title: "Use it like a real person",
     text: "An agent signs up, clicks through and tries edge cases, saving a screenshot at every step.",
@@ -53,8 +57,8 @@ export default async function Home() {
             See what actually <span className="hero__mark">works</span>.
           </h1>
           <p className="hero__lead">
-            A project link on a resume or a hackathon entry is a promise nobody has time to check. TalNex opens it like a
-            real person would, and shows you the proof.
+            A project link on a resume or a hackathon entry is a promise nobody has time to check. TalNex opens it like
+            a real person would, and shows you the proof.
           </p>
           <div className="hero__actions">
             <Link className="button button--primary button--lg" href="/login">
@@ -97,6 +101,19 @@ export default async function Home() {
               </li>
             ))}
           </ol>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container stack">
+          <div>
+            <span className="section__eyebrow">What you get</span>
+            <h2 className="section__title">A result you can read in a minute</h2>
+            <p className="section__lead">
+              Every feature gets a score out of 10, judged for the role level you pick, with the reason in one line.
+            </p>
+          </div>
+          <ExampleProofCard />
         </div>
       </section>
 
