@@ -37,7 +37,7 @@ IDLE_NOTE_SECONDS = 60
 HISTORY = """
 query talnexHistory($username: String!) {
   userContestRankingHistory(username: $username) {
-    attended rating problemsSolved finishTimeInSeconds contest { title titleSlug startTime }
+    attended rating ranking problemsSolved finishTimeInSeconds contest { title titleSlug startTime }
   }
 }""".strip()
 QUESTIONS = """
@@ -120,8 +120,8 @@ def rating_jumps(history: list[Mapping[str, Any]]) -> dict[str, int]:
 
 
 def pick_contests(history: list[Mapping[str, Any]], cfg: LeetCodeReplaySettings, now: float) -> list[Mapping[str, Any]]:
-    """The last `contests` rated contests the candidate solved something in, plus any with a big rating jump. Contests
-    newer than `settle_days` are skipped."""
+    """The last `contests` rated contests the candidate solved something in, plus any with a big rating jump, plus the
+    last `contests` voided ones. Contests newer than `settle_days` are skipped (voided ones are already settled)."""
     gains = rating_jumps(history)
     done, jumps = [], []
     for c in history or []:
@@ -135,6 +135,12 @@ def pick_contests(history: list[Mapping[str, Any]], cfg: LeetCodeReplaySettings,
     chosen = done[-cfg.contests:] if cfg.contests else []
     for c in jumps:
         if c in done and c not in chosen:
+            chosen.append(c)
+    # Contests LeetCode voided (attended, no rank, 0 solved: often its own plagiarism check). The replays are still
+    # public, and they are the ones most worth reading.
+    removed = [c for c in history or [] if c.get("attended") and c.get("ranking") in (0, None) and not c.get("problemsSolved")]
+    for c in (removed[-cfg.contests:] if cfg.contests else []):
+        if c not in chosen:
             chosen.append(c)
     return chosen
 

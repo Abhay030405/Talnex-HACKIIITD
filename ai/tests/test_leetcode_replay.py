@@ -55,8 +55,8 @@ def test_pastes_that_are_not_suspicious(events, why):
     assert weight == "not_suspicious" and why in reason
 
 
-def contest(slug, start, rating, solved=2, attended=True):
-    return {"attended": attended, "rating": rating, "problemsSolved": solved,
+def contest(slug, start, rating, solved=2, attended=True, ranking=100):
+    return {"attended": attended, "rating": rating, "problemsSolved": solved, "ranking": ranking,
             "contest": {"title": slug.title(), "titleSlug": slug, "startTime": start}}
 
 
@@ -67,6 +67,12 @@ def test_contest_pick_takes_the_latest_settled_ones_and_rating_jumps():
                contest("c5", 940 * DAY, 1680, solved=0), contest("c6", 998 * DAY, 1690)]  # c6 is too new
     cfg = LeetCodeReplaySettings(contests=1)
     assert [c["contest"]["titleSlug"] for c in pick_contests(history, cfg, now)] == ["c3", "c2"]
+
+
+def test_contests_leetcode_voided_are_read_too():
+    # 0 solved and no rank: LeetCode removed the result, but the replays are still public
+    history = [contest("c1", 900 * DAY, 1500, solved=0, ranking=0), contest("c2", 910 * DAY, 1500, solved=0, ranking=0)]
+    assert [c["contest"]["titleSlug"] for c in pick_contests(history, LeetCodeReplaySettings(contests=1), 1000 * DAY)] == ["c2"]
 
 
 class FakeEndpoint:
