@@ -1,0 +1,51 @@
+{
+  "app": "fake_claim",
+  "description": "CaptionIt: the pages and the photo picker work, but no caption is ever written (the caption service always fails). TalNex must call the caption claims broken, or at worst could not test, and never works.",
+  "url": "https://talnex-fake-claim.vercel.app",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "The About page explains what CaptionIt is",
+      "group": "Access",
+      "importance": 1,
+      "expected": "works"
+    },
+    {
+      "text": "The landing page has a link that opens the try page",
+      "group": "Access",
+      "importance": 1,
+      "expected": "works"
+    },
+    {
+      "text": "The try page has a photo picker and a Write my caption button",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Upload a photo and CaptionIt writes a caption describing it",
+      "group": "Core",
+      "importance": 3,
+      "expected": "broken"
+    },
+    {
+      "text": "Choose a photo and press Write my caption, and the caption appears under the photo",
+      "group": "Core",
+      "importance": 3,
+      "expected": "broken"
+    }
+  ],
+  "controls": [
+    {
+      "text": "Captions can be translated into other languages",
+      "group": "Core",
+      "importance": 1,
+      "expected": "broken"
+    }
+  ],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}
