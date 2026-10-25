@@ -65,8 +65,10 @@ function OpinionBox({ opinion }: { opinion: AiOpinion }) {
 export function HackathonCardView({
   card,
   criteria,
+  tourHref,
 }: {
   card: HackathonCard;
+  tourHref?: string;
   /** The event's weights as they are now: the weighted total is worked out from them, so edits apply at once. */
   criteria?: { name: string; weight: number }[];
 }) {

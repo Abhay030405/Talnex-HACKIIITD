@@ -15,8 +15,10 @@ import type { CandidateReport } from "@/lib/types";
 export function CandidateReportView({
   report,
   criteria = [],
+  candidateId,
 }: {
   report: CandidateReport;
+  candidateId?: string;
   criteria?: { name: string; weight: number }[];
 }) {
   const weighted = criteria.length > 0 ? weightedScore(report, criteria) : null;
