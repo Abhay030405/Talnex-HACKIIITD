@@ -1,8 +1,18 @@
 "use client";
 
-import { Handle, MarkerType, type Edge, type Node, type NodeProps, Position, ReactFlow } from "@xyflow/react";
+import {
+  Handle,
+  MarkerType,
+  type Edge,
+  type Node,
+  type NodeProps,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { layoutPipeline, type FlowStage } from "@/lib/pipeline-flow";
 import type { JobRow } from "@/lib/types";
@@ -74,7 +84,7 @@ export function PipelineFlow({
 
   return (
     <div className="job-flow">
-      <div className="job-flow__canvas">
+      <FitCanvas nodeCount={nodes.length}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -88,7 +98,7 @@ export function PipelineFlow({
           proOptions={{ hideAttribution: true }}
           minZoom={0.3}
         />
-      </div>
+      </FitCanvas>
       {chosen && (
         <aside className="job-flow__drawer" aria-label={`Stage ${chosen.name}`}>
           <div className="row">
@@ -131,6 +141,39 @@ export function PipelineFlow({
           </p>
         </aside>
       )}
+    </div>
+  );
+}
+
+/**
+ * The canvas, fitted to its box whenever the box changes size. Every tab is rendered up front and hidden, so the first
+ * fit happens at zero width and leaves the graph stuck at the left; refitting when the tab opens (the box grows) fixes it.
+ */
+function FitCanvas({ nodeCount, children }: { nodeCount: number; children: React.ReactNode }) {
+  return (
+    <ReactFlowProvider>
+      <Fitter nodeCount={nodeCount}>{children}</Fitter>
+    </ReactFlowProvider>
+  );
+}
+
+function Fitter({ nodeCount, children }: { nodeCount: number; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const fit = () => {
+      if (el.clientWidth > 0 && el.clientHeight > 0) requestAnimationFrame(() => fitView({ padding: 0.12 }));
+    };
+    const watch = new ResizeObserver(fit);
+    watch.observe(el);
+    fit();
+    return () => watch.disconnect();
+  }, [fitView, nodeCount]);
+  return (
+    <div className="job-flow__canvas" ref={box}>
+      {children}
     </div>
   );
 }
