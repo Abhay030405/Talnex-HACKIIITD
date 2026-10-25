@@ -14,7 +14,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Mapping, Optional
 
 log = logging.getLogger("talnex.live")
 
@@ -125,3 +125,21 @@ def for_job(pool, job, stage: Optional[str] = None):
         return NullEmitter()
     return Emitter(pool, job.target_type, job.target_id, job_id=job.id, stage=stage or job.type,
                    pipeline=job.pipeline, run_number=job.run_number)
+
+
+def summary_of(result: Mapping[str, Any], limit: int = 6) -> str:
+    """A short line of what a stage found, from the plain values in its result: "handle x, rating 1193, contests 22"."""
+    parts = []
+    for key, value in (result or {}).items():
+        if key in ("skipped", "reason") or key.endswith("_id") or key.endswith("_ids") or key.startswith("reused"):
+            continue
+        if isinstance(value, bool):
+            value = "yes" if value else "no"
+        elif isinstance(value, list) and all(isinstance(v, str) for v in value) and value:
+            value = ", ".join(value[:3]) + (f" +{len(value) - 3}" if len(value) > 3 else "")
+        elif not isinstance(value, (int, float, str)) or (isinstance(value, str) and len(value) > 60):
+            continue
+        parts.append(f"{key.replace('_', ' ')} {value}")
+        if len(parts) == limit:
+            break
+    return ", ".join(parts)

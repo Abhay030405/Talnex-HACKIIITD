@@ -27,6 +27,7 @@ export const EVENT_KINDS = [
   "check.started",
   "check",
   "verdict",
+  "note",
 ] as const;
 
 export interface LiveEvent {
@@ -215,7 +216,8 @@ export function reduceLive(state: LiveState, kind: string, ev: LiveEvent): LiveS
         stages: setStage(s.stages, stage, skipped ? "skipped" : "done"),
         current: s.current === stageWord(stage) ? "" : s.current,
       };
-      line = { label: stage, text: skipped ? `skipped: ${text(d.reason)}` : "done", tone: "plain" };
+      const summary = text(d.summary);
+      line = { label: stage, text: skipped ? `skipped: ${text(d.reason)}` : summary ? `done: ${summary}` : "done", tone: "plain" };
       break;
     }
     case "stage.failed": {
@@ -277,6 +279,9 @@ export function reduceLive(state: LiveState, kind: string, ev: LiveEvent): LiveS
       break;
     case "check.started":
       line = { label: "check", text: `a separate AI looks at ${num(d.images)} screenshots`, tone: "plain" };
+      break;
+    case "note":
+      line = { label: text(d.label) || stage, text: text(d.text), tone: "plain" };
       break;
     case "check":
       line = { label: "check", text: `${text(d.outcome)}: ${text(d.seen)}`, tone: "plain" };

@@ -20,6 +20,7 @@ from talnex_ai.coding.leetcode_capture.same_code import bql_neighbours, default_
 from talnex_ai.coding.profile import HANDLE_OK
 from talnex_ai.coding.store import replace_signals, save_signal
 from talnex_ai.db.jobs import Job
+from talnex_ai.live import for_job
 from talnex_ai.settings import LeetCodeReplaySettings
 from talnex_ai.storage.keys import replay_key
 from talnex_ai.worker.registry import JobContext, stage
@@ -194,7 +195,8 @@ def _same_code(r: dict, *, slug: str, events: list, score: int, finish: Optional
 
 def check_replays(url: str, handle: str, cfg: LeetCodeReplaySettings, *, post: Callable[[str, str, dict], dict] = default_post,
                   now: Optional[float] = None, contests: Optional[list[str]] = None,
-                  neighbours: Optional[Callable[..., list[dict]]] = None, code: Callable = default_code) -> dict[str, Any]:
+                  neighbours: Optional[Callable[..., list[dict]]] = None, code: Callable = default_code,
+                  note: Callable[..., None] = lambda *a, **k: None) -> dict[str, Any]:
     """Read and judge the candidate's replays. `contests` (slugs) skips the history pick, for a manual check. With
     `neighbours` (a Browserless ranking walk), long Medium pastes are also compared with nearby contestants' code."""
     history = post(url, HISTORY, {"username": handle}).get("userContestRankingHistory") or []
@@ -206,6 +208,8 @@ def check_replays(url: str, handle: str, cfg: LeetCodeReplaySettings, *, post: C
                   for c in pick_contests(history, cfg, now if now is not None else time.time())]
     else:
         chosen = [(slug, slug) for slug in contests]
+    attended = sum(1 for c in history if c.get("attended"))
+    note("note", label="history", text=f"{attended} contests attended, {len(chosen)} picked to read")
 
     pastes, checked, replays, kept, near_cache = [], [], 0, {}, {}
     for slug, title in chosen:
@@ -232,6 +236,9 @@ def check_replays(url: str, handle: str, cfg: LeetCodeReplaySettings, *, post: C
                     _same_code(r, slug=slug, events=contest_replays[r["problem_slug"]], score=score, finish=finishes.get(slug),
                                handle=handle, cfg=cfg, neighbours=neighbours, code=code, near_cache=near_cache)
         pastes += contest_pastes
+        odd = sum(1 for r in contest_pastes if r["weight"] != "not_suspicious")
+        note("note", label="contest", text=f"{title or slug}: {len(contest_replays)} replays read, {len(contest_pastes)} pastes"
+                                         + (f", {odd} suspicious" if odd else ""))
 
     suspicious_contests = {r["contest_slug"] for r in pastes if r["weight"] == "medium"}
     if len(suspicious_contests) >= cfg.repeat_contests:
@@ -277,7 +284,7 @@ def leetcode_replay(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     try:
         near = bql_neighbours(cfg.browserless_bql_url, cfg.browserless_token) \
             if cfg.browserless_bql_url and cfg.browserless_token else None   # off: pastes are judged on the replay alone
-        result = check_replays(url, handle, cfg.leetcode_replay, neighbours=near)
+        result = check_replays(url, handle, cfg.leetcode_replay, neighbours=near, note=for_job(ctx.pool, job))
     except ReplayBlocked as err:
         replace_signals(ctx.pool, job.target_id, SITE, PASTE_SIGNAL, [])
         replace_signals(ctx.pool, job.target_id, SITE, SUMMARY_SIGNAL, [])

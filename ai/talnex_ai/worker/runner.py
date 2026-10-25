@@ -16,6 +16,7 @@ from psycopg_pool import ConnectionPool
 
 from talnex_ai.db import jobs as queue
 from talnex_ai.live import NullEmitter, for_job
+from talnex_ai.live.events import summary_of
 from talnex_ai.worker.registry import Handler, JobContext, JobTimeout
 
 log = logging.getLogger("talnex.worker")
@@ -138,7 +139,7 @@ class Worker:
             return
         self._complete(worker, job, result, ctx)
         events.emit("stage.finished", seconds=round(time.monotonic() - ctx.started, 1),
-                    skipped=bool(result.get("skipped")), reason=result.get("reason"))
+                    skipped=bool(result.get("skipped")), reason=result.get("reason"), summary=summary_of(result))
 
     def _complete(self, worker: str, job: queue.Job, result: Mapping[str, Any], ctx: JobContext) -> None:
         for attempt in range(1, SAVE_TRIES + 1):

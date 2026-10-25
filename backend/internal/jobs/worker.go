@@ -108,6 +108,7 @@ func (w *Worker) run(ctx context.Context, worker string, job *Job) {
 	defer cancel()
 
 	started := time.Now()
+	w.emitLive(report, job, "stage.started", map[string]any{"try_number": job.Tries})
 	result, err := safeCall(runCtx, handler, job)
 	if err == nil && runCtx.Err() != nil {
 		err = fmt.Errorf("stopped before finishing: %w", runCtx.Err())
@@ -122,6 +123,9 @@ func (w *Worker) run(ctx context.Context, worker string, job *Job) {
 		log.Error("could not save job result", "err", err)
 		return
 	}
+	skipped, _ := result["skipped"].(bool)
+	w.emitLive(report, job, "stage.finished", map[string]any{"seconds": time.Since(started).Round(100 * time.Millisecond).Seconds(),
+		"skipped": skipped, "reason": result["reason"], "summary": summaryOf(result)})
 	log.Info("job done", "took", time.Since(started).Round(time.Millisecond), "next_jobs", len(next))
 }
 
@@ -132,6 +136,11 @@ func (w *Worker) fail(ctx context.Context, log *slog.Logger, worker string, job 
 		return
 	}
 	log.Warn("job failed", "status", status, "err", cause)
+	msg := cause.Error()
+	if len(msg) > 300 {
+		msg = msg[:300]
+	}
+	w.emitLive(ctx, job, "stage.failed", map[string]any{"status": status, "error": msg})
 }
 
 func safeCall(ctx context.Context, h Handler, job *Job) (res map[string]any, err error) {
