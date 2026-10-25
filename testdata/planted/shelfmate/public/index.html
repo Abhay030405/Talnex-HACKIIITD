@@ -29,7 +29,7 @@
         <label>Books to read this year <input id="goal" type="number" min="1" placeholder="12"></label>
         <button type="submit" id="goal-btn">Set goal</button>
       </form>
-      <div class="bar" aria-hidden="true"><div id="goal-fill" class="fill"></div></div>
+      <div class="bar" role="progressbar" aria-label="Reading goal progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="goal-fill" class="fill"></div></div>
       <p id="goal-text" class="msg">No goal set yet.</p>
     </section>
 
@@ -38,10 +38,10 @@
       <div class="tools">
         <input id="search" type="search" placeholder="Search by title or author" aria-label="Search books">
         <nav class="tabs" id="tabs" aria-label="Filter by status">
-          <button type="button" data-filter="all" class="on">All</button>
-          <button type="button" data-filter="want">Want to read</button>
-          <button type="button" data-filter="reading">Reading</button>
-          <button type="button" data-filter="finished">Finished</button>
+          <button type="button" data-filter="all" class="on">Show all</button>
+          <button type="button" data-filter="want">Show want to read</button>
+          <button type="button" data-filter="reading">Show reading</button>
+          <button type="button" data-filter="finished">Show finished</button>
         </nav>
         <button type="button" id="export-btn">Export CSV</button>
       </div>
