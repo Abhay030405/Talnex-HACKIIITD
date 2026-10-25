@@ -377,6 +377,12 @@ func (s *Store) Confirm(ctx context.Context, candidateID string, in Confirmation
 				return nil, fmt.Errorf("add project: %w", err)
 			}
 		}
+		// A confirm with no claim fields at all (an older form) keeps what the resume reader found.
+		noClaims := p.ClaimedStart == "" && p.ClaimedEnd == "" && p.ClaimedTeam == "" && p.ClaimedTeamSize == 0 && p.ClaimedRole == ""
+		if noClaims {
+			ids = append(ids, id)
+			continue
+		}
 		if _, err := tx.Exec(ctx, `
 			UPDATE candidate_projects SET claimed_start = NULLIF($2, ''), claimed_end = NULLIF($3, ''),
 			       claimed_team = NULLIF($4, ''), claimed_team_size = NULLIF($5, 0), claimed_role = NULLIF($6, '')

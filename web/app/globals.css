@@ -5804,3 +5804,124 @@ html[data-intro="skip"] .intro {
 .github-bars__bar--h8 { height: 80%; }
 .github-bars__bar--h9 { height: 90%; }
 .github-bars__bar--h10 { height: 100%; }
+
+/* Resume vs GitHub: the claimed dates and the commit dates as two bars on one timeline, in tenths of its width. */
+.claims-timeline {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.claims-timeline__label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.claims-timeline__track {
+  position: relative;
+  height: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-soft);
+}
+
+.claims-timeline__bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-sm);
+}
+
+.claims-timeline__bar--claimed {
+  background: var(--color-primary-soft);
+  border: var(--line) solid var(--color-primary);
+}
+
+.claims-timeline__bar--actual {
+  background: var(--color-success-soft);
+  border: var(--line) solid var(--color-success);
+}
+
+.claims-timeline__at--0 {
+  left: 0%;
+}
+
+.claims-timeline__at--1 {
+  left: 10%;
+}
+
+.claims-timeline__at--2 {
+  left: 20%;
+}
+
+.claims-timeline__at--3 {
+  left: 30%;
+}
+
+.claims-timeline__at--4 {
+  left: 40%;
+}
+
+.claims-timeline__at--5 {
+  left: 50%;
+}
+
+.claims-timeline__at--6 {
+  left: 60%;
+}
+
+.claims-timeline__at--7 {
+  left: 70%;
+}
+
+.claims-timeline__at--8 {
+  left: 80%;
+}
+
+.claims-timeline__at--9 {
+  left: 90%;
+}
+
+.claims-timeline__at--10 {
+  left: 100%;
+}
+
+.claims-timeline__w--1 {
+  width: 10%;
+}
+
+.claims-timeline__w--2 {
+  width: 20%;
+}
+
+.claims-timeline__w--3 {
+  width: 30%;
+}
+
+.claims-timeline__w--4 {
+  width: 40%;
+}
+
+.claims-timeline__w--5 {
+  width: 50%;
+}
+
+.claims-timeline__w--6 {
+  width: 60%;
+}
+
+.claims-timeline__w--7 {
+  width: 70%;
+}
+
+.claims-timeline__w--8 {
+  width: 80%;
+}
+
+.claims-timeline__w--9 {
+  width: 90%;
+}
+
+.claims-timeline__w--10 {
+  width: 100%;
+}

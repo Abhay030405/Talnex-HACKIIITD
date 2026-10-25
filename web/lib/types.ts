@@ -163,6 +163,12 @@ export interface FoundProject {
   video_url: string;
   /** Read only: the resume lines this project came from. */
   bullets?: string[];
+  /** What the resume says about when and by whom it was built (YYYY or YYYY-MM; the end may be "present"). */
+  claimed_start?: string;
+  claimed_end?: string;
+  claimed_team?: "" | "solo" | "team";
+  claimed_team_size?: number;
+  claimed_role?: string;
 }
 
 /** What the resume reader found. The check waits until the recruiter confirms it. */
@@ -314,6 +320,8 @@ export interface ReportProject {
   originality: ProjectOriginality | null;
   /** What the VM track did with the repository (ai/talnex_ai/reports/sandbox.py). Missing on older reports. */
   sandbox?: SandboxFacts | null;
+  /** What the resume says about the project beside its GitHub history (coding/claims_vs_github.py). */
+  claims_vs_github?: ClaimsVsGithub | null;
   /** Engineering quality, when another stage adds it; shown in the Repository tab if present. */
   engineering?: Record<string, unknown> | null;
 }
@@ -606,4 +614,18 @@ export interface Walkthrough {
   error: string | null;
   created_at: string;
   answered_at: string | null;
+}
+
+/** Resume claims against the repository history. Evidence only, never scored. */
+export interface ClaimsVsGithub {
+  claimed: { start?: string; end?: string; team?: string; team_size?: number; role?: string };
+  actual: {
+    repo: string;
+    commit_count: number;
+    first_commit: string | null;
+    last_commit: string | null;
+    contributors: { login: string; commits: number }[];
+  } | null;
+  insights: { signal: string; evidence: { tone: string; summary: string } }[];
+  reason?: string;
 }
