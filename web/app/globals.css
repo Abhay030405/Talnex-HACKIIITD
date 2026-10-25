@@ -1593,7 +1593,9 @@ a.meta:hover {
   text-decoration: none;
 }
 
-.table__link::after {
+/* The whole row is clickable, but only inside a table: elsewhere the overlay would cover the page and send every
+   click to this link (it once turned every tab into the GitHub profile link). */
+.table .table__link::after {
   content: "";
   position: absolute;
   inset: 0;
