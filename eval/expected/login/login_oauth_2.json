@@ -1,0 +1,46 @@
+{
+  "app": "login_oauth_2",
+  "description": "NoteBox behind Google or GitHub sign-in, layout 2 of 4. The correct result is could not test with a reason (no Google or GitHub test account yet), never broken.",
+  "url": "https://talnex-login-lab.vercel.app/a/oauth-2?v=4",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "Sign in with a Google or GitHub account to reach the notes page",
+      "group": "Access",
+      "importance": 3,
+      "expected": [
+        "could_not_test"
+      ]
+    },
+    {
+      "text": "Add a note with a title and see it in the list",
+      "group": "Core",
+      "importance": 3,
+      "expected": [
+        "could_not_test"
+      ]
+    },
+    {
+      "text": "Notes are still in the list after the page is reloaded",
+      "group": "Core",
+      "importance": 2,
+      "expected": [
+        "could_not_test"
+      ]
+    },
+    {
+      "text": "Sign out and be taken back to the start screen",
+      "group": "Access",
+      "importance": 2,
+      "expected": [
+        "could_not_test"
+      ]
+    }
+  ],
+  "controls": [],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}

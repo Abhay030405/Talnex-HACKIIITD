@@ -1,0 +1,38 @@
+{
+  "app": "login_guest_1",
+  "description": "NoteBox behind guest mode, layout 1 of 4. Every claim works.",
+  "url": "https://talnex-login-lab.vercel.app/a/guest-1?v=4",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "Use the app as a guest without creating an account",
+      "group": "Access",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "Add a note with a title and see it in the list",
+      "group": "Core",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "Notes are still in the list after the page is reloaded",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Leave guest mode and be taken back to the start screen",
+      "group": "Access",
+      "importance": 2,
+      "expected": "works"
+    }
+  ],
+  "controls": [],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}

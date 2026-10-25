@@ -1,0 +1,38 @@
+{
+  "app": "login_pw_2",
+  "description": "NoteBox behind email and password sign-up, layout 2 of 4. Every claim works.",
+  "url": "https://talnex-login-lab.vercel.app/a/pw-2?v=4",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "Create an account with an email and a password and reach the notes page",
+      "group": "Access",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "Add a note with a title and see it in the list",
+      "group": "Core",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "Notes are still in the list after the page is reloaded",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Sign out and be taken back to the start screen",
+      "group": "Access",
+      "importance": 2,
+      "expected": "works"
+    }
+  ],
+  "controls": [],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}

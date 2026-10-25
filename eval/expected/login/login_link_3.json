@@ -1,0 +1,38 @@
+{
+  "app": "login_link_3",
+  "description": "NoteBox behind email sign-up with a link, layout 3 of 4. Every claim works.",
+  "url": "https://talnex-login-lab.vercel.app/a/link-3?v=4",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "Sign up with an email and confirm it with the link that is emailed to you",
+      "group": "Access",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "Add a note with a title and see it in the list",
+      "group": "Core",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "Notes are still in the list after the page is reloaded",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Sign out and be taken back to the start screen",
+      "group": "Access",
+      "importance": 2,
+      "expected": "works"
+    }
+  ],
+  "controls": [],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}
