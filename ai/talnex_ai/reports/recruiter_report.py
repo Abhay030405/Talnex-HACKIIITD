@@ -14,8 +14,13 @@ from typing import Any, Optional
 from psycopg_pool import ConnectionPool
 
 from talnex_ai.checks.authorship import report as authorship_report
+from talnex_ai.coding.claims_vs_github import add_claims
+from talnex_ai.coding.insights import build_insights
+from talnex_ai.reports.ask_tools import repo_of
 from talnex_ai.reports.interview_kit import build_kit
-from talnex_ai.reports.proof import features
+from talnex_ai.reports.sandbox import sandbox_facts
+from talnex_ai.settings import InsightSettings
+from talnex_ai.reports.proof import engineering, features
 from talnex_ai.reports.run_cost import run_usage
 
 REPORT_VERSION = 1
@@ -102,6 +107,8 @@ def _project(conn, row, candidate: Optional[str] = None) -> dict:
         "talnex": {"score10": score10, "coverage": coverage, "features_scored": len(scored),
                    "features_total": len(testable), "low_coverage": coverage < LOW_COVERAGE_PERCENT},
         "features": features, "flags": flags, "originality": _originality(conn, repo_url, pid),
+        "sandbox": sandbox_facts(conn, "candidate_project_id", pid, "recruiter", live_url),
+        "engineering": engineering(conn, "candidate_project", pid, repo_url),
     }
 
 
@@ -118,6 +125,15 @@ def _minutes_taken(conn, candidate_id: str) -> int:
     return max(1, math.ceil((last - first).total_seconds() / 60))
 
 
+def _insight_settings() -> InsightSettings:
+    """From the worker's settings when there are any (tests run without them)."""
+    try:
+        from talnex_ai.worker.services import _services
+        return _services.cfg.insights if _services is not None else InsightSettings()
+    except Exception:
+        return InsightSettings()
+
+
 def role_fit(title: str, skills: list[str], projects: list[dict]) -> dict:
     """Each must-have skill of the role, with the working features that show it. Plain word matching on the claims
     TalNex tested, so "not seen" means only that no tested feature mentioned it, never that the candidate lacks it."""
@@ -130,7 +146,22 @@ def role_fit(title: str, skills: list[str], projects: list[dict]) -> dict:
     return {"title": title, "skills": out}
 
 
-def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
+def _claims(conn, candidate_id: str) -> dict[str, dict]:
+    """What the resume says about each project's dates, team and role (only what was written)."""
+    out: dict[str, dict] = {}
+    for pid, start, end, team, size, role in conn.execute(
+            """SELECT id::text, claimed_start, claimed_end, claimed_team, claimed_team_size, claimed_role
+                 FROM candidate_projects WHERE candidate_id = %s::uuid""", (candidate_id,)):
+        claimed = {k: v for k, v in (("start", start), ("end", end), ("team", team), ("team_size", size), ("role", role))
+                   if v is not None}
+        if claimed:
+            out[pid] = claimed
+    return out
+
+
+def build_report(pool: ConnectionPool, candidate_id: str, github=None) -> dict:
+    """The proof report. With a GitHub reader (the final report), each project's resume claims are also set beside its
+    repository history (coding/claims_vs_github.py)."""
     with pool.connection() as conn:
         cand = conn.execute("SELECT role_level, role_id::text FROM candidates WHERE id = %s::uuid", (candidate_id,)).fetchone()
         if cand is None:
@@ -138,15 +169,18 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
         rows = conn.execute("SELECT id::text, name, live_url, repo_url FROM candidate_projects "
                             "WHERE candidate_id = %s::uuid ORDER BY created_at, id", (candidate_id,)).fetchall()
         projects = [_project(conn, r, authorship_report.candidate_account(pool, r[0])) for r in rows]
-        signals = [{"site": site, "signal": signal, "weight": weight, "contest": contest, "evidence": evidence or {}}
-                   for site, signal, weight, contest, evidence in conn.execute(
-                       "SELECT site, signal, weight, contest, evidence FROM coding_signals "
+        signals = [{"site": site, "signal": signal, "weight": weight, "contest": contest, "problem": problem,
+                    "evidence": evidence or {}}
+                   for site, signal, weight, contest, problem, evidence in conn.execute(
+                       "SELECT site, signal, weight, contest, problem, evidence FROM coding_signals "
                        "WHERE candidate_id = %s::uuid ORDER BY created_at, id", (candidate_id,))]
         flags = [{"type": t, "level": lvl, "reason": why} for t, lvl, why in conn.execute(
             "SELECT flag_type, level, reason FROM flags WHERE candidate_id = %s::uuid ORDER BY created_at, id", (candidate_id,))]
         talnex_minutes = _minutes_taken(conn, candidate_id)
         role_row = conn.execute("SELECT title, skills FROM roles WHERE id = %s::uuid", (cand[1],)).fetchone() if cand[1] else None
         run = run_usage(conn, [("candidate", candidate_id)] + [("candidate_project", r[0]) for r in rows])
+        claims = _claims(conn, candidate_id)
+    accounts = {p["id"]: authorship_report.candidate_account(pool, p["id"]) for p in projects} if github else {}
 
     untested_features = sum(1 for p in projects for f in p["features"] if f["testable"] and f["verdict"] in (None, "could_not_test"))
     not_tested_projects = [p for p in projects if p["status"] != "tested"]
@@ -174,5 +208,15 @@ def build_report(pool: ConnectionPool, candidate_id: str) -> dict:
         "projects": projects, "coding_signals": signals, "flags": flags, "notes": notes,
     }
     report["role"] = role_fit(role_row[0], role_row[1] or [], projects) if role_row else None
+    for p in projects:   # the checklists were written with the role brief when there is a role
+        for f in p["features"]:
+            f["checked_for_role"] = bool(role_row) and bool(f.get("checklist"))
+    report["profile_insights"] = build_insights(signals, projects, _insight_settings())
+    for p in projects:
+        if claims.get(p["id"]):
+            p["claims_vs_github"] = {"claimed": claims[p["id"]], "actual": None, "insights": []}
+    if github is not None:
+        cfg = _insight_settings()
+        add_claims(report, claims, github, accounts, cfg, cfg.claims_max_pages, repo_of)
     report["interview_kit"] = build_kit(report)
     return report

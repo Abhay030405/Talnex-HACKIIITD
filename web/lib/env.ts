@@ -41,6 +41,32 @@ export const env = {
   get devLogin(): boolean {
     return optional("ENABLE_DEV_LOGIN") === "true";
   },
+  /** Address shown on the contact page. Empty hides it. */
+  get contactEmail(): string {
+    return optional("CONTACT_EMAIL");
+  },
+  /** Docs API playground: the API addresses a browser may name (TALNEX_DOCS_API_ORIGINS, comma separated). The
+   *  playground proxy sends them on to API_BASE_URL, so they work from inside Docker too. */
+  get docsApiOrigins(): string[] {
+    return (optional("TALNEX_DOCS_API_ORIGINS") || "http://localhost:8080")
+      .split(",")
+      .map((o) => o.trim().replace(/\/+$/, ""))
+      .filter(Boolean);
+  },
+  /** Docs "Get a test token" helper, local testing only. Off unless TALNEX_DOCS_DEV_TOKENS=true. */
+  get docsDevTokens(): boolean {
+    return optional("TALNEX_DOCS_DEV_TOKENS") === "true";
+  },
+  /** How long a docs test token lasts, in minutes (at most a day). */
+  get docsDevTokenMinutes(): number {
+    const minutes = Number(optional("TALNEX_DOCS_DEV_TOKEN_MINUTES") || "30");
+    return Number.isFinite(minutes) && minutes > 0 ? Math.min(minutes, 24 * 60) : 30;
+  },
+  /** How long a docs "Use my session" token lasts, in minutes (5 to 60). */
+  get docsSessionTokenMinutes(): number {
+    const minutes = Number(optional("TALNEX_DOCS_SESSION_TOKEN_MINUTES") || "15");
+    return Number.isFinite(minutes) && minutes > 0 ? Math.min(Math.max(minutes, 5), 60) : 15;
+  },
   /** Cookies are marked secure (https only) outside local development. */
   get secureCookies(): boolean {
     return optional("NODE_ENV") === "production" && !optional("AUTH_URL").startsWith("http://");

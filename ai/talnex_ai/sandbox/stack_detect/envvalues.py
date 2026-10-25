@@ -76,3 +76,20 @@ def service_env(services) -> dict[str, str]:
     for service in services or ():
         env.update(SERVICE_ENV.get(service, {}))
     return env
+
+
+# Settings the code itself reads, for a repo with no .env.example (or one that misses some): process.env.X,
+# process.env["X"], os.getenv("X"), os.environ.get("X"), os.environ["X"], env("X").
+_CODE_READ = re.compile(r"""process\.env\.([A-Z_][A-Z0-9_]*)|(?:process\.env\[|getenv\(|environ\.get\(|environ\[|\benv\()\s*["']([A-Z_][A-Z0-9_]*)""")
+_OS_OWN = {"PATH", "HOME", "PWD", "USER", "SHELL", "LANG", "TERM", "TMPDIR", "HOSTNAME", "CI"}
+GREP_PATTERN = r"""process\.env(\.[A-Z_][A-Z0-9_]*|\[["'][A-Z_][A-Z0-9_]*)|(getenv\(|environ\.get\(|environ\[|\benv\()\s*["'][A-Z_][A-Z0-9_]*"""
+
+
+def code_env_names(text: str, limit: int = 100) -> list[str]:
+    """The setting names the code reads, in first-seen order, without the OS's own."""
+    names: dict[str, None] = {}
+    for m in _CODE_READ.finditer(text):
+        name = m.group(1) or m.group(2)
+        if name not in _OS_OWN:
+            names[name] = None
+    return list(names)[:limit]

@@ -17,8 +17,9 @@ _EXTRA_REQUIREMENTS: tuple[tuple[str, re.Pattern, re.Pattern], ...] = (
     ("private pages are blocked",
      re.compile(r"\b(?:signed|logged) out\b|\bprivate (?:pages?|areas?|routes?|content)\b|\bunauthori[sz]ed\b|"
                 r"\b(?:stay|stays|are|is|be) (?:blocked|protected|restricted)\b", re.IGNORECASE),
-     re.compile(r"private|block|protect|restrict|signed out|logged out|unauthori|permission|only (?:the )?(?:owner|signed|logged)",
-                re.IGNORECASE)),
+     # "sign out" counts too: a claim that you can sign out may check that you end up signed out.
+     re.compile(r"private|block|protect|restrict|sign(?:ed|s|ing)? ?out|log(?:ged|s|ging)? ?out|unauthori|permission|"
+                r"only (?:the )?(?:owner|signed|logged)", re.IGNORECASE)),
     ("speed",
      re.compile(r"\b(?:within|under|in less than) \d+(?:\.\d+)? ?(?:ms|milliseconds?|s|sec|seconds?)\b|\bload time\b",
                 re.IGNORECASE),

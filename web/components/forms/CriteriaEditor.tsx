@@ -10,7 +10,7 @@ type Row = { key: number; name?: string; description?: string; weight?: number }
 const newRow = (from: Omit<Row, "key"> = {}): Row => ({ key: nextKey++, ...from });
 
 /** Feature groups TalNex scores in; a criterion with one of these names weighs those features. */
-const GROUPS = ["Core", "Logic", "UI", "Access", "Reliability", "Edge cases", "Setup"];
+const GROUPS = ["Core", "Logic", "UI", "Access", "Reliability", "Edge cases", "Setup", "Engineering"];
 
 /** The scoring criteria of a fixed-problem event: a name, an optional description and a weight for each. */
 export function CriteriaEditor({ initial = [] }: { initial?: { name: string; description: string; weight: number }[] }) {
@@ -20,7 +20,8 @@ export function CriteriaEditor({ initial = [] }: { initial?: { name: string; des
     <fieldset className="field fieldset">
       <legend className="field__label">Scoring criteria</legend>
       <span className="field__hint">
-        The groups each project is scored in. Weights are shown as you give them; the total is labelled as weighted.
+        The groups each project is scored in. Weights are shown as you give them; the total is labelled as weighted. A
+        criterion called Engineering weighs how the repository is built (engineering quality).
       </span>
 
       <datalist id="criteria-groups">

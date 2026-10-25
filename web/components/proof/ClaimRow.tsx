@@ -2,6 +2,7 @@ import { AuthorshipLine } from "@/components/proof/AuthorshipLine";
 import { ProofClip } from "@/components/proof/ProofClip";
 import { ProofViewer } from "@/components/proof/ProofViewer";
 import { FeatureScore } from "@/components/scores/FeatureScore";
+import { ShowMore } from "@/components/ui/ShowMore";
 import { BADGE_CLASS } from "@/lib/format";
 import { confidenceLabel, verdictInfo } from "@/lib/report-format";
 import type { ReportFeature } from "@/lib/types";
@@ -33,13 +34,16 @@ export function ClaimRow({ feature }: { feature: ReportFeature }) {
         />
       </div>
 
-      {feature.reason && !notScored && <p className="claim__reason">{feature.reason}</p>}
+      {feature.reason && !notScored && <ShowMore className="claim__reason" text={feature.reason} />}
 
+      <details className="proof-viewer claim__more">
+        <summary>{proofLabel(feature.proof.length)}</summary>
+        <div className="stack">
       {review && (review.summary || review.mechanism) && (
         <div className="claim__review">
           <span className="badge badge--neutral">Reviewed from code, not run</span>
           {review.mechanism && <p className="note">How it works: {review.mechanism}</p>}
-          {review.summary && <p className="note">{review.summary}</p>}
+          {review.summary && <ShowMore className="note" text={review.summary} />}
           {review.files_read.length > 0 && (
             <p className="note">
               Read: {review.files_read.slice(0, 6).join(", ")}
@@ -49,9 +53,26 @@ export function ClaimRow({ feature }: { feature: ReportFeature }) {
         </div>
       )}
 
+      {feature.checklist && feature.checklist.length > 0 && (
+        <details className="proof-viewer">
+          <summary>{feature.checked_for_role ? "What TalNex checked (for this role)" : "What TalNex checked"}</summary>
+          <ul className="report-list">
+            {feature.checklist.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       <AuthorshipLine authorship={feature.authorship} />
       <ProofClip steps={feature.proof} verdict={feature.verdict} />
       <ProofViewer steps={feature.proof} />
+        </div>
+      </details>
     </article>
   );
+}
+
+function proofLabel(steps: number): string {
+  return steps > 0 ? `Show proof (${steps} ${steps === 1 ? "step" : "steps"}) and code` : "Show code details";
 }

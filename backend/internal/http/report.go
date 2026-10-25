@@ -57,6 +57,12 @@ func (s *server) getReport(w http.ResponseWriter, r *http.Request) {
 	}
 	report["has_gaps"] = hasGaps
 	report["generated_at"] = generatedAt.UTC().Format(time.RFC3339)
+	// The coding signals are read fresh, so re-running only the coding checks updates just that part of the report.
+	if fresh, err := s.codingSignals(r.Context(), id); err == nil {
+		report["coding_signals"] = fresh
+	} else {
+		s.opts.Log.Warn("read fresh coding signals", "err", err)
+	}
 	s.swapProofKeys(r.Context(), report)
 	writeJSON(w, http.StatusOK, report)
 }
@@ -67,6 +73,11 @@ func (s *server) swapProofKeys(ctx context.Context, report map[string]any) {
 	projects, _ := report["projects"].([]any)
 	for _, p := range projects {
 		project, _ := p.(map[string]any)
+		// The VM track's build and run logs, like screenshots, only leave as short-lived links.
+		if sandbox, ok := project["sandbox"].(map[string]any); ok {
+			s.viewLinkInto(ctx, sandbox, "build_log_key", "build_log_url")
+			s.viewLinkInto(ctx, sandbox, "run_log_key", "run_log_url")
+		}
 		features, _ := project["features"].([]any)
 		for _, f := range features {
 			feature, _ := f.(map[string]any)
@@ -90,4 +101,36 @@ func (s *server) swapProofKeys(ctx context.Context, report map[string]any) {
 			}
 		}
 	}
+}
+
+// codingSignals is the candidate's current coding_signals rows, in the shape the report uses.
+func (s *server) codingSignals(ctx context.Context, candidateID string) ([]map[string]any, error) {
+	rows, err := s.opts.Pool.Query(ctx, `
+		SELECT site, signal, weight, contest, problem, evidence FROM coding_signals
+		 WHERE candidate_id = $1::uuid ORDER BY created_at, id`, candidateID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []map[string]any{}
+	for rows.Next() {
+		var (
+			site, signal, weight string
+			contest, problem     *string
+			evidence             []byte
+		)
+		if err := rows.Scan(&site, &signal, &weight, &contest, &problem, &evidence); err != nil {
+			return nil, err
+		}
+		var ev map[string]any
+		if len(evidence) > 0 {
+			_ = json.Unmarshal(evidence, &ev)
+		}
+		if ev == nil {
+			ev = map[string]any{}
+		}
+		out = append(out, map[string]any{"site": site, "signal": signal, "weight": weight, "contest": contest,
+			"problem": problem, "evidence": ev})
+	}
+	return out, rows.Err()
 }

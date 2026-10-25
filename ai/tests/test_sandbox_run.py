@@ -208,7 +208,7 @@ def test_a_link_that_is_not_github_is_refused_before_any_vm_is_made():
 def test_a_stack_with_no_image_yet_is_could_not_run_with_the_reason():
     factory = Factory({"go.mod": "module x", "main.go": "package main"})
     res = prepare_and_run(factory, None, URL)
-    assert res.status == "could_not_run" and "no Go image" in res.reason and factory.made[0].destroyed
+    assert res.status == "could_not_run" and "no Go image" in res.reason and res.vm is factory.made[0] and not res.vm.destroyed  # kept for the code review
 
 
 def test_a_failed_install_gets_exactly_one_model_fix_and_then_runs():
@@ -226,7 +226,7 @@ def test_when_the_fix_does_not_help_it_is_could_not_run_and_the_model_is_asked_o
     model = ScriptedModel({"install_cmd": "npm install --force"})
     res = prepare_and_run(factory, model, URL)
     assert res.status == "could_not_run" and model.calls == 1 and len(res.attempts) == 2
-    assert "one automatic fix" in res.reason and "install step failed" in res.reason and all(v.destroyed for v in factory.made)
+    assert "one automatic fix" in res.reason and "install step failed" in res.reason and res.vm is factory.made[-1] and not res.vm.destroyed
 
 
 def test_a_model_that_changes_nothing_or_answers_badly_leaves_the_first_failure_standing():
@@ -318,12 +318,13 @@ class TestSandboxRunStage:
         assert run.recipe["stack"] == "node" and run.image == "talnex-sandbox-full"
         assert run.build_log_key in files.put and b"npm install" in files.put[run.build_log_key]
 
-    def test_a_repo_that_cannot_run_is_recorded_with_the_reason_and_its_vm_is_gone(self, pool, project):
+    def test_a_repo_that_cannot_run_is_recorded_with_the_reason_and_its_vm_kept_only_for_the_code_review(self, pool, project):
         client = FakeSandboxClient({"go.mod": "x", "main.go": "x"})
         out = run_stage(pool, project, client)
         run = latest_run(pool, Subject("project", project))
         assert out["status"] == "could_not_run" and run.status == "could_not_run" and "no Go image" in run.status_detail
-        assert all(v.destroyed for v in client.factory.made)
+        vm = client.factory.made[-1]
+        assert not vm.destroyed and run.vm_id == vm.id and run.code_readable and not run.port
 
     def test_a_host_that_is_not_set_up_is_could_not_run_not_a_failure(self, pool, project):
         out = run_stage(pool, project, None, enabled=False)
@@ -351,3 +352,28 @@ class TestSandboxRunStage:
         run_stage(pool, project, client)
         assert first_vm in client.destroyed
         assert latest_run(pool, Subject("project", project)).vm_id == client.factory.made[-1].id
+
+
+def test_an_app_that_listens_but_answers_only_500_is_still_kept_running_for_the_test_stages(monkeypatch):
+    monkeypatch.setattr(FakeVm, "request", lambda self, method, port, path, **kw: HttpResult(status=500), raising=False)
+    factory = Factory(NODE_REPO)
+    res = prepare_and_run(factory, None, URL)
+    assert res.status == "running" and res.vm is factory.made[0] and not res.vm.destroyed
+    assert res.bringup.failed_step == "health" and res.bringup.port
+
+
+def test_settings_the_code_reads_get_a_temporary_fake_env_but_set_values_are_kept():
+    from talnex_ai.sandbox.stack_detect.envvalues import code_env_names
+
+    code = 'const k = process.env.STRIPE_SECRET_KEY; db(process.env["MONGO_URI"]); x = os.getenv("JWT_EXPIRES_IN"); os.environ["HOME"]'
+    assert code_env_names(code) == ["STRIPE_SECRET_KEY", "MONGO_URI", "JWT_EXPIRES_IN"]
+
+    class Greps(FakeVm):
+        def exec(self, command, **kw):
+            if command.startswith("grep -rhoE"):
+                return ExecResult(0, stdout="process.env.STRIPE_SECRET_KEY\nprocess.env.PORT\n")
+            return super().exec(command, **kw)
+
+    made = []
+    res = prepare_and_run(lambda image, services=(): made.append(Greps(image, NODE_REPO)) or made[-1], None, URL)
+    assert res.ok and res.recipe.env["STRIPE_SECRET_KEY"].startswith("talnex-placeholder") and res.recipe.env["PORT"] == "3000"

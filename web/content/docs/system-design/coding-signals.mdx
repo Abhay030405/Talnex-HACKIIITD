@@ -1,0 +1,34 @@
+---
+title: Coding signals
+description: Codeforces, CodeChef, LeetCode and the LeetCode replay paste check. Evidence beside the score, never a verdict.
+---
+
+The `recruiter_coding` pipeline runs beside the projects, one stage per site, all in parallel:
+
+| Stage | Source | What it keeps |
+|---|---|---|
+| `codeforces` (Go) | Official API | Rating and contests; contests where every submission was Skipped (strong); single skipped problems |
+| `codechef` | Public profile page (free Fetch) | Rating, stars, ranks, problems solved |
+| `leetcode` | Public GraphQL | Solved counts, rating, contest history; a contest joined with no standing (a voided result) |
+| `leetcode_replay` | Public GraphQL replays | Suspicious pastes, below |
+| `github_profile` (Go) | GitHub API | Account age, original repos, activity over the last year |
+
+## The LeetCode replay paste check
+
+<LeetcodeFlow />
+
+1. **Which contests** — the public history (`userContestRankingHistory`): the last 5 with a solve, plus any with a rating
+   jump of +100 or more; contests newer than 7 days are skipped until LeetCode's own checks settle.
+2. **Every editor event** — `userContestReplayEvents(contestSlug, questionSlug, username)` returns the whole replay;
+   event type `10` is an external paste, `7` is typing, `5` a submit.
+3. **Each paste is judged** by its context: under 4 lines or within 60 seconds of opening the problem is a template or
+   helper code; pasted and then edited is fine; core logic pasted in one go with at most 3 edits after is **Medium**.
+4. **Same code nearby** — for a Medium paste of 12+ lines, one Browserless session finds the candidate's ranking page
+   (by score, then finish time — rank numbers drift), reads 5 pages each side, downloads those contestants' public final
+   code and compares it with the copy detector's rename-proof fingerprint. Two or more with 90%+ of the paste make it
+   **Strong**; so do Medium pastes in 3 or more contests.
+5. **Saved** — one `coding_signals` row per suspicious paste (with the second it happened, so a recruiter can watch it),
+   the contest's rating jump, the same-code result, and the full replay of that problem in storage.
+
+One Medium signal alone is never raised as a flag or an interview question. Nothing about other contestants is kept:
+only how many matched and how closely. All thresholds are settings (`LEETCODE_*` in `.env.example`).

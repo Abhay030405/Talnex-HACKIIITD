@@ -7,6 +7,7 @@ import { Field } from "@/components/forms/Field";
 import { RoleLevelChoice } from "@/components/forms/RoleLevelChoice";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { MAX_LABEL_LENGTH } from "@/lib/resume";
+import { ROLE_CHECKS } from "@/lib/types";
 
 const INITIAL: FormState = {};
 
@@ -39,6 +40,21 @@ export function RecruiterForm() {
       </Field>
 
       <RoleLevelChoice />
+
+      <fieldset className="field fieldset">
+        <legend className="field__label">Checks to run</legend>
+        <span className="field__hint">All ticked is the full check. Untick any for a partial check; a check left out is shown as not run.</span>
+        <input type="hidden" name="checks_shown" value="1" />
+        <div className="choice-grid">
+          {ROLE_CHECKS.map((check) => (
+            <label className="choice" key={check.value}>
+              <input className="choice__input" type="checkbox" name="checks" value={check.value} defaultChecked />
+              <span className="choice__title">{check.label}</span>
+              <span className="choice__text">{check.hint}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <Field label="Name for your list (optional)" htmlFor="label" hint="Only you see it.">
         <input

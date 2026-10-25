@@ -216,3 +216,21 @@ def test_project_score_stage(pool, fixed_project):
         assert conn.execute("SELECT status FROM projects WHERE id = %s", (project,)).fetchone()[0] == "done_with_gaps"
         rows = dict(conn.execute("SELECT score_group, score FROM scores WHERE project_id = %s", (project,)).fetchall())
     assert float(rows["Search"]) == 100.0 and rows["Sharing"] is None and float(rows["weighted_total"]) == 100.0
+
+
+def test_an_engineering_criterion_weighs_the_repository_engineering_score(pool, fixed_project):
+    project, (search, _filters, _share) = fixed_project
+    save_result(pool, Result(claim_id=search, verdict="works", confidence="high", reason="seen", proof_keys=["s/1"]))
+    with pool.connection() as conn:
+        event = conn.execute("SELECT event_id FROM projects WHERE id = %s::uuid", (project,)).fetchone()[0]
+        conn.execute("INSERT INTO criteria (event_id, name, weight) VALUES (%s, 'Engineering', 2)", (event,))
+        for area, score in (("production", 9), ("structure", 7)):
+            conn.execute("INSERT INTO repo_quality (project_id, area, score, summary) VALUES (%s::uuid, %s, %s, 's')",
+                         (project, area, score))
+    queue.enqueue_job(pool, "project_score", "python", "project", project, pipeline="hackathon")
+    job = queue.take_job(pool, "python", "w")
+
+    result = project_score(job, JobContext(job, pool))
+    assert result["groups"]["Engineering"] == 80.0          # the average 8.0 out of 10, on the groups' 0-100 scale
+    # Search 100 (weight 3) and Engineering 80 (weight 2); Sharing has nothing tested, so it is left out
+    assert result["weighted_total"]["score"] == 92.0 and result["weighted_total"]["criteria_used"] == 2

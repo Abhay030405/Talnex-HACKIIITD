@@ -2,10 +2,13 @@ import Link from "next/link";
 
 import { weightedFromGroups } from "@/lib/role-score";
 import { FlagList } from "@/components/flags/FlagBadge";
-import { ClaimRow } from "@/components/proof/ClaimRow";
+import { EngineeringQuality } from "@/components/proof/EngineeringQuality";
+import { FeaturesTab, NetworkTab, VerdictBar } from "@/components/proof/ProjectCard";
+import { VmTestPanel } from "@/components/proof/VmTestPanel";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
 import { WhoBuiltWhat } from "@/components/proof/WhoBuiltWhat";
 import { ProjectScore } from "@/components/scores/ProjectScore";
+import { Tabs } from "@/components/ui/Tabs";
 import { BADGE_CLASS, runLine } from "@/lib/format";
 import { checkRows, groupKindLabel } from "@/lib/hackathon-format";
 import { formatCoverage, formatScore } from "@/lib/report-format";
@@ -61,115 +64,73 @@ function OpinionBox({ opinion }: { opinion: AiOpinion }) {
   );
 }
 
-/** One hackathon project's proof card: scores with coverage, flags beside them, each claim with proof, and notes. */
+/**
+ * One hackathon project's proof card: a header with scores and the verdict bar, then Overview, Features, VM test,
+ * Network and Jobs tabs. The open tab lives in ?tab=. Flags sit beside the score and the AI opinion stays apart.
+ */
 export function HackathonCardView({
   card,
   criteria,
+  initialTab,
+  jobs,
   tourHref,
 }: {
   card: HackathonCard;
   tourHref?: string;
   /** The event's weights as they are now: the weighted total is worked out from them, so edits apply at once. */
   criteria?: { name: string; weight: number }[];
+  initialTab?: string;
+  jobs: React.ReactNode;
 }) {
   const weighted =
     card.weighted_total && criteria?.length
       ? { ...card.weighted_total, ...weightedFromGroups(card.groups, criteria) }
       : card.weighted_total;
 
-  return (
+  const overview = (
     <div className="stack">
-      <section className="panel" aria-labelledby="card-title">
-        <div className="panel__head project-card__head">
-          <div className="stack stack--tight">
-            <h2 className="panel__title" id="card-title">
-              {card.team_name}
-            </h2>
-            <div className="row">
-              {card.links.live && (
-                <a className="meta" href={card.links.live} target="_blank" rel="noopener noreferrer">
-                  Live site
-                </a>
-              )}
-              {card.links.repo && (
-                <a className="meta" href={card.links.repo} target="_blank" rel="noopener noreferrer">
-                  Repository
-                </a>
-              )}
-              {card.links.video && (
-                <a className="meta" href={card.links.video} target="_blank" rel="noopener noreferrer">
-                  Demo video
-                </a>
-              )}
-            </div>
-            {card.run && <p className="meta">{runLine(card.run)}</p>}
-          </div>
-          <ProjectScore talnex={card.talnex} />
+      {weighted && (
+        <div className="weighted">
+          <span className="weighted__value">
+            {weighted.score === null ? "–" : formatScore(weighted.score / 10)}
+            <span className="project-score__of">/10 weighted total</span>
+          </span>
+          <span className="note">
+            {weighted.label}. {weighted.criteria_used} of {weighted.criteria_total} criteria had tested claims.
+          </span>
         </div>
+      )}
 
-        <div className="panel__body stack">
-          {weighted && (
-            <div className="weighted">
-              <span className="weighted__value">
-                {weighted.score === null ? "–" : formatScore(weighted.score / 10)}
-                <span className="project-score__of">/10 weighted total</span>
-              </span>
-              <span className="note">
-                {weighted.label}. {weighted.criteria_used} of {weighted.criteria_total} criteria had tested claims.
-              </span>
-            </div>
-          )}
-
-          {card.groups.length > 0 && (
-            <div className="table__wrap">
-              <table className="table">
-                <caption className="sr-only">Scores by group</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Group</th>
-                    <th scope="col">Kind</th>
-                    <th scope="col">Score</th>
-                    <th scope="col">Coverage</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {card.groups.map((g) => (
-                    <tr key={g.group} className="table__row--static">
-                      <td>{g.group}</td>
-                      <td>{groupKindLabel(g.kind)}</td>
-                      <td>{g.score === null ? "Not scored" : `${formatScore(g.score / 10)}/10`}</td>
-                      <td>
-                        {formatCoverage(g.coverage)}
-                        {g.low_coverage && " · low"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <FlagList flags={card.flags} />
-
-          {card.features.length > 0 && (
-            <div className="claims">
-              {card.features.map((feature) => (
-                <ClaimRow key={feature.claim_id} feature={feature} />
+      {card.groups.length > 0 && (
+        <div className="table__wrap">
+          <table className="table">
+            <caption className="sr-only">Scores by group</caption>
+            <thead>
+              <tr>
+                <th scope="col">Group</th>
+                <th scope="col">Kind</th>
+                <th scope="col">Score</th>
+                <th scope="col">Coverage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {card.groups.map((g) => (
+                <tr key={g.group} className="table__row--static">
+                  <td>{g.group}</td>
+                  <td>{groupKindLabel(g.kind)}</td>
+                  <td>{g.score === null ? "Not scored" : `${formatScore(g.score / 10)}/10`}</td>
+                  <td>
+                    {formatCoverage(g.coverage)}
+                    {g.low_coverage && " · low"}
+                  </td>
+                </tr>
               ))}
-            </div>
-          )}
-
-          {card.features.length > 0 && tourHref && (
-            <div className="walkthrough__tour">
-            <Link className="button button--primary button--sm" href={tourHref}>
-              Walk me through it
-            </Link>
-            <span className="note">A chat beside the live site: the guide reads the code and shows how a feature was built.</span>
-          </div>
-          )}
-          {card.features.length > 0 && <WalkthroughBox subject="project" subjectId={card.project_id} />}
+            </tbody>
+          </table>
         </div>
-      </section>
+      )}
+
+      <FlagList flags={card.flags} />
 
       <WhoBuiltWhat rows={card.who_built_what} />
 
@@ -208,6 +169,71 @@ export function HackathonCardView({
           ))}
         </ul>
       )}
+    </div>
+  );
+
+  return (
+    <div className="stack">
+      <section className="panel" aria-labelledby="card-title">
+        <div className="panel__head project-card__head">
+          <div className="stack stack--tight">
+            <h2 className="panel__title" id="card-title">
+              {card.team_name}
+            </h2>
+            <div className="row">
+              {card.links.live && (
+                <a className="meta" href={card.links.live} target="_blank" rel="noopener noreferrer">
+                  Live site
+                </a>
+              )}
+              {card.links.repo && (
+                <a className="meta" href={card.links.repo} target="_blank" rel="noopener noreferrer">
+                  Repository
+                </a>
+              )}
+              {card.links.video && (
+                <a className="meta" href={card.links.video} target="_blank" rel="noopener noreferrer">
+                  Demo video
+                </a>
+              )}
+            </div>
+            {card.run && <p className="meta">{runLine(card.run)}</p>}
+            <VerdictBar features={card.features} />
+          </div>
+          <ProjectScore talnex={card.talnex} />
+        </div>
+      </section>
+
+      <Tabs
+        label="Proof card"
+        param="tab"
+        initial={initialTab}
+        tabs={[
+          { id: "overview", label: "Overview", content: overview },
+          {
+            id: "features",
+            label: `Features (${card.features.length})`,
+            content: (
+              <div className="stack">
+                <FeaturesTab features={card.features} flags={[]} />
+                {card.features.length > 0 && tourHref && (
+                  <div className="walkthrough__tour">
+                    <Link className="button button--primary button--sm" href={tourHref}>
+                      Walk me through it
+                    </Link>
+                    <span className="note">A chat beside the live site: the guide reads the code and shows how a feature was built.</span>
+                  </div>
+                )}
+                {card.features.length > 0 && <WalkthroughBox subject="project" subjectId={card.project_id} />}
+              </div>
+            ),
+          },
+          { id: "vm", label: "VM test", content: <VmTestPanel sandbox={card.sandbox} /> },
+          { id: "engineering", label: "Engineering", content: <EngineeringQuality engineering={card.engineering} /> },
+          { id: "network", label: "Network", content: <NetworkTab features={card.features} /> },
+          { id: "jobs", label: "Jobs", content: jobs },
+        ]}
+      />
     </div>
   );
 }

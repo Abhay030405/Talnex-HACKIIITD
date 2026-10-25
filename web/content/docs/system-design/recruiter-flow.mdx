@@ -1,0 +1,57 @@
+---
+title: Recruiter flow
+description: Roles, bulk upload, auto-confirm, results as they come in, weights, fit to the role and re-runs.
+---
+
+<RecruiterFlow />
+
+## Roles
+
+A **role** is a job opening: title, job description (typed or loaded from a text file), the kind of person wanted,
+must-have skills, role level, judging **criteria with weights**, the **checks to run** and **auto-confirm**. It is
+stored in `roles`; its criteria share the `criteria` table with hackathon events (`role_id` or `event_id`, never both).
+Candidates point at it with `candidates.role_id` and take its level.
+
+## Bulk upload
+
+The new-role form saves the role, then sends each resume **on its own request**: create a candidate under the role,
+then upload its PDF. Any number of resumes fit under the 6 MB form limit, and the recruiter sees each one arrive.
+
+## From resume to checks
+
+1. `resume_read` (Python) reads the PDF: projects, their links, coding handles.
+2. `auto_confirm` (Go) — for a role with auto-confirm on — confirms what was found and starts the checks with the same
+   code as the confirm page (`pipeline.StartChecks`), so the two can never drift. Without it, the candidate waits on
+   the confirm page.
+3. `StartChecks` starts `recruiter_coding` once (unless the role left coding profiles out) and one `recruiter` pipeline
+   per project.
+
+## Results as they come in
+
+When each project reaches `project_summary`, the worker saves a **partial report** (marked `partial`, never replacing a
+final one). The last project starts `recruiter_report`: `candidate_report` first **waits for this run's coding checks**
+(up to `REPORT_CODING_WAIT_SECONDS`), builds the final report, and `resume_cleanup` (Go) deletes the resume.
+
+## What the report adds for a role
+
+- **Fit to the role** — each must-have skill marked *Shown* only by a feature that worked in testing, with the feature
+  named; otherwise *Not seen* (never "lacks it").
+- **Weighted score** — worked out on the page from each criterion's scored features and the role's **current** weights,
+  so changing a weight in the role settings re-scores every candidate at once with no re-test.
+- **What TalNex checked** on each feature, labelled *for this role* when the role brief shaped it.
+- **Interview kit** — up to five neutral questions in plain code: strong coding signals, broken features, review flags,
+  partly working features, repeated paste signals, skills not seen, features to demo live.
+
+## Re-runs
+
+- *Re-test this project* — `POST /v1/candidate-projects/{id}/rerun` starts the project's pipeline with the next run
+  number (live test, sandbox VM, review), marks the candidate *testing* and opens the live view.
+- *Re-run coding checks* — `POST /v1/candidates/{id}/rerun-coding` starts `recruiter_coding` and `recruiter_report` on
+  one shared run number, so the new report waits for exactly those checks.
+
+## The hackathon side
+
+Same per-project stages. An event can have a **brief** (problem statement or theme), teams an **abstract**, and the
+event chooses its checks; they reach the planner the same way a role brief does. Event-level stages add copy detection
+between teams and *teams that built this best* (top 3, never one winner). Judges can change criteria weights after
+results and the proof card re-scores at once.

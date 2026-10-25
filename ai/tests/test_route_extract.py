@@ -157,3 +157,45 @@ class TestBodyFieldsFromCode:
                 "@app.post('/api/other')\ndef other():\n    return request.json['value']\n")
         found = {r.path: r.body_fields for r in from_code({"app.py": code})}
         assert found["/api/users"] == ("username", "email") and found["/api/other"] == ("value",)
+
+
+class TestMoreFrameworks:
+    """Route styles the first version missed (a real repo's aiohttp REST API was found to have 0 routes)."""
+
+    def test_aiohttp_add_methods_add_route_and_route_tables(self):
+        code = (
+            "app.router.add_get('/api/jobs', list_jobs)\n"
+            "app.router.add_post('/api/jobs', submit_job)\n"
+            "app.router.add_route('DELETE', '/api/jobs/{id}', cancel)\n"
+            "app.router.add_route('*', '/api/any', anything)\n"
+            "app.add_routes([web.get('/api/peers', peers), web.post('/api/wallet/send', send)])\n"
+        )
+        assert keys(from_code({"agent/rest_api.py": code})) == [
+            ("ANY", "/api/any"), ("DELETE", "/api/jobs/{id}"), ("GET", "/api/jobs"), ("GET", "/api/peers"),
+            ("POST", "/api/jobs"), ("POST", "/api/wallet/send")]
+
+    def test_aiohttp_route_table_decorators(self):
+        code = "routes = web.RouteTableDef()\n@routes.get('/api/trust')\nasync def trust(r): ...\n@routes.post('/api/pipelines')\nasync def p(r): ...\n"
+        assert keys(from_code({"api.py": code})) == [("GET", "/api/trust"), ("POST", "/api/pipelines")]
+
+    def test_starlette_routes_and_flask_add_url_rule(self):
+        starlette = "routes = [Route('/health', health), Route('/items', create, methods=['POST', 'PUT'])]\n"
+        flask = "app.add_url_rule('/login', 'login', login, methods=['POST'])\napp.add_url_rule('/about', view_func=about)\n"
+        assert keys(from_code({"app.py": starlette})) == [("GET", "/health"), ("POST", "/items"), ("PUT", "/items")]
+        assert keys(from_code({"web.py": flask})) == [("GET", "/about"), ("POST", "/login")]
+
+    def test_fastapi_router_prefix_in_the_same_file(self):
+        code = "router = APIRouter(prefix='/v2')\n@router.get('/users')\ndef users(): ...\n"
+        assert keys(from_code({"users.py": code})) == [("GET", "/v2/users")]
+
+    def test_express_route_chains_koa_prefix_and_hono_mounts(self):
+        express = "app.route('/book').get(getBook).post(addBook)\n"
+        koa = "const router = new Router({ prefix: '/api' })\nrouter.get('/todos', list)\n"
+        hono = "import todos from './todos'\nconst app = new Hono()\napp.route('/api/todos', todos)\n"
+        todos = "const todos = new Hono()\ntodos.get('/', list)\ntodos.post('/', add)\nexport default todos\n"
+        assert keys(from_code({"server.js": express})) == [("GET", "/book"), ("POST", "/book")]
+        assert keys(from_code({"routes.js": koa})) == [("GET", "/api/todos")]
+        assert keys(from_code({"index.ts": hono, "todos.ts": todos})) == [("GET", "/api/todos"), ("POST", "/api/todos")]
+
+    def test_client_calls_are_still_not_routes(self):
+        assert from_code({"client.py": "requests.get('/api/jobs')\nhttpx.post('/api/x')\n"}) == []

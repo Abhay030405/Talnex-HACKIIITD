@@ -68,6 +68,7 @@ var ownerRoutes = []struct {
 	scoped             bool
 }{
 	{"GET", "/v1/me", "", false},
+	{"POST", "/v1/auth/register", "", false},
 	{"POST", "/v1/events", "organizer", false},
 	{"GET", "/v1/events", "organizer", false},
 	{"GET", "/v1/events/{event}", "organizer", true},
@@ -95,6 +96,13 @@ var ownerRoutes = []struct {
 	{"GET", "/v1/candidates/{cand}/found", "recruiter", true},
 	{"POST", "/v1/candidates/{cand}/confirm", "recruiter", true},
 	{"POST", "/v1/candidates/{cand}/rerun-coding", "recruiter", true},
+	{"GET", "/v1/candidates/{cand}/jobs", "recruiter", true},
+	{"POST", "/v1/candidates/{cand}/run-stages", "recruiter", true},
+	{"POST", "/v1/candidate-projects/{cproj}/run-stages", "recruiter", true},
+	{"GET", "/v1/projects/{project}/jobs", "organizer", true},
+	{"POST", "/v1/projects/{project}/run-stages", "organizer", true},
+	{"POST", "/v1/jobs/{job}/retry", "", true},
+	{"GET", "/v1/jobs/{job}/log", "", true},
 	{"POST", "/v1/candidates/{cand}/ask", "recruiter", true},
 	{"GET", "/v1/candidates/{cand}/asks", "recruiter", true},
 	{"POST", "/v1/candidate-projects/{cproj}/rerun", "recruiter", true},
@@ -196,7 +204,13 @@ func TestEveryPrivateRouteChecksTheOwner(t *testing.T) {
 	roleCall(t, srv.URL, "GET", "/v1/me", orgStranger, "organizer", nil)
 	roleCall(t, srv.URL, "GET", "/v1/me", recStranger, "recruiter", nil)
 
-	fill := strings.NewReplacer("{event}", eventID, "{project}", projectID, "{cand}", candID, "{cproj}", cprojID, "{walk}", walk.ID, "{tour}", tour.ID, "{kind}", "event", "{role}", roleID)
+	var jobID string
+	if err := pool.QueryRow(context.Background(), `INSERT INTO jobs (job_type, runner, target_type, target_id, status, pipeline)
+		VALUES ('precheck', 'python', 'project', $1::uuid, 'failed', 'hackathon') RETURNING id::text`, projectID).Scan(&jobID); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = $1::uuid`, jobID) })
+	fill := strings.NewReplacer("{event}", eventID, "{project}", projectID, "{cand}", candID, "{cproj}", cprojID, "{walk}", walk.ID, "{tour}", tour.ID, "{kind}", "event", "{role}", roleID, "{job}", jobID)
 	for _, r := range ownerRoutes {
 		path := fill.Replace(r.path)
 		name := r.method + " " + r.path

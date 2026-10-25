@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ApiDeps } from "@/lib/api";
-import { checkDoor, cleanEmail, signInError } from "@/lib/signin";
+import { checkDoor, checkPassword, cleanEmail, passwordProblem, registerPassword, signInError } from "@/lib/signin";
 
 const SECRET = "0123456789abcdef0123";
 
@@ -72,5 +72,31 @@ describe("signInError", () => {
     for (const code of ["no-door", "unverified", "AccessDenied", "Configuration", "failed", "SomethingNew"]) {
       expect(signInError(code)?.length).toBeGreaterThan(10);
     }
+  });
+});
+
+describe("passwords", () => {
+  it("uses the API's length rule and checks the second copy", () => {
+    expect(passwordProblem("short")).toMatch(/8 to 128/);
+    expect(passwordProblem("x".repeat(129))).toMatch(/8 to 128/);
+    expect(passwordProblem("long enough")).toBeNull();
+    expect(passwordProblem("long enough", "long enougj")).toMatch(/do not match/);
+  });
+
+  it("returns the account for a right password and null for a wrong one or too many tries", async () => {
+    const ok = api(() => json(200, { email: "a@example.com", name: "A", role: "recruiter" }));
+    expect(await checkPassword("a@example.com", "pw", "1.2.3.4", ok.deps)).toEqual({
+      email: "a@example.com", name: "A", role: "recruiter",
+    });
+    expect(ok.calls[0]).toBe("http://api:8080/v1/auth/password-login");
+    for (const status of [401, 429]) {
+      const { deps } = api(() => json(status, { error: "email or password is wrong" }));
+      expect(await checkPassword("a@example.com", "pw", "", deps)).toBeNull();
+    }
+  });
+
+  it("shows the API's reason when it refuses a registration", async () => {
+    const { deps } = api(() => json(409, { error: "this email already has an account; sign in instead" }));
+    await expect(registerPassword(person, "recruiter", "long enough", "", deps)).rejects.toThrow(/sign in instead/);
   });
 });

@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { auth, signOut } from "@/auth";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 
 /** The top bar on public pages. The signed-in workspace has its own navigation. */
 export async function Nav() {
@@ -12,25 +14,27 @@ export async function Nav() {
   }
 
   return (
-    <header className="nav">
-      <div className="container nav__inner">
-        <Link href="/" className="brand" aria-label="TalNex home">
-          <span className="brand__mark" aria-hidden="true">
-            T
-          </span>
-          TalNex
-        </Link>
-        <nav className="nav__links" aria-label="Main">
+    <header className="site-nav">
+      <div className="wrap site-nav__inner">
+        <Logo />
+        <nav className="site-nav__links" aria-label="Main">
+          <a className="site-nav__link" href="/#how">
+            How it works
+          </a>
+          <Link className="site-nav__link" href="/about">
+            About
+          </Link>
+          <Link className="site-nav__link" href="/docs">
+            Docs
+          </Link>
           {signedIn ? (
             <form action={leave}>
-              <button type="submit" className="button button--ghost">
-                Sign out
-              </button>
+              <Button variant="ghost">Sign out</Button>
             </form>
           ) : (
-            <Link className="button button--primary" href="/login">
+            <ButtonLink href="/login" variant="primary">
               Sign in
-            </Link>
+            </ButtonLink>
           )}
         </nav>
       </div>

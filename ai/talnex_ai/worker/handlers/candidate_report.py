@@ -11,6 +11,7 @@ import time
 from typing import Any, Mapping
 
 from talnex_ai.db.jobs import Job
+from talnex_ai.reports.ask_tools import GitHubReader
 from talnex_ai.reports.recruiter_report import build_report
 from talnex_ai.worker.registry import JobContext, stage
 from talnex_ai.worker.services import get_services
@@ -18,12 +19,13 @@ from talnex_ai.worker.services import get_services
 POLL_SECONDS = 10
 
 
-def coding_still_running(pool, candidate_id: str, run_number: int) -> int:
+def coding_still_running(pool, candidate_id: str, run_number: int = 0) -> int:
+    """Coding checks of this candidate still going, in any run: a re-run of only the coding checks counts too."""
     with pool.connection() as conn:
         return conn.execute(
             """SELECT count(*) FROM jobs WHERE pipeline = 'recruiter_coding' AND target_type = 'candidate'
-                AND target_id = %s::uuid AND run_number = %s AND status IN ('queued', 'running', 'retrying')""",
-            (candidate_id, run_number)).fetchone()[0]
+                AND target_id = %s::uuid AND status IN ('queued', 'running', 'retrying')""",
+            (candidate_id,)).fetchone()[0]
 
 
 def wait_for_coding(job: Job, ctx: JobContext, wait_seconds: int, sleep=time.sleep) -> int:
@@ -41,7 +43,9 @@ def wait_for_coding(job: Job, ctx: JobContext, wait_seconds: int, sleep=time.sle
 def candidate_report(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     cfg = get_services(ctx.pool).cfg
     still_running = wait_for_coding(job, ctx, getattr(cfg, "report_coding_wait_seconds", 480) if cfg else 0)
-    report = build_report(ctx.pool, job.target_id)
+    github = GitHubReader(getattr(cfg, "github_api_base_url", "https://api.github.com"),
+                          getattr(cfg, "github_token", "")) if cfg else None
+    report = build_report(ctx.pool, job.target_id, github=github)
     if still_running:
         report["notes"].append("Some coding profile checks were still running when this report was made; their "
                                "results are not included.")

@@ -1,0 +1,9 @@
+{
+  "title": "Proof",
+  "description": "Organizer only. Proof cards, the event overview and \"who built each feature best\".",
+  "pages": [
+    "getProjectProof",
+    "getEventOverview",
+    "getEventCompare"
+  ]
+}

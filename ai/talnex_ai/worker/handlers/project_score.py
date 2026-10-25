@@ -14,9 +14,23 @@ from talnex_ai.claims.criteria import load_brief
 from talnex_ai.claims.store import load_claims
 from talnex_ai.db.jobs import Job
 from talnex_ai.scoring.store import save_group_score, save_weighted_total
-from talnex_ai.scoring.talnex_score import ClaimOutcome, CriterionGroup, group_score, weighted_total
+from talnex_ai.scoring.talnex_score import ClaimOutcome, CriterionGroup, GroupScore, group_score, weighted_total
 from talnex_ai.worker.registry import JobContext, stage
 from talnex_ai.worker.subjects import load_subject_info, set_status, subject_of
+
+# The repository judged as engineering work (stage repo_quality) becomes one more group, on the same 0-100 scale as
+# the feature groups, so an event criterion called "Engineering" weighs it in the weighted total, on the proof card and
+# on the event overview. It is its own group: it never changes a feature group's score.
+ENGINEERING = "Engineering"
+
+
+def engineering_group(pool, project_id: str) -> "GroupScore | None":
+    with pool.connection() as conn:
+        row = conn.execute("SELECT avg(score)::float8, count(*) FROM repo_quality WHERE project_id = %s::uuid",
+                           (project_id,)).fetchone()
+    if not row or not row[1]:
+        return None
+    return GroupScore(round(row[0] * 10, 1), 100.0, "medium", int(row[1]), low_coverage=False)
 
 
 @stage("project_score")
@@ -46,6 +60,9 @@ def project_score(job: Job, ctx: JobContext) -> Mapping[str, Any]:
             not_tested.append(c.text)
 
     scores = {name: group_score(outcomes) for name, outcomes in by_group.items()}
+    engineering = engineering_group(ctx.pool, subject.id)
+    if engineering is not None and ENGINEERING not in scores:
+        scores[ENGINEERING] = engineering
     for name, g in scores.items():
         save_group_score(ctx.pool, "project", subject.id, name, g)
     result: dict[str, Any] = {"groups": {n: g.score for n, g in scores.items()}, "not_tested": not_tested}

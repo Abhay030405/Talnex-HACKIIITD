@@ -39,6 +39,11 @@ def test_a_claim_about_private_pages_may_check_them():
     assert extra_requirement(claim, "Signed out, the notes page is blocked") is None
 
 
+def test_a_claim_that_you_can_sign_out_may_check_you_are_signed_out():
+    # ShelfMate's account claim had its correct plan rejected twice for checking the signed-out state.
+    claim = "Create an account with email and password, sign in, and sign out."
+    assert extra_requirement(claim, "After signing out, the shelf is gone and the sign-in form is shown again") is None
+
 def test_speed_and_phone_layout_are_extra_too_unless_claimed():
     assert extra_requirement("Search recipes", "results appear within 2 seconds") == "speed"
     assert extra_requirement("Search is fast", "results appear within 2 seconds") is None
@@ -49,6 +54,11 @@ def test_a_clean_plan_passes_and_the_access_type_no_longer_demands_private_pages
     assert check_plans([plan("The About page opens and explains what CaptionIt is", "access", quote=ABOUT)], ["access"], ABOUT)
     assert "only if the claim itself says so" in TYPE_HELP["access"]
 
+
+def test_the_planner_adds_the_items_a_search_or_edit_needs_first():
+    # ShelfMate's search test opened an empty shelf and had nothing to search.
+    from talnex_ai.llm.prompts.test_planner import SYSTEM
+    assert "First add the items the test needs" in SYSTEM and "two items with clearly different names" in SYSTEM
 
 # ------------------------------------------------------------------ a starting value is not proof
 
@@ -88,3 +98,26 @@ def test_only_real_test_files_can_be_uploaded_never_a_readme(tmp_path):
     for name in ("README.md", "readme.txt", "dog.jpg", "test_resume.pdf", "notes.md", "script.py"):
         (folder / name).write_bytes(b"x")
     assert list_test_files(tmp_path) == ["known_answers/dog.jpg", "known_answers/test_resume.pdf"]
+
+
+# ------------------------------------------------------------------ planner wording from the demo run
+
+
+def test_a_readme_claim_that_repeats_a_bullet_in_other_words_is_dropped():
+    # CaptionIt's caption claim came in twice, once from the resume and once from its README.
+    from talnex_ai.claims.resume_claims import repeats
+    assert repeats("Upload a photo and CaptionIt writes a caption describing it.",
+                   "Upload a photo and the app writes a caption describing it.")
+    assert not repeats("Add a todo to the list", "Delete a todo from the list")
+    assert repeats("Delete a note.", "Delete notes.") and repeats("Edit an existing note.", "Edit existing notes.")
+    assert not repeats("Add books to your shelf", "Delete books from your shelf")
+    assert not repeats("Search your notes as you type", "Pin a note so it moves to the top")
+
+
+def test_sign_up_claims_start_fresh_and_retries_keep_to_real_test_files():
+    from talnex_ai.formats import Claim
+    from talnex_ai.llm.prompts.test_planner import SYSTEM, build_user
+    assert "signing up, signing in or creating an account" in SYSTEM
+    claim = Claim(text="Upload a photo and get a caption", claim_group="Core", importance=2, source="resume")
+    retry = build_user(claim, ["normal"], site_url="https://x.test", avoid=["upload a photo of a plate of food"])
+    assert "no other file exists" in retry

@@ -1,0 +1,68 @@
+---
+title: Job queue and pipelines
+description: How every pipeline is stored as data, and how each job is queued, taken, run, retried and chained.
+---
+
+TalNex has no separate message broker. The queue **is** Postgres: one `jobs` table, one `pipeline_stages` table and a
+handful of SQL functions (migration `000007_job_queue`). Go and Python workers use the same functions.
+
+## A pipeline is data
+
+Each row of `pipeline_stages` is one stage:
+
+| Column | Meaning |
+|---|---|
+| `pipeline`, `stage` | For example `recruiter`, `live_test` |
+| `runner` | `go` or `python`: which kind of worker takes it |
+| `target_type` | `project`, `candidate`, `candidate_project` or `event` |
+| `after_stages` | The stages that must be **done** first (so a pipeline is a graph, a DAG) |
+| `time_limit_seconds` | How long one try may run |
+
+Adding a stage is a migration that inserts a row, not new orchestration code. Stages with the same prerequisites run
+side by side.
+
+<PipelineDag />
+
+## The life of a job
+
+<JobLifecycle />
+
+1. **Queue.** `start_pipeline(pipeline, target, run)` adds every stage of the pipeline that has no `after_stages`.
+   Every job gets a `dedupe_key` (pipeline, stage, target, run), so adding the same job twice never makes two. An
+   insert trigger fires `pg_notify('jobs', runner)`, so idle workers wake at once instead of polling.
+2. **Take.** A worker calls `take_job(runner, worker)`. It picks the oldest job whose `run_after` has passed, using
+   `FOR UPDATE SKIP LOCKED`, so two workers never take the same job and none waits on another. The job becomes
+   `running` with `tries + 1`, `locked_by` and `locked_at`.
+3. **Run.** The handler for that job type runs. Python handlers get a `JobContext` with the time left; long handlers
+   call `ctx.check()` between steps and stop at the limit. Each stage emits live events (`stage.started`,
+   `stage.finished`) for the live view.
+4. **Finish.** `complete_job(job, worker, result)` saves the result, then for every stage whose `after_stages` include
+   this one, queues it **if all its prerequisites for the same target and run are done**. One transaction: a crash
+   never leaves a pipeline half moved. Only the worker that holds the lock can finish the job. It also takes an
+   advisory lock per pipeline and target (`pg_advisory_xact_lock`), so when two stages finish at the same moment they
+   cannot both miss queueing the stage that waits for both.
+5. **Fail and retry.** `fail_job(job, worker, error, delay)` sets `retrying` with `run_after = now + delay × tries`, so
+   each retry waits longer, until `max_tries` (usually 3), then `failed`.
+6. **Reap.** A worker that dies holds a job forever, so `reap_stuck_jobs()` puts any job running past its time limit
+   plus a grace period back for another try.
+
+## Run numbers
+
+`run_number` lets the same target be checked again: a re-upload, "re-test this project" or "re-run coding checks"
+starts the pipeline with the next number, so the new run gets a fresh set of jobs and the old results stay until the
+new ones replace them. The candidate report waits only for the projects and coding checks **of its own run**.
+
+## Jobs outside pipelines
+
+Some jobs are added on their own by the API with an input: `report_answer` (an Ask TalNex question), `custom_test`
+(a test from the reviewer's words) and `walkthrough_answer`. Finishing them starts nothing else; their result is the
+answer the website shows.
+
+## Inside a Python worker
+
+- Several worker threads each loop: take a job, run its handler, complete or fail it, and listen for `pg_notify` while idle.
+- **Before running**, the worker checks whether the job's role or event left this check out (live test, code review,
+  coding profiles); if so the job finishes as *skipped: not chosen*, never as a failure.
+- One handler's crash never stops the worker: the error and a short traceback go into the job, and it is retried.
+- A result that arrives after the time limit does not count.
+- Scale with `docker compose up -d --scale ai-worker=3`: the queue spreads the work.

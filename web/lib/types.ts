@@ -1,6 +1,30 @@
 // Shapes the Go API sends and receives, checked against backend/internal/{auth,events,projects,candidates}.
 // The report, proof card, authorship and walkthrough shapes are added with the pages that show them.
 
+// ---------- Jobs ----------
+
+/** One job of a check, for the jobs panel (backend/internal/http/jobs.go). */
+export interface JobRow {
+  id: string;
+  pipeline: string;
+  stage: string;
+  target_type: "candidate" | "candidate_project" | "project" | "event";
+  target_id: string;
+  /** The resume project's name, for jobs about a resume project. */
+  project?: string;
+  run: number;
+  status: "queued" | "running" | "retrying" | "done" | "failed";
+  tries: number;
+  max_tries: number;
+  created_at: string;
+  updated_at: string;
+  seconds: number;
+  error?: string;
+  result?: Record<string, unknown>;
+  /** The stages this one waits for, to draw the pipeline. */
+  after_stages?: string[];
+}
+
 // ---------- Roles ----------
 
 /** Who an account is. One role per account, set by the sign-in door used first (backend/internal/auth). */
@@ -97,6 +121,9 @@ export interface CandidateSummary {
   /** Set when the candidate was uploaded under a role (a job opening). */
   role_id?: string;
   coding_handles: Record<string, string>;
+  coding_links?: Record<string, string>;
+  /** Profile pages from the resume (links only, never email or phone). */
+  profile_links?: Record<string, string>;
   status: string;
   created_at: string;
 }
@@ -136,6 +163,12 @@ export interface FoundProject {
   video_url: string;
   /** Read only: the resume lines this project came from. */
   bullets?: string[];
+  /** What the resume says about when and by whom it was built (YYYY or YYYY-MM; the end may be "present"). */
+  claimed_start?: string;
+  claimed_end?: string;
+  claimed_team?: "" | "solo" | "team";
+  claimed_team_size?: number;
+  claimed_role?: string;
 }
 
 /** What the resume reader found. The check waits until the recruiter confirms it. */
@@ -146,12 +179,16 @@ export interface CandidateFound {
   projects: FoundProject[];
   coding_handles: Record<string, string>;
   coding_links: Record<string, string>;
+  /** GitHub, LinkedIn, portfolio, ... from the resume: kind -> address. Links only, never email or phone. */
+  profile_links?: Record<string, string>;
 }
 
 /** What the recruiter sends back. A coding profile left empty is removed. */
 export interface CandidateConfirm {
   projects: FoundProject[];
   coding_profiles: Record<string, string>;
+  /** Replaces the profile links (kind -> address; empty removes it). */
+  profile_links?: Record<string, string>;
 }
 
 // ---------- Live progress ----------
@@ -241,6 +278,10 @@ export interface ReportFeature {
   code_review?: CodeReview | null;
   /** Who wrote the code behind this claim. Missing on reports made before authorship existed. */
   authorship?: Authorship | null;
+  /** What TalNex planned to check, written before testing. */
+  checklist?: string[];
+  /** True when the checklist was written with the recruiter's role brief. */
+  checked_for_role?: boolean;
 }
 
 export interface ReportFlag {
@@ -277,6 +318,43 @@ export interface ReportProject {
   features: ReportFeature[];
   flags: ReportFlag[];
   originality: ProjectOriginality | null;
+  /** What the VM track did with the repository (ai/talnex_ai/reports/sandbox.py). Missing on older reports. */
+  sandbox?: SandboxFacts | null;
+  /** What the resume says about the project beside its GitHub history (coding/claims_vs_github.py). */
+  claims_vs_github?: ClaimsVsGithub | null;
+  /** The repository judged as engineering work (stage repo_quality). Missing when it was not judged. */
+  engineering?: Engineering | null;
+}
+
+/** One project's engineering quality: per area a score out of 10, a summary and evidence that links to GitHub. */
+export interface Engineering {
+  overall: number | null;
+  areas: {
+    area: string;
+    label: string;
+    score: number | null;
+    summary: string;
+    evidence: { kind: "file" | "commit"; path?: string; sha?: string; message?: string; note: string; url?: string }[];
+  }[];
+}
+
+/** The VM (sandbox) facts of one project. Log keys arrive from the API as short-lived links. */
+export interface SandboxFacts {
+  ran: boolean;
+  reason?: string;
+  status?: string;
+  detail?: string | null;
+  stack?: string | null;
+  recipe_source?: string | null;
+  needed_a_fix?: boolean;
+  notes?: string[];
+  routes_found?: number;
+  spec_found?: boolean;
+  no_live_link?: boolean;
+  build_log_url?: string;
+  run_log_url?: string;
+  /** Each sandbox stage's saved result, kept small (scalars and counts). */
+  stages?: Record<string, Record<string, unknown>>;
 }
 
 export interface CodingSignal {
@@ -284,6 +362,8 @@ export interface CodingSignal {
   signal: string;
   weight: "not_suspicious" | "medium" | "strong" | string;
   contest: string | null;
+  /** The contest problem, for per-problem signals such as a LeetCode paste. */
+  problem?: string | null;
   evidence: Record<string, unknown>;
 }
 
@@ -299,6 +379,8 @@ export interface CandidateReport {
   coding_signals: CodingSignal[];
   flags: ReportFlag[];
   notes: string[];
+  /** Plain-words readings of the coding signals, each a strength, neutral or worth a look. Never scored. */
+  profile_insights?: CodingSignal[];
   /** True while some projects are still being checked: results so far. */
   partial?: boolean;
   /** The role the candidate was checked for, with each must-have skill and the working features that show it. */
@@ -395,9 +477,12 @@ export interface HackathonCard {
   features: ReportFeature[];
   flags: ReportFlag[];
   checks: CardCheck[];
+  engineering?: Engineering | null;
   run?: RunUsage | null;
   ai_opinion: AiOpinion | null;
   who_built_what?: WhoBuiltWhatRow[] | null;
+  /** What the VM track did with the repository. Missing on older cards. */
+  sandbox?: SandboxFacts | null;
   has_gaps: boolean;
   notes: string[];
 }
@@ -542,4 +627,18 @@ export interface Walkthrough {
   error: string | null;
   created_at: string;
   answered_at: string | null;
+}
+
+/** Resume claims against the repository history. Evidence only, never scored. */
+export interface ClaimsVsGithub {
+  claimed: { start?: string; end?: string; team?: string; team_size?: number; role?: string };
+  actual: {
+    repo: string;
+    commit_count: number;
+    first_commit: string | null;
+    last_commit: string | null;
+    contributors: { login: string; commits: number }[];
+  } | null;
+  insights: { signal: string; evidence: { tone: string; summary: string } }[];
+  reason?: string;
 }

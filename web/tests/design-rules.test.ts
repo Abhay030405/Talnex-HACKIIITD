@@ -33,7 +33,11 @@ describe("components", () => {
   });
 
   it("use no inline styles", () => {
-    expect(offending((t) => /\sstyle=\{|\sstyle="/.test(t))).toEqual([]);
+    // The one exception: React Flow gives the docs' orchestration diagram its node sizes and label positions at run
+    // time, so that file may set them inline. Colours, fonts and spacing there still come from globals.css.
+    const geometry = new Set(["components/docs/diagrams/orchestration-flow.tsx"]);
+    const styled = offending((t) => /\sstyle=\{|\sstyle="/.test(t)).filter((f) => !geometry.has(f));
+    expect(styled).toEqual([]);
   });
 
   it("type no colour codes", () => {
@@ -53,7 +57,9 @@ describe("components", () => {
       }
     }
     // A class ending in "--" is a prefix finished at run time, like "score-chip--" + level.
-    const missing = [...used].filter((c) => !c.endsWith("--") && !new RegExp(`\\.${c}(?![\\w-])`).test(css));
+    // "not-prose" is fumadocs' own switch that keeps its prose styles off a block (the docs diagrams); it has no rule.
+    const vendor = new Set(["not-prose"]);
+    const missing = [...used].filter((c) => !c.endsWith("--") && !vendor.has(c) && !new RegExp(`\\.${c}(?![\\w-])`).test(css));
     expect(missing).toEqual([]);
   });
 });
@@ -64,7 +70,9 @@ describe("stylesheet", () => {
   });
 
   it("defines every token it uses", () => {
-    const defined = new Set([...tokenBlock.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+    // The font variables are set on <html> by the self-hosted fonts (app/layout.tsx), not in the stylesheet.
+    const fromFonts = ["--font-geist-sans", "--font-geist-mono", "--font-archivo"];
+    const defined = new Set([...tokenBlock.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]).concat(fromFonts));
     const used = new Set([...css.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]));
     expect([...used].filter((t) => !defined.has(t))).toEqual([]);
   });

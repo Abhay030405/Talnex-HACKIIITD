@@ -47,6 +47,7 @@ type server struct {
 	projects   *projects.Store
 	queue      *jobs.Queue
 	sms        *smsLimiter
+	logins     *failLimiter
 }
 
 // NewHandler builds the API routes.
@@ -61,6 +62,7 @@ func NewHandler(o Options) http.Handler {
 		projects:   projects.NewStore(o.Pool),
 		queue:      jobs.NewQueue(o.Pool),
 		sms:        &smsLimiter{},
+		logins:     &failLimiter{},
 	}
 
 	public := http.NewServeMux()
@@ -69,6 +71,7 @@ func NewHandler(o Options) http.Handler {
 
 	private := http.NewServeMux()
 	private.HandleFunc("GET /v1/me", s.me)
+	private.HandleFunc("POST /v1/auth/register", s.register)
 	private.HandleFunc("POST /v1/events", auth.RequireRole(auth.RoleOrganizer, s.createEvent))
 	private.HandleFunc("GET /v1/events", auth.RequireRole(auth.RoleOrganizer, s.listEvents))
 	private.HandleFunc("GET /v1/events/{id}", auth.RequireRole(auth.RoleOrganizer, s.getEvent))
@@ -97,6 +100,13 @@ func NewHandler(o Options) http.Handler {
 	private.HandleFunc("POST /v1/candidates/{id}/confirm", auth.RequireRole(auth.RoleRecruiter, s.confirmCandidate))
 	private.HandleFunc("DELETE /v1/candidates/{id}", auth.RequireRole(auth.RoleRecruiter, s.deleteCandidate))
 	private.HandleFunc("POST /v1/candidates/{id}/rerun-coding", auth.RequireRole(auth.RoleRecruiter, s.rerunCoding))
+	private.HandleFunc("GET /v1/candidates/{id}/jobs", auth.RequireRole(auth.RoleRecruiter, s.listCandidateJobs))
+	private.HandleFunc("POST /v1/candidates/{id}/run-stages", auth.RequireRole(auth.RoleRecruiter, s.runCandidateStages))
+	private.HandleFunc("POST /v1/candidate-projects/{id}/run-stages", auth.RequireRole(auth.RoleRecruiter, s.runCandidateProjectStages))
+	private.HandleFunc("GET /v1/projects/{id}/jobs", auth.RequireRole(auth.RoleOrganizer, s.listProjectJobs))
+	private.HandleFunc("POST /v1/projects/{id}/run-stages", auth.RequireRole(auth.RoleOrganizer, s.runProjectStages))
+	private.HandleFunc("POST /v1/jobs/{id}/retry", s.retryJob)
+	private.HandleFunc("GET /v1/jobs/{id}/log", s.getJobLog)
 	private.HandleFunc("POST /v1/candidates/{id}/ask", auth.RequireRole(auth.RoleRecruiter, s.askCandidate))
 	private.HandleFunc("GET /v1/candidates/{id}/asks", auth.RequireRole(auth.RoleRecruiter, s.listCandidateAsks))
 	private.HandleFunc("POST /v1/candidate-projects/{id}/rerun", auth.RequireRole(auth.RoleRecruiter, s.rerunCandidateProject))
@@ -127,6 +137,9 @@ func NewHandler(o Options) http.Handler {
 	root.Handle("/readyz", public)
 	// Gateway route: the phone has no user, so it skips sign-in and is checked by its gateway key instead.
 	root.HandleFunc("POST /v1/sms/incoming", s.incomingSMS)
+	// Email and password sign-in: outside the sign-in middleware (a wrong email must not create an account), but it
+	// checks the website-signed token itself.
+	root.HandleFunc("POST /v1/auth/password-login", s.passwordLogin)
 	if o.EnableDevEndpoints {
 		// Local demos only: mission control for everything the worker is doing, with no sign-in.
 		root.HandleFunc("GET /v1/dev/live", s.getDevLive)

@@ -5,6 +5,8 @@ import { notFound, unstable_rethrow } from "next/navigation";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { AskTalnex, type Ask, type CustomTest } from "@/components/proof/AskTalnex";
 import { HackathonCardView } from "@/components/proof/HackathonCardView";
+import { JobsPanel } from "@/components/proof/JobsPanel";
+import type { JobRow } from "@/lib/types";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { BADGE_CLASS } from "@/lib/format";
@@ -29,10 +31,10 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ eventId: string; projectId: string }>;
-  searchParams: Promise<{ run?: string }>;
+  searchParams: Promise<{ run?: string; tab?: string }>;
 }) {
   const { eventId, projectId } = await params;
-  const { run } = await searchParams;
+  const { run, tab } = await searchParams;
   await requireRole("organizer");
 
   const project = await getProject(projectId);
@@ -55,8 +57,17 @@ export default async function ProjectPage({
       unstable_rethrow(error);
     }
   }
+  let jobs: JobRow[] = [];
+  try {
+    jobs = await apiFetch<JobRow[]>(`/v1/projects/${encodeURIComponent(projectId)}/jobs`);
+  } catch (error) {
+    unstable_rethrow(error);
+  }
   const status = projectStatus(project.status);
   const message = run ? RUN_MESSAGES[run] : undefined;
+  const jobsPanel = (
+    <JobsPanel jobs={jobs} liveHref={`/events/${encodeURIComponent(eventId)}/projects/${encodeURIComponent(projectId)}/live`} open={Boolean(card)} />
+  );
 
   return (
     <div className="stack">
@@ -106,9 +117,17 @@ export default async function ProjectPage({
               criteriaHref: `/events/${encodeURIComponent(eventId)}#criteria`,
             }}
           />
-          <HackathonCardView card={card} criteria={criteria} tourHref={tourPageUrl("project", projectId, eventId)} />
+          <HackathonCardView
+            card={card}
+            criteria={criteria}
+            initialTab={tab}
+            jobs={jobsPanel}
+            tourHref={tourPageUrl("project", projectId, eventId)}
+          />
         </>
       ) : (
+        <>
+        {jobsPanel}
         <section className="panel" aria-labelledby="pending-title">
           <div className="panel__head">
             <h2 className="panel__title" id="pending-title">
@@ -123,6 +142,7 @@ export default async function ProjectPage({
             </p>
           </div>
         </section>
+        </>
       )}
     </div>
   );

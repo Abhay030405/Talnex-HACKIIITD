@@ -1,0 +1,13 @@
+{
+  "title": "Projects",
+  "description": "Organizer only. The teams of an event.",
+  "pages": [
+    "listProjects",
+    "createProject",
+    "getProject",
+    "runProject",
+    "listProjectJobs",
+    "runProjectStages",
+    "retryJob"
+  ]
+}

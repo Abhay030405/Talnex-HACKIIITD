@@ -14,11 +14,13 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from talnex_ai.coding.claims_vs_github import claimed_from_text
 from talnex_ai.formats import parse_model
 from talnex_ai.llm.prompts.resume_reader import SYSTEM, user
 from talnex_ai.llm.structured import ChatClient, ask_json
 from talnex_ai.safety.hidden_instructions import Finding, find_hidden_instructions
 
+REGION_CHARS = 1200   # resume text read after a project name for its dates and team words
 log = logging.getLogger("talnex.resume")
 
 MAX_PROJECTS = 8
@@ -56,6 +58,11 @@ class RawProject(_Raw):
     live_url: Optional[str] = None
     repo_url: Optional[str] = None
     video_url: Optional[str] = None
+    claimed_start: Optional[str] = None
+    claimed_end: Optional[str] = None
+    claimed_team: Optional[str] = None
+    claimed_team_size: Optional[int] = None
+    claimed_role: Optional[str] = None
 
 
 class RawResume(_Raw):
@@ -71,6 +78,8 @@ class Project:
     live_url: Optional[str]
     repo_url: Optional[str]
     video_url: Optional[str]
+    # What the resume says about when and by whom it was built (claims_vs_github.claimed_from_text): never guessed
+    claims: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -79,6 +88,7 @@ class ResumeRead:
     coding_handles: dict[str, str]
     github_username: Optional[str]
     coding_links: dict[str, str] = field(default_factory=dict)  # the profile address, only for sites where one was on the resume
+    profile_links: dict[str, str] = field(default_factory=dict)  # GitHub, LinkedIn, portfolio, ... : kind -> address
     findings: list[Finding] = field(default_factory=list)    # hidden instructions found in the resume text
     dropped: list[str] = field(default_factory=list)          # what was reported but not on the resume
 
@@ -143,6 +153,51 @@ def profile_links_in(text: str) -> dict[str, tuple[str, str]]:
     return found
 
 
+# Profile pages on the resume, by kind. Group 1 is the path after the host; a match is kept as an https address.
+# Links only: emails and phone numbers are never read (AGENTS.md rule 21).
+_SOCIAL = {
+    "github": r"github\.com/([A-Za-z0-9\-]{1,39})(?![A-Za-z0-9\-/])",
+    "linkedin": r"linkedin\.com/(in/[A-Za-z0-9\-_%]{2,100})",
+    "kaggle": r"kaggle\.com/([A-Za-z0-9\-_]{2,40})(?![A-Za-z0-9\-_/])",
+    "stackoverflow": r"stackoverflow\.com/(users/\d+(?:/[A-Za-z0-9\-]+)?)",
+    "medium": r"medium\.com/(@[A-Za-z0-9.\-_]{2,40})",
+    "devto": r"dev\.to/([A-Za-z0-9_]{2,40})(?![A-Za-z0-9_/])",
+    "behance": r"behance\.net/([A-Za-z0-9_\-]{2,40})",
+    "dribbble": r"dribbble\.com/([A-Za-z0-9_\-]{2,40})(?![A-Za-z0-9_\-/])",
+    "x": r"(?:twitter|x)\.com/([A-Za-z0-9_]{1,15})(?![A-Za-z0-9_/])",
+    "hackerrank": r"hackerrank\.com/(?:profile/)?([A-Za-z0-9_\-]{2,40})(?![A-Za-z0-9_\-/])",
+    "geeksforgeeks": r"geeksforgeeks\.org/(user/[A-Za-z0-9_\-]{2,40})",
+}
+_SOCIAL_HOST = {"github": "github.com", "linkedin": "www.linkedin.com", "kaggle": "www.kaggle.com",
+                "stackoverflow": "stackoverflow.com", "medium": "medium.com", "devto": "dev.to",
+                "behance": "www.behance.net", "dribbble": "dribbble.com", "x": "x.com",
+                "hackerrank": "www.hackerrank.com", "geeksforgeeks": "www.geeksforgeeks.org"}
+_NOT_PEOPLE = {"features", "pricing", "about", "login", "signup", "explore", "topics", "search", "home", "settings",
+               "orgs", "marketplace", "sponsors", "collections", "trending", "share", "intent", "hashtag", "jobs",
+               "competitions", "datasets", "code", "learn", "challenges", "dashboard", "domains"}
+_PORTFOLIO = re.compile(r"(?i)\b(?:portfolio|website|personal site|blog)\b[^\n]{0,30}?(https?://[^\s<>()]+|[a-z0-9\-]+(?:\.[a-z0-9\-]+)+\.[a-z]{2,}(?:/[^\s<>()]*)?)")
+_GITHUB_PAGES = re.compile(r"(?i)\b([a-z0-9\-]+\.github\.io)\b")
+
+
+def social_links_in(text: str) -> dict[str, str]:
+    """Profile pages written or linked on the resume: kind -> https address. The first one of each kind wins.
+    Never emails or phone numbers."""
+    found: dict[str, str] = {}
+    for kind, pattern in _SOCIAL.items():
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            path = match.group(1).rstrip(".")
+            if path.split("/")[-1].lower().lstrip("@") in _NOT_PEOPLE:
+                continue
+            found[kind] = f"https://{_SOCIAL_HOST[kind]}/{path}"
+            break
+    portfolio = _PORTFOLIO.search(text) or _GITHUB_PAGES.search(text)
+    if portfolio:
+        url = portfolio.group(1).rstrip(".,;")
+        if "@" not in url:
+            found["portfolio"] = url if url.lower().startswith("http") else f"https://{url}"
+    return found
+
+
 def validate(raw: RawResume, text: str) -> ResumeRead:
     """Keep only what the resume text really supports."""
     compact = _compact(text)
@@ -182,7 +237,16 @@ def validate(raw: RawResume, text: str) -> ResumeRead:
                 bullets.append(sentence)
             else:
                 result.dropped.append(f"bullet not on the resume: {sentence[:60]}")
-        result.projects.append(Project(name, tuple(bullets), found.get("live"), found.get("repo"), found.get("video")))
+        at = re.sub(r"\s+", " ", text).lower().find(key)
+        region = re.sub(r"\s+", " ", text)[at:at + REGION_CHARS] if at >= 0 else ""
+        for other in raw.projects:   # stop at the next project's name
+            o = re.sub(r"\s+", " ", other.name).strip().lower()
+            cut = region.lower().find(o, len(key)) if o and o != key else -1
+            if cut > 0:
+                region = region[:cut]
+        claims = claimed_from_text(region, item.model_dump())
+        result.projects.append(Project(name, tuple(bullets), found.get("live"), found.get("repo"), found.get("video"),
+                                       {k: v for k, v in claims.items() if v is not None}))
         if len(result.projects) == MAX_PROJECTS:
             break
 
@@ -196,6 +260,7 @@ def validate(raw: RawResume, text: str) -> ResumeRead:
     for site, (handle, link) in profile_links_in(text).items():
         result.coding_handles[site] = handle
         result.coding_links[site] = link
+    result.profile_links = social_links_in(text)
     username = (raw.github_username or "").strip().lstrip("@")
     if username and _HANDLE.match(username) and username.lower() in compact:
         result.github_username = username

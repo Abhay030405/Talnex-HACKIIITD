@@ -1,8 +1,7 @@
-import Link from "next/link";
-
 import { signOut } from "@/auth";
 import { LogoutIcon } from "@/components/ui/Icons";
 import { ShellFrame } from "@/components/ui/ShellFrame";
+import { Logo } from "@/components/ui/Logo";
 import { ShellNav, type ShellNavItem } from "@/components/ui/ShellNav";
 import { ROLE_NAMES, homePath, type Role } from "@/lib/types";
 
@@ -10,10 +9,12 @@ const NAV: Record<Role, ShellNavItem[]> = {
   recruiter: [
     { href: "/recruiter", label: "Candidates", icon: "users", also: ["/candidates"] },
     { href: "/new/recruiter", label: "New check", icon: "plus" },
+    { href: "/docs", label: "Docs", icon: "docs" },
   ],
   organizer: [
     { href: "/organizer", label: "Events", icon: "calendar", also: ["/events"] },
     { href: "/new/hackathon", label: "New event", icon: "plus" },
+    { href: "/docs", label: "Docs", icon: "docs" },
   ],
 };
 
@@ -30,12 +31,7 @@ export function Shell({ role, name, children }: { role: Role; name: string; chil
         Skip to content
       </a>
       <aside className="shell__side">
-        <Link href={homePath(role)} className="brand" aria-label="TalNex workspace home">
-          <span className="brand__mark" aria-hidden="true">
-            T
-          </span>
-          TalNex
-        </Link>
+        <Logo href={homePath(role)} label="TalNex workspace home" />
         <span className="shell__section">{ROLE_NAMES[role]}</span>
         <ShellNav items={NAV[role]} />
         <p className="shell__note">Humans decide. TalNex shows the evidence.</p>

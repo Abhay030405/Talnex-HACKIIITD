@@ -1,0 +1,19 @@
+{
+  "title": "Walkthroughs",
+  "description": "Ask how a feature of one project works. Answered from the code and the test results, never a score.",
+  "pages": [
+    "askProject",
+    "listProjectAsks",
+    "customTestProject",
+    "listProjectCustomTests",
+    "askCandidate",
+    "listCandidateAsks",
+    "customTestCandidateProject",
+    "listCandidateProjectCustomTests",
+    "listProjectWalkthroughs",
+    "askProjectWalkthrough",
+    "listCandidateProjectWalkthroughs",
+    "askCandidateProjectWalkthrough",
+    "getWalkthrough"
+  ]
+}

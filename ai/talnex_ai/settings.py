@@ -211,6 +211,16 @@ class WalkthroughSettings:
 
 
 @dataclass(frozen=True)
+class RepoQualitySettings:
+    """The repo_quality stage: how much of a repository is read to judge it as engineering work."""
+
+    max_files: int = 25             # files read in full (key config files first, then the largest source files)
+    max_bytes: int = 200_000        # total bytes read across those files
+    max_commits: int = 100          # recent commits read for commit style
+    sample_files: int = 6           # source files shown to the model for consistency and error handling
+
+
+@dataclass(frozen=True)
 class LeetCodeReplaySettings:
     """The LeetCode Code Replay paste check (architecture section 18): which contests, and when a paste is suspicious."""
 
@@ -240,6 +250,29 @@ class TourSettings:
 
 
 @dataclass(frozen=True)
+class InsightSettings:
+    """Profile insights (coding/insights.py): when a reading counts as a strength or worth a look. Never scored."""
+
+    quiet_months: int = 3          # trailing months without public commits -> worth a look
+    slowing_share: float = 0.5     # last 3 months below this share of the 3 before -> slowing
+    consistent_months: int = 9     # active months of 12 for a strength
+    sparse_months: int = 3         # active months of 12 at or below this -> worth a look
+    rating_points: int = 30        # rating change over recent contests that counts as rising or falling
+    min_solved: int = 20           # fewer LeetCode problems than this: no problem-mix reading
+    easy_share: float = 0.7        # easy share at or above this -> worth a look
+    hard_share: float = 0.1        # hard share at or above this (with 35% medium) -> strength
+    stars_strength: int = 20       # stars across original repos for a strength
+    collab_prs: int = 3            # pull requests on others' repos for a strength
+    date_slack_months: int = 1     # resume vs GitHub: months of slack around the claimed dates
+    outside_share: float = 0.5     # share of commits outside the claimed dates that is worth a look
+    solo_other_share: float = 0.2  # a "solo" project with another contributor at this share or more is worth a look
+    own_share_min: float = 0.3     # the candidate's commit share below this (with others) is worth a look
+    burst_claimed_months: int = 2  # claimed this many months or more ...
+    burst_days_share: float = 0.8  # ... but this share of commits on two days -> worth a look
+    claims_max_pages: int = 3      # GitHub commit pages (100 each) read per resume repo
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str
     s3: S3Settings
@@ -255,11 +288,17 @@ class Settings:
     authorship: AuthorshipSettings = field(default_factory=AuthorshipSettings)
     walkthrough: WalkthroughSettings = field(default_factory=WalkthroughSettings)
     leetcode_replay: LeetCodeReplaySettings = field(default_factory=LeetCodeReplaySettings)
+    repo_quality: RepoQualitySettings = field(default_factory=RepoQualitySettings)
     # The candidate report waits this long for the coding profile checks before it is built without them
     report_coding_wait_seconds: int = 480
     tour: TourSettings = field(default_factory=TourSettings)
+    insights: InsightSettings = field(default_factory=InsightSettings)
     # LeetCode's public data address (the one its profile pages read, no login). Empty: read the profile page instead.
     leetcode_graphql_url: str = ""
+    # Read-only lookups for Ask TalNex (the same GitHub and Codeforces settings the Go side uses). Empty token: anonymous.
+    github_api_base_url: str = "https://api.github.com"
+    github_token: str = ""
+    codeforces_api_base_url: str = "https://codeforces.com/api"
     # A Chrome-over-CDP endpoint used as a backup browser when TinyFish is unavailable. Hosted Browserless /stealth also
     # solves CAPTCHAs during the test; a self-hosted container cannot. Empty: off.
     browserless_cdp_url: str = ""
@@ -474,6 +513,12 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
         whisper_device=env.one_of("WHISPER_DEVICE", "cpu", ("cpu", "cuda")),
         whisper_compute_type=env.optional("WHISPER_COMPUTE_TYPE", "int8"),
     )
+    repo_quality = RepoQualitySettings(
+        max_files=env.whole("REPO_QUALITY_MAX_FILES", 25),
+        max_bytes=env.whole("REPO_QUALITY_MAX_BYTES", 200_000),
+        max_commits=env.whole("REPO_QUALITY_MAX_COMMITS", 100),
+        sample_files=env.whole("REPO_QUALITY_SAMPLE_FILES", 6),
+    )
     leetcode_replay = LeetCodeReplaySettings(
         contests=env.whole("LEETCODE_REPLAY_CONTESTS", 5),
         rating_jump=env.whole("LEETCODE_REPLAY_RATING_JUMP", 100),
@@ -500,8 +545,28 @@ def load(source: Optional[Mapping[str, str]] = None) -> Settings:
     env.stop_if_bad()
     return Settings(database_url=database_url, s3=s3, worker=worker, llm=llm, limits=limits, tinyfish=tinyfish,
                     runner=runner, email=email, phone=phone, sandbox=sandbox, copy=copy, authorship=authorship,
-                    walkthrough=walkthrough, tour=tour, leetcode_replay=leetcode_replay,
-                    report_coding_wait_seconds=env.whole("REPORT_CODING_WAIT_SECONDS", 480), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                    walkthrough=walkthrough, tour=tour, leetcode_replay=leetcode_replay, repo_quality=repo_quality,
+                    report_coding_wait_seconds=env.whole("REPORT_CODING_WAIT_SECONDS", 480), insights=InsightSettings(
+                        quiet_months=env.whole("INSIGHT_QUIET_MONTHS", 3),
+                        slowing_share=env.decimal("INSIGHT_SLOWING_SHARE", 0.5, 0.05, 1.0),
+                        consistent_months=env.whole("INSIGHT_CONSISTENT_MONTHS", 9),
+                        sparse_months=env.whole("INSIGHT_SPARSE_MONTHS", 3),
+                        rating_points=env.whole("INSIGHT_RATING_POINTS", 30),
+                        min_solved=env.whole("INSIGHT_MIN_SOLVED", 20),
+                        easy_share=env.decimal("INSIGHT_EASY_SHARE", 0.7, 0.1, 1.0),
+                        hard_share=env.decimal("INSIGHT_HARD_SHARE", 0.1, 0.01, 1.0),
+                        stars_strength=env.whole("INSIGHT_STARS_STRENGTH", 20),
+                        collab_prs=env.whole("INSIGHT_COLLAB_PRS", 3),
+                        date_slack_months=env.whole("INSIGHT_DATE_SLACK_MONTHS", 1),
+                        outside_share=env.decimal("INSIGHT_OUTSIDE_SHARE", 0.5, 0.05, 1.0),
+                        solo_other_share=env.decimal("INSIGHT_SOLO_OTHER_SHARE", 0.2, 0.01, 1.0),
+                        own_share_min=env.decimal("INSIGHT_OWN_SHARE_MIN", 0.3, 0.01, 1.0),
+                        burst_claimed_months=env.whole("INSIGHT_BURST_CLAIMED_MONTHS", 2),
+                        burst_days_share=env.decimal("INSIGHT_BURST_DAYS_SHARE", 0.8, 0.1, 1.0),
+                        claims_max_pages=env.whole("INSIGHT_CLAIMS_MAX_PAGES", 3)), leetcode_graphql_url=env.url("LEETCODE_GRAPHQL_URL", required=False),
+                    github_api_base_url=env.url("GITHUB_API_BASE_URL", required=False) or "https://api.github.com",
+                    github_token=env.optional("GITHUB_TOKEN"),
+                    codeforces_api_base_url=env.url("CODEFORCES_API_BASE_URL", required=False) or "https://codeforces.com/api",
                     browserless_cdp_url=env.url("BROWSERLESS_CDP_URL", required=False),
                     browserless_token=env.optional("BROWSERLESS_TOKEN"),
                     browserless_bql_url=env.url("BROWSERLESS_BQL_URL", required=False),

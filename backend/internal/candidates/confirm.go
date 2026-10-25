@@ -124,6 +124,33 @@ type FoundProject struct {
 	RepoURL  string   `json:"repo_url"`
 	VideoURL string   `json:"video_url"`
 	Bullets  []string `json:"bullets,omitempty"` // read only: what the resume says, shown for context
+	// What the resume says about when and by whom it was built, compared later with the GitHub history.
+	ClaimedStart    string `json:"claimed_start"`
+	ClaimedEnd      string `json:"claimed_end"`
+	ClaimedTeam     string `json:"claimed_team"`
+	ClaimedTeamSize int    `json:"claimed_team_size"`
+	ClaimedRole     string `json:"claimed_role"`
+}
+
+var claimedDate = regexp.MustCompile(`^\d{4}(-(0[1-9]|1[0-2]))?$`)
+
+// checkClaims tidies a project's claimed dates, team and role, or says what is wrong in plain words.
+func checkClaims(p *FoundProject) error {
+	p.ClaimedStart, p.ClaimedEnd = strings.TrimSpace(p.ClaimedStart), strings.ToLower(strings.TrimSpace(p.ClaimedEnd))
+	p.ClaimedTeam, p.ClaimedRole = strings.ToLower(strings.TrimSpace(p.ClaimedTeam)), strings.TrimSpace(p.ClaimedRole)
+	switch {
+	case p.ClaimedStart != "" && !claimedDate.MatchString(p.ClaimedStart):
+		return ErrBadInput(p.Name + ": the start must look like 2026 or 2026-03")
+	case p.ClaimedEnd != "" && p.ClaimedEnd != "present" && !claimedDate.MatchString(p.ClaimedEnd):
+		return ErrBadInput(p.Name + ": the end must look like 2026, 2026-03 or present")
+	case p.ClaimedTeam != "" && p.ClaimedTeam != "solo" && p.ClaimedTeam != "team":
+		return ErrBadInput(p.Name + ": the team must be solo or team")
+	case p.ClaimedTeamSize < 0 || p.ClaimedTeamSize > 99:
+		return ErrBadInput(p.Name + ": the team size must be between 1 and 99")
+	case len([]rune(p.ClaimedRole)) > 40:
+		return ErrBadInput(p.Name + ": the role is too long")
+	}
+	return nil
 }
 
 // Found is what the resume reader found, for the recruiter to confirm.
@@ -134,19 +161,30 @@ type Found struct {
 	Projects      []FoundProject    `json:"projects"`
 	CodingHandles map[string]string `json:"coding_handles"`
 	CodingLinks   map[string]string `json:"coding_links"`
+	// ProfileLinks are GitHub, LinkedIn, portfolio and other profile pages on the resume: kind -> address. Never email
+	// or phone numbers.
+	ProfileLinks map[string]string `json:"profile_links"`
 }
 
 // Confirmation is the confirmed list the recruiter sends back.
 type Confirmation struct {
 	Projects       []FoundProject    `json:"projects"`
 	CodingProfiles map[string]string `json:"coding_profiles"` // site -> handle or profile link; empty removes it
+	// ProfileLinks replaces the profile links when sent (kind -> http(s) address; empty removes it). Nil keeps them.
+	ProfileLinks map[string]string `json:"profile_links"`
 }
 
 type confirmed struct {
 	projects []FoundProject
 	handles  map[string]string
 	links    map[string]string
+	profiles map[string]string // nil: keep what is saved
 }
+
+const maxProfileLinks = 15
+
+// One to twenty characters: "x" (X / Twitter) is a real link name the resume reader saves.
+var profileKind = regexp.MustCompile(`^[a-z][a-z0-9_]{0,19}$`)
 
 // check turns the recruiter's input into clean values or a plain-words problem.
 func (c Confirmation) check() (confirmed, error) {
@@ -182,7 +220,12 @@ func (c Confirmation) check() (confirmed, error) {
 		if err != nil {
 			return out, err
 		}
-		out.projects = append(out.projects, FoundProject{ID: p.ID, Name: name, LiveURL: live, RepoURL: repo, VideoURL: video})
+		fp := FoundProject{ID: p.ID, Name: name, LiveURL: live, RepoURL: repo, VideoURL: video, ClaimedStart: p.ClaimedStart,
+			ClaimedEnd: p.ClaimedEnd, ClaimedTeam: p.ClaimedTeam, ClaimedTeamSize: p.ClaimedTeamSize, ClaimedRole: p.ClaimedRole}
+		if err := checkClaims(&fp); err != nil {
+			return out, err
+		}
+		out.projects = append(out.projects, fp)
 	}
 	for site, input := range c.CodingProfiles {
 		handle, link, err := ParseProfile(site, input)
@@ -194,18 +237,37 @@ func (c Confirmation) check() (confirmed, error) {
 			out.links[site] = link
 		}
 	}
+	if c.ProfileLinks != nil {
+		out.profiles = map[string]string{}
+		for kind, raw := range c.ProfileLinks {
+			kind = strings.ToLower(strings.TrimSpace(kind))
+			if !profileKind.MatchString(kind) {
+				return out, ErrBadInput(fmt.Sprintf("%q is not a link name", kind))
+			}
+			link, err := cleanLink("the "+kind+" link", raw)
+			if err != nil {
+				return out, err
+			}
+			if link != "" {
+				out.profiles[kind] = link
+			}
+		}
+		if len(out.profiles) > maxProfileLinks {
+			return out, ErrBadInput(fmt.Sprintf("at most %d profile links", maxProfileLinks))
+		}
+	}
 	return out, nil
 }
 
 // Found returns what was read from the resume. The caller has already checked the owner.
 func (s *Store) Found(ctx context.Context, candidateID string) (Found, error) {
 	var (
-		f              Found
-		handles, links []byte
+		f                        Found
+		handles, links, profiles []byte
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT status, coalesce(status_detail, ''), role_level, coding_handles, coding_links
-		  FROM candidates WHERE id = $1::uuid`, candidateID).Scan(&f.Status, &f.StatusDetail, &f.RoleLevel, &handles, &links)
+		SELECT status, coalesce(status_detail, ''), role_level, coding_handles, coding_links, profile_links
+		  FROM candidates WHERE id = $1::uuid`, candidateID).Scan(&f.Status, &f.StatusDetail, &f.RoleLevel, &handles, &links, &profiles)
 	if err != nil {
 		return Found{}, fmt.Errorf("read candidate: %w", err)
 	}
@@ -216,9 +278,15 @@ func (s *Store) Found(ctx context.Context, candidateID string) (Found, error) {
 	if err := json.Unmarshal(links, &f.CodingLinks); err != nil {
 		return Found{}, fmt.Errorf("read coding links: %w", err)
 	}
+	f.ProfileLinks = map[string]string{}
+	if err := json.Unmarshal(profiles, &f.ProfileLinks); err != nil {
+		return Found{}, fmt.Errorf("read profile links: %w", err)
+	}
 	f.Projects = []FoundProject{}
 	rows, err := s.pool.Query(ctx, `
-		SELECT id::text, name, coalesce(live_url, ''), coalesce(repo_url, ''), coalesce(video_url, ''), bullets
+		SELECT id::text, name, coalesce(live_url, ''), coalesce(repo_url, ''), coalesce(video_url, ''), bullets,
+		       coalesce(claimed_start, ''), coalesce(claimed_end, ''), coalesce(claimed_team, ''),
+		       coalesce(claimed_team_size, 0), coalesce(claimed_role, '')
 		  FROM candidate_projects WHERE candidate_id = $1::uuid ORDER BY created_at, id`, candidateID)
 	if err != nil {
 		return Found{}, fmt.Errorf("read projects: %w", err)
@@ -226,7 +294,8 @@ func (s *Store) Found(ctx context.Context, candidateID string) (Found, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var p FoundProject
-		if err := rows.Scan(&p.ID, &p.Name, &p.LiveURL, &p.RepoURL, &p.VideoURL, &p.Bullets); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.LiveURL, &p.RepoURL, &p.VideoURL, &p.Bullets, &p.ClaimedStart, &p.ClaimedEnd,
+			&p.ClaimedTeam, &p.ClaimedTeamSize, &p.ClaimedRole); err != nil {
 			return Found{}, err
 		}
 		for i, b := range p.Bullets {
@@ -309,6 +378,18 @@ func (s *Store) Confirm(ctx context.Context, candidateID string, in Confirmation
 				return nil, fmt.Errorf("add project: %w", err)
 			}
 		}
+		// A confirm with no claim fields at all (an older form) keeps what the resume reader found.
+		noClaims := p.ClaimedStart == "" && p.ClaimedEnd == "" && p.ClaimedTeam == "" && p.ClaimedTeamSize == 0 && p.ClaimedRole == ""
+		if noClaims {
+			ids = append(ids, id)
+			continue
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE candidate_projects SET claimed_start = NULLIF($2, ''), claimed_end = NULLIF($3, ''),
+			       claimed_team = NULLIF($4, ''), claimed_team_size = NULLIF($5, 0), claimed_role = NULLIF($6, '')
+			 WHERE id = $1::uuid`, id, p.ClaimedStart, p.ClaimedEnd, p.ClaimedTeam, p.ClaimedTeamSize, p.ClaimedRole); err != nil {
+			return nil, fmt.Errorf("save project claims: %w", err)
+		}
 		ids = append(ids, id)
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM candidate_projects WHERE candidate_id = $1::uuid AND NOT (id::text = ANY($2))`,
@@ -321,6 +402,12 @@ func (s *Store) Confirm(ctx context.Context, candidateID string, in Confirmation
 		UPDATE candidates SET coding_handles = $2::jsonb, coding_links = $3::jsonb, updated_at = now() WHERE id = $1::uuid`,
 		candidateID, handles, links); err != nil {
 		return nil, fmt.Errorf("save coding profiles: %w", err)
+	}
+	if c.profiles != nil {
+		profiles, _ := json.Marshal(c.profiles)
+		if _, err := tx.Exec(ctx, `UPDATE candidates SET profile_links = $2::jsonb WHERE id = $1::uuid`, candidateID, profiles); err != nil {
+			return nil, fmt.Errorf("save profile links: %w", err)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit confirm: %w", err)

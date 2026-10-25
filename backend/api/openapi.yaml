@@ -103,6 +103,72 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/RoleTaken' }
 
+  /v1/auth/register:
+    post:
+      operationId: registerPassword
+      tags: [Account]
+      summary: Set a password (create an email and password account)
+      description: |
+        Called by the website's sign-up form. The token names the email and the role (the sign-in door); the account is
+        made with that role if it is new. An email that already has a password is refused: sign in instead. The password
+        is stored only as a bcrypt hash and is never returned. Too many refused tries from one address are slowed down.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        '201':
+          description: The account now has a password.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email: { type: string }
+                  role: { type: string, enum: [organizer, recruiter] }
+        '400': { description: 'No role in the token, or the password is not 8 to 128 characters.' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/RoleTaken' }
+        '409': { description: 'This email already has an account; sign in instead.' }
+        '429': { description: 'Too many tries; wait a few minutes.' }
+
+  /v1/auth/password-login:
+    post:
+      operationId: passwordLogin
+      tags: [Account]
+      summary: Check an email and password
+      description: |
+        Called by the website's sign-in form. The token names the email (no role needed). A wrong password and an unknown
+        email get the same answer, and an unknown email never creates an account. Five failures within 15 minutes for one
+        email, or from one address, are refused for a while (429).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        '200':
+          description: The password is right.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email: { type: string }
+                  name: { type: string }
+                  role: { type: string, enum: [organizer, recruiter, ''] }
+        '401': { description: 'Email or password is wrong, or no valid token.' }
+        '429': { description: 'Too many failed tries; wait a few minutes.' }
+
   /v1/events:
     post:
       operationId: createEvent
@@ -800,6 +866,113 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               example: { error: this project is still being checked }
 
+  /v1/candidates/{id}/jobs:
+    get:
+      operationId: listCandidateJobs
+      tags: [Candidates]
+      summary: Every job of a candidate's check
+      description: The candidate's own jobs and its resume projects' jobs, newest run first, for the jobs panel.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      responses:
+        '200': { description: The jobs., content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Job' } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{id}/jobs:
+    get:
+      operationId: listProjectJobs
+      tags: [Projects]
+      summary: Every job of a hackathon project's check
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      responses:
+        '200': { description: The jobs., content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Job' } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/candidate-projects/{id}/run-stages:
+    post:
+      operationId: runCandidateProjectStages
+      tags: [Candidates]
+      summary: Run chosen stages of a resume project again
+      description: |
+        **May spend money.** A new run of the `recruiter` pipeline: stages that are neither chosen nor after a chosen one
+        are reused with their last saved result; the chosen stages and everything after them run again.
+      parameters: [{ $ref: '#/components/parameters/CandidateProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/Stages' }
+      responses:
+        '202': { description: Started., content: { application/json: { schema: { type: object, properties: { run: { type: integer }, queued: { type: array, items: { type: string } } } } } } }
+        '400': { description: A stage that is not part of the pipeline., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Still being checked., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /v1/candidates/{id}/run-stages:
+    post:
+      operationId: runCandidateStages
+      tags: [Candidates]
+      summary: Run chosen coding-profile stages again
+      description: A new run of the `recruiter_coding` pipeline, reusing the stages not chosen.
+      parameters: [{ $ref: '#/components/parameters/CandidateId' }]
+      requestBody: { $ref: '#/components/requestBodies/Stages' }
+      responses:
+        '202': { description: Started., content: { application/json: { schema: { type: object, properties: { run: { type: integer }, queued: { type: array, items: { type: string } } } } } } }
+        '400': { description: A stage that is not part of the pipeline., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Still being checked., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /v1/projects/{id}/run-stages:
+    post:
+      operationId: runProjectStages
+      tags: [Projects]
+      summary: Run chosen stages of a hackathon project again
+      description: '**May spend money.** A new run of the `hackathon` pipeline, reusing the stages not chosen.'
+      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      requestBody: { $ref: '#/components/requestBodies/Stages' }
+      responses:
+        '202': { description: Started., content: { application/json: { schema: { type: object, properties: { run: { type: integer }, queued: { type: array, items: { type: string } } } } } } }
+        '400': { description: A stage that is not part of the pipeline., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongRole' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Still being checked., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /v1/jobs/{id}/retry:
+    post:
+      operationId: retryJob
+      tags: [Projects]
+      summary: Retry one failed job
+      description: Puts a failed job back in the queue in its own run. Only the owner of what the job is about may.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '202': { description: Queued again., content: { application/json: { schema: { type: object, properties: { job_id: { type: string, format: uuid } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The job is not failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: only a failed job can be retried }
+
+  /v1/jobs/{id}/log:
+    get:
+      operationId: getJobLog
+      tags: [Projects]
+      summary: Read one job's log
+      description: The live events one job sent while it ran (what the stage did, step by step), oldest first, at most 500. Only the owner of what the job is about may.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: The job's events., content: { application/json: { schema: { type: object, properties: { events: { type: array, items: { type: object } } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/candidate-projects/{id}/custom-test:
     post:
       operationId: customTestCandidateProject
@@ -1171,6 +1344,15 @@ components:
       { name: id, in: path, required: true, description: The id of one project on a candidate's resume., schema: { type: string, format: uuid } }
 
   requestBodies:
+    Stages:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [stages]
+            properties:
+              stages: { type: array, items: { type: string }, example: [live_test] }
     CustomTest:
       required: true
       content:
@@ -1310,6 +1492,25 @@ components:
           schema: { type: string }
 
   schemas:
+    Job:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        pipeline: { type: string }
+        stage: { type: string }
+        target_type: { type: string }
+        target_id: { type: string, format: uuid }
+        project: { type: string }
+        run: { type: integer }
+        status: { type: string, enum: [queued, running, retrying, done, failed] }
+        tries: { type: integer }
+        max_tries: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        seconds: { type: number }
+        error: { type: string }
+        result: { type: object }
+        after_stages: { type: array, items: { type: string }, description: The stages this one waits for, to draw the pipeline. }
     Error:
       type: object
       description: Every error, in plain words.
