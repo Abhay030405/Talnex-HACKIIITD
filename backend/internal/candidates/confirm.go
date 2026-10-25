@@ -183,7 +183,8 @@ type confirmed struct {
 
 const maxProfileLinks = 15
 
-var profileKind = regexp.MustCompile(`^[a-z][a-z0-9_]{1,19}$`)
+// One to twenty characters: "x" (X / Twitter) is a real link name the resume reader saves.
+var profileKind = regexp.MustCompile(`^[a-z][a-z0-9_]{0,19}$`)
 
 // check turns the recruiter's input into clean values or a plain-words problem.
 func (c Confirmation) check() (confirmed, error) {
