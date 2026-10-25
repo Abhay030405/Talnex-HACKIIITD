@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalNex AI Architecture</title>
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --surface-2: #eef1f5; --text: #151a22; --muted: #5b6575;
+  --line: #d5dbe4; --accent: #2457d6; --accent-soft: #e3ebfd; --go: #0b7a75; --go-soft: #dcf3f1;
+  --py: #7a4fd0; --py-soft: #ece4fa; --ok: #1a7f45; --ok-soft: #dff3e7; --warn: #a15c00; --warn-soft: #fdf0d8;
+  --bad: #b3261e; --bad-soft: #fbe3e1; --code-bg: #eef1f5; --shadow: 0 1px 2px rgba(20,30,50,.06), 0 4px 16px rgba(20,30,50,.05);
+  --radius: 12px; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1218; --surface: #161c25; --surface-2: #1d2531; --text: #e7ecf3; --muted: #9aa6b8;
+    --line: #2b3545; --accent: #6b9cff; --accent-soft: #1b2a4a; --go: #4fd1c5; --go-soft: #12332f;
+    --py: #b79cff; --py-soft: #2a2144; --ok: #5fd08a; --ok-soft: #15301f; --warn: #f0b45a; --warn-soft: #3a2a10;
+    --bad: #ff8a80; --bad-soft: #3d1a18; --code-bg: #1d2531; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 20px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--sans); }
+a { color: var(--accent); }
+code { font-family: var(--mono); font-size: .86em; background: var(--code-bg); padding: .1em .4em; border-radius: 5px; }
+.layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); max-width: 1320px; margin: 0 auto; }
+nav.toc { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; padding: 28px 18px 28px 24px; border-right: 1px solid var(--line); }
+nav.toc .brand { font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+nav.toc .sub { color: var(--muted); font-size: .8rem; margin-bottom: 18px; }
+nav.toc a { display: block; color: var(--muted); text-decoration: none; padding: 5px 10px; border-radius: 8px; font-size: .88rem; }
+nav.toc a:hover { background: var(--surface-2); color: var(--text); }
+nav.toc a span { color: var(--accent); font-family: var(--mono); font-size: .78rem; margin-right: 6px; }
+main { padding: 40px 40px 80px; min-width: 0; }
+header.hero { padding: 36px 36px 30px; border-radius: 18px; background: linear-gradient(135deg, var(--accent-soft), var(--py-soft)); border: 1px solid var(--line); margin-bottom: 36px; }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .74rem; color: var(--accent); font-weight: 700; }
+h1 { font-size: 2.2rem; line-height: 1.15; margin: 8px 0 12px; }
+.hero p { max-width: 70ch; color: var(--muted); margin: 0 0 18px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { display: inline-block; font-size: .78rem; padding: 3px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.pill.go { background: var(--go-soft); color: var(--go); border-color: transparent; }
+.pill.py { background: var(--py-soft); color: var(--py); border-color: transparent; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.pill.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+section { margin-bottom: 56px; }
+h2 { font-size: 1.55rem; margin: 0 0 6px; padding-top: 6px; }
+h2 .num { color: var(--accent); font-family: var(--mono); font-size: 1rem; margin-right: 10px; }
+h3 { font-size: 1.08rem; margin: 28px 0 8px; }
+.lead { color: var(--muted); max-width: 75ch; margin: 0 0 20px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); }
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card h4 { margin: 0 0 6px; font-size: .98rem; }
+.card p { margin: 0; color: var(--muted); font-size: .92rem; }
+.card ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: .92rem; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin: 16px 0; box-shadow: var(--shadow); overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.diagram figcaption { color: var(--muted); font-size: .85rem; padding: 8px 6px 0; }
+figure { margin: 0; }
+svg text { font-family: var(--sans); font-size: 13px; fill: var(--text); }
+svg .small { font-size: 11px; fill: var(--muted); }
+svg .title { font-size: 12px; font-weight: 700; fill: var(--muted); letter-spacing: .08em; }
+svg .box { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.2; }
+svg .box.go { fill: var(--go-soft); stroke: var(--go); }
+svg .box.py { fill: var(--py-soft); stroke: var(--py); }
+svg .box.db { fill: var(--accent-soft); stroke: var(--accent); }
+svg .box.ok { fill: var(--ok-soft); stroke: var(--ok); }
+svg .box.bad { fill: var(--bad-soft); stroke: var(--bad); }
+svg .box.warn { fill: var(--warn-soft); stroke: var(--warn); }
+svg .edge { stroke: var(--muted); stroke-width: 1.4; fill: none; marker-end: url(#arr); }
+svg .edge.dash { stroke-dasharray: 5 4; }
+svg marker path { fill: var(--muted); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; font-size: .9rem; margin: 12px 0; }
+th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--surface-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+.tablewrap { overflow-x: auto; }
+.callout { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; font-size: .93rem; }
+.callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+.callout.ok { border-color: var(--ok); background: var(--ok-soft); }
+ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 14px 0; }
+ol.steps li { counter-increment: s; position: relative; padding: 4px 0 12px 46px; color: var(--muted); font-size: .94rem; }
+ol.steps li strong { color: var(--text); }
+ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 2px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: .85rem; display: grid; place-items: center; }
+.ladder { display: grid; gap: 8px; margin: 14px 0; }
+.rung { display: flex; gap: 12px; align-items: baseline; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: .92rem; }
+.rung b { color: var(--accent); font-family: var(--mono); min-width: 22px; }
+.rung span { color: var(--muted); }
+footer { color: var(--muted); font-size: .83rem; border-top: 1px solid var(--line); padding-top: 18px; }
+@media (max-width: 960px) {
+  .layout { grid-template-columns: 1fr; }
+  nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  main { padding: 24px 16px 60px; }
+  .g2, .g3 { grid-template-columns: 1fr; }
+  h1 { font-size: 1.7rem; }
+  header.hero { padding: 24px 20px; }
+}
+@media print { nav.toc { display: none; } .layout { display: block; } body { background: #fff; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>
+</svg>
+
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+  <div class="brand">TalNex AI</div>
+  <div class="sub">Architecture and orchestration</div>
+  <a href="#overview"><span>01</span>Overview</a>
+  <a href="#system"><span>02</span>System design</a>
+  <a href="#orchestration"><span>03</span>Job orchestration</a>
+  <a href="#pipelines"><span>04</span>Pipelines</a>
+  <a href="#engine"><span>05</span>Testing engine</a>
+  <a href="#verdict"><span>06</span>Verdicts and scoring</a>
+  <a href="#login"><span>07</span>Login ladder</a>
+  <a href="#checks"><span>08</span>Checks and signals</a>
+  <a href="#models"><span>09</span>Model layer</a>
+  <a href="#interactive"><span>10</span>Ask, tour, walkthrough</a>
+  <a href="#live"><span>11</span>Live events</a>
+  <a href="#safety"><span>12</span>Safety rules</a>
+  <a href="#data"><span>13</span>Data and storage</a>
+  <a href="#eval"><span>14</span>Evaluation gate</a>
+  <a href="#deploy"><span>15</span>Deployment</a>
+  <a href="#map"><span>16</span>Code map</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">System design reference</div>
+  <h1>TalNex AI architecture</h1>
+  <p>TalNex opens a project's live link, uses it like a real person, and gives proof of what actually works. This document describes how the AI side is built and orchestrated: the job queue, the pipelines, the testing engine, the model layer and the rules that keep every verdict honest.</p>
+  <div class="meta">
+    <span class="pill py">Python AI workers</span>
+    <span class="pill go">Go API and workers</span>
+    <span class="pill">PostgreSQL job queue</span>
+    <span class="pill">TinyFish browser agent</span>
+    <span class="pill ok">Checked against code, 2026-10-25</span>
+  </div>
+</header>
+
+<!-- 01 -->
+<section id="overview">
+  <h2><span class="num">01</span>Overview</h2>
+  <p class="lead">One engine serves three modes. Only the input and the final report change.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Mode</th><th>Who</th><th>Claims come from</th><th>Output</th></tr>
+    <tr><td>Open-theme hackathon</td><td>Organizer</td><td>The demo video</td><td>Proof card, TalNex score per group, flags, AI opinion, who built each feature best</td></tr>
+    <tr><td>Fixed-problem hackathon</td><td>Organizer</td><td>Organizer's weighted criteria plus the video</td><td>Same card, with groups from the criteria and a labelled weighted total</td></tr>
+    <tr><td>Recruiter</td><td>Recruiter</td><td>Resume bullets plus README</td><td>Proof report with a score out of 10 per feature, originality and coding profile signals</td></tr>
+  </table></div>
+
+  <h3>The AI does five jobs</h3>
+  <div class="grid g3">
+    <div class="card"><h4>1 · Read</h4><p>Demo video, resume bullets and README become a list of testable claims.</p></div>
+    <div class="card"><h4>2 · Plan</h4><p>Each claim becomes steps, an expected result and one to four checks.</p></div>
+    <div class="card"><h4>3 · Run</h4><p>An agent uses the live site step by step and saves a screenshot at every action.</p></div>
+    <div class="card"><h4>4 · Judge</h4><p>Two judges mark every check; plain code decides the verdict, never a model.</p></div>
+    <div class="card"><h4>5 · Score</h4><p>Group scores, flags and an AI opinion, each with proof, coverage and confidence.</p></div>
+    <div class="card"><h4>Promise</h4><p>"Could not test" never counts against anyone. Flags are never subtracted. No ranking, no single winner.</p></div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section id="system">
+  <h2><span class="num">02</span>System design</h2>
+  <p class="lead">Go owns the database schema and everything that needs official APIs. Python owns everything that uses a model or the agent. They never call each other: they only share the <code>jobs</code> table and typed JSON formats.</p>
+
+  <figure class="diagram">
+  <svg viewBox="0 0 960 520" role="img" aria-label="System context diagram">
+    <text class="title" x="30" y="20">CLIENTS</text>
+    <rect class="box" x="30" y="30" width="150" height="54" rx="10"/><text x="105" y="53" text-anchor="middle">Organizer</text><text class="small" x="105" y="70" text-anchor="middle">and recruiter</text>
+    <rect class="box" x="230" y="30" width="170" height="54" rx="10"/><text x="315" y="53" text-anchor="middle">Next.js website</text><text class="small" x="315" y="70" text-anchor="middle">forms, cards, reports</text>
+    <rect class="box go" x="450" y="30" width="170" height="54" rx="10"/><text x="535" y="53" text-anchor="middle">Go API</text><text class="small" x="535" y="70" text-anchor="middle">owner checks, signed tokens</text>
+    <rect class="box" x="710" y="30" width="200" height="54" rx="10"/><text x="810" y="53" text-anchor="middle">Cloudflare R2</text><text class="small" x="810" y="70" text-anchor="middle">screenshots, frames, PDFs</text>
+    <path class="edge" d="M180 57 H230"/><path class="edge" d="M400 57 H450"/><path class="edge dash" d="M620 57 H710"/>
+    <text class="small" x="665" y="50" text-anchor="middle">view links</text>
+
+    <rect class="box db" x="430" y="160" width="210" height="76" rx="12"/>
+    <text x="535" y="190" text-anchor="middle" style="font-weight:700">PostgreSQL</text>
+    <text class="small" x="535" y="208" text-anchor="middle">facts and results · jobs queue</text>
+    <text class="small" x="535" y="224" text-anchor="middle">pipeline_stages · live_events</text>
+    <path class="edge" d="M535 84 V160"/>
+
+    <text class="title" x="150" y="276">GO SIDE</text>
+    <rect class="box go" x="130" y="286" width="230" height="64" rx="10"/><text x="245" y="312" text-anchor="middle">Go workers</text><text class="small" x="245" y="330" text-anchor="middle">GitHub · Codeforces · dates · cleanup</text>
+    <text class="title" x="500" y="276">PYTHON SIDE</text>
+    <rect class="box py" x="480" y="286" width="260" height="64" rx="10"/><text x="610" y="312" text-anchor="middle">Python AI workers</text><text class="small" x="610" y="330" text-anchor="middle">video · claims · plans · agent · judges · scoring</text>
+    <path class="edge" d="M245 286 L470 236"/>
+    <path class="edge" d="M610 286 L570 236"/>
+    <text class="small" x="330" y="248" text-anchor="middle">claims Go jobs</text>
+    <text class="small" x="672" y="262" text-anchor="middle">claims AI jobs</text>
+
+    <rect class="box" x="60" y="440" width="140" height="50" rx="10"/><text x="130" y="470" text-anchor="middle">GitHub API</text>
+    <rect class="box" x="220" y="440" width="140" height="50" rx="10"/><text x="290" y="470" text-anchor="middle">Codeforces API</text>
+    <path class="edge" d="M200 350 L140 440"/><path class="edge" d="M290 350 L290 440"/>
+
+    <rect class="box" x="400" y="440" width="125" height="50" rx="10"/><text x="462" y="462" text-anchor="middle">LLMs</text><text class="small" x="462" y="478" text-anchor="middle">OpenRouter / Azure</text>
+    <rect class="box" x="535" y="440" width="125" height="50" rx="10"/><text x="597" y="462" text-anchor="middle">TinyFish</text><text class="small" x="597" y="478" text-anchor="middle">browser agent</text>
+    <rect class="box" x="670" y="440" width="125" height="50" rx="10"/><text x="732" y="462" text-anchor="middle">AgentMail / SMS</text><text class="small" x="732" y="478" text-anchor="middle">throwaway sign-ups</text>
+    <rect class="box" x="805" y="440" width="125" height="50" rx="10"/><text x="867" y="462" text-anchor="middle">sandboxd</text><text class="small" x="867" y="478" text-anchor="middle">VM host (Go)</text>
+    <path class="edge" d="M570 350 L462 440"/><path class="edge" d="M600 350 L597 440"/><path class="edge" d="M640 350 L732 440"/><path class="edge" d="M690 350 L867 440"/>
+    <path class="edge dash" d="M740 318 L810 318 L810 84"/>
+    <text class="small" x="822" y="200">uploads</text>
+  </svg>
+  <figcaption>Go and Python only meet inside PostgreSQL. The one exception is sandboxd, a machine controller that Python may call, only through <code>sandbox/client/</code>.</figcaption>
+  </figure>
+
+  <h3>Why this shape</h3>
+  <div class="grid g3">
+    <div class="card"><h4>Stages, not one big job</h4><p>An agent run takes seconds to minutes. Each stage is its own job, so a failure retries only that stage and many projects run side by side.</p></div>
+    <div class="card"><h4>TinyFish only where needed</h4><p>Live apps, LeetCode replay and inboxes have no official API. GitHub and Codeforces use theirs: cheaper, faster, exact. Fetch is tried first; an Agent run is spent only if the page is alive.</p></div>
+    <div class="card"><h4>Files in R2, facts in Postgres</h4><p>Images and videos are big and only viewed. Results are searched, sorted and compared. The database keeps only file keys.</p></div>
+  </div>
+</section>
+
+<!-- 03 -->
+<section id="orchestration">
+  <h2><span class="num">03</span>Job orchestration</h2>
+  <p class="lead">There is no separate queue server. The queue is the <code>jobs</code> table, and the queue rules live inside Postgres functions so Go and Python share one implementation.</p>
+
+  <div class="grid g2">
+    <div class="card"><h4>The queue</h4>
+      <ul>
+        <li>Each job has a <b>type</b> (<code>live_test</code>, <code>github_check</code>…), a <b>runner</b> (<code>go</code> or <code>python</code>), a status, a try count and a time limit.</li>
+        <li>Status: <code>queued</code>, <code>running</code>, <code>done</code>, <code>failed</code>, <code>retrying</code>.</li>
+        <li>Workers take the next free job of their runner type. Postgres locks it, so two workers never take the same job.</li>
+        <li>Adding a job sends a small wake-up signal so workers start at once.</li>
+      </ul></div>
+    <div class="card"><h4>Queue functions</h4>
+      <ul>
+        <li><code>enqueue_job</code> · <code>take_job</code> · <code>complete_job</code> · <code>fail_job</code></li>
+        <li><code>start_pipeline</code> creates the first jobs for a target.</li>
+        <li><code>reap_stuck_jobs</code> frees jobs whose worker died.</li>
+        <li><code>dedupe_key</code> ignores a duplicate job, which keeps every job safe to run twice.</li>
+      </ul></div>
+  </div>
+
+  <h3>The stage order is data</h3>
+  <p class="lead">Each row of <code>pipeline_stages</code> names a pipeline, a stage, its runner, the kind of target (<code>project</code>, <code>candidate_project</code>, <code>candidate</code>) and an <code>after_stages</code> list. A stage starts when every stage in that list is done for the same target and run. A re-run bumps <code>run_number</code>. A stage with nothing to do finishes with <code>{"skipped": true}</code> so the next stages still start.</p>
+
+  <ol class="steps">
+    <li><strong>Request in.</strong> The website posts to the Go API, which checks the owner, saves the project and calls <code>start_pipeline</code>.</li>
+    <li><strong>Take.</strong> A Python worker takes the job through <code>take_job</code> (row lock), and the handler for that job type runs.</li>
+    <li><strong>Save and chain in one step.</strong> The worker saves its results and adds the next stage's job in the same database transaction, so nothing is ever half-saved.</li>
+    <li><strong>Hand over across languages.</strong> A Go stage (such as <code>github_check</code>) is just a job with <code>runner = go</code>. Go workers do the work and complete it; Python workers pick up what follows.</li>
+    <li><strong>Event level.</strong> Copy between teams and feature comparison start only when every project in the event is done or done with gaps.</li>
+    <li><strong>Failure.</strong> A failed job retries up to its limit, then fails visibly. Stuck jobs are reaped. The project shows "Done with gaps" and lists exactly what could not be tested and why.</li>
+  </ol>
+
+  <div class="callout">The Python worker is a registry of handlers (<code>ai/talnex_ai/worker/registry.py</code>, <code>handlers/</code>). It decides nothing about what runs next; the queue does. Workers scale horizontally with <code>docker compose up -d --scale ai-worker=3</code>.</div>
+</section>
+
+<!-- 04 -->
+<section id="pipelines">
+  <h2><span class="num">04</span>Pipelines</h2>
+  <p class="lead">A pipeline is a named set of stages. These are the main ones, as seeded in the migrations.</p>
+
+  <h3>Hackathon, per project</h3>
+  <figure class="diagram">
+  <svg viewBox="0 0 1000 300" role="img" aria-label="Hackathon pipeline">
+    <rect class="box py" x="10" y="120" width="110" height="44" rx="9"/><text x="65" y="147" text-anchor="middle">precheck</text>
+    <rect class="box py" x="150" y="30" width="110" height="44" rx="9"/><text x="205" y="57" text-anchor="middle">video_read</text>
+    <rect class="box py" x="285" y="30" width="100" height="44" rx="9"/><text x="335" y="57" text-anchor="middle">claims</text>
+    <rect class="box py" x="410" y="30" width="100" height="44" rx="9"/><text x="460" y="57" text-anchor="middle">test_plan</text>
+    <rect class="box py" x="535" y="30" width="100" height="44" rx="9"/><text x="585" y="57" text-anchor="middle">live_test</text>
+    <rect class="box py" x="660" y="30" width="110" height="44" rx="9"/><text x="715" y="57" text-anchor="middle">proof_check</text>
+    <rect class="box py" x="410" y="120" width="110" height="44" rx="9"/><text x="465" y="147" text-anchor="middle">tutorial_copy</text>
+    <rect class="box go" x="150" y="210" width="110" height="44" rx="9"/><text x="205" y="237" text-anchor="middle">github_check</text>
+    <rect class="box py" x="285" y="210" width="110" height="44" rx="9"/><text x="340" y="237" text-anchor="middle">repo_checks</text>
+    <rect class="box py" x="850" y="120" width="130" height="44" rx="9"/><text x="915" y="147" text-anchor="middle">project_score</text>
+    <rect class="box warn" x="790" y="210" width="190" height="60" rx="9"/><text x="885" y="234" text-anchor="middle">event level, after all projects</text><text class="small" x="885" y="252" text-anchor="middle">copy between teams · feature compare</text>
+    <rect class="box go" x="420" y="210" width="130" height="44" rx="9"/><text x="485" y="232" text-anchor="middle">event_dates</text><text class="small" x="485" y="247" text-anchor="middle">sponsor_files (Go)</text>
+
+    <path class="edge" d="M120 130 L150 60"/><path class="edge" d="M260 52 H285"/><path class="edge" d="M385 52 H410"/><path class="edge" d="M510 52 H535"/><path class="edge" d="M635 52 H660"/>
+    <path class="edge" d="M65 164 L150 225"/><path class="edge" d="M260 232 H285"/><path class="edge" d="M395 232 L420 232"/>
+    <path class="edge" d="M335 74 L430 120"/>
+    <path class="edge" d="M770 55 L880 120"/><path class="edge" d="M520 142 H850"/><path class="edge" d="M395 222 L850 160"/>
+    <path class="edge" d="M915 164 V210"/>
+  </svg>
+  <figcaption>Purple stages run in Python, teal stages in Go. <code>project_score</code> waits for proof_check, repo_checks and tutorial_copy. <code>feature_score</code> also follows proof_check.</figcaption>
+  </figure>
+
+  <div class="tablewrap"><table>
+    <tr><th>Pipeline</th><th>Target</th><th>Stages (in order, with side branches)</th></tr>
+    <tr><td><code>hackathon</code></td><td>project</td><td>precheck → video_read → claims → test_plan → live_test → proof_check; github_check (Go) → repo_checks; event_dates and sponsor_files (Go); tutorial_copy; project_score. Repo-only track adds sandbox_run → route_discovery → sandbox_plan → sandbox_test → repo_tests → code_review → sandbox_end → track_reconcile</td></tr>
+    <tr><td><code>recruiter_candidate</code></td><td>candidate</td><td>resume_read, then the check waits for the recruiter to confirm projects and profiles</td></tr>
+    <tr><td><code>recruiter</code></td><td>candidate_project</td><td>precheck → claims → test_plan → live_test → proof_check; github_check (Go) → originality; project_summary; feature_score; sandbox track for repo-only projects</td></tr>
+    <tr><td><code>recruiter_coding</code></td><td>candidate</td><td>codeforces (Go), leetcode (Python replay capture), codechef (Python)</td></tr>
+    <tr><td><code>recruiter_report</code></td><td>candidate</td><td>candidate_report (Python) → resume_cleanup (Go) deletes the resume file and personal details</td></tr>
+    <tr><td><code>live_check</code>, <code>live_check_project</code></td><td>candidate_project, project</td><td>precheck → test_plan → live_test → proof_check → feature_score. A re-run that reuses the saved claims</td></tr>
+    <tr><td><code>sandbox_check</code>, <code>sandbox_check_project</code></td><td>candidate_project, project</td><td>sandbox_run → route_discovery → sandbox_plan → sandbox_test → sandbox_end</td></tr>
+  </table></div>
+
+  <div class="callout warn"><b>Repo-only projects.</b> The sandbox builds and runs a repo in a throwaway VM and tests backend routes and edge cases. AI parts are <em>reviewed from code, not run</em>, always labelled so, scored by implementation only and capped at 7/10; a claimed mechanism missing from the code scores 0. Backend-only projects get no UI score or UI opinion.</div>
+</section>
+
+<!-- 05 -->
+<section id="engine">
+  <h2><span class="num">05</span>The testing engine</h2>
+  <p class="lead">The heart of TalNex. It takes a runner (live browser or sandbox HTTP) and never cares which one. Mode differences live in the pipeline order and report only.</p>
+
+  <figure class="diagram">
+  <svg viewBox="0 0 1000 300" role="img" aria-label="Testing engine flow">
+    <rect class="box" x="10" y="30" width="140" height="56" rx="10"/><text x="80" y="55" text-anchor="middle">Claim</text><text class="small" x="80" y="72" text-anchor="middle">group · importance</text>
+    <rect class="box py" x="190" y="30" width="150" height="56" rx="10"/><text x="265" y="55" text-anchor="middle">Test planner</text><text class="small" x="265" y="72" text-anchor="middle">steps + 1–4 checks</text>
+    <rect class="box" x="380" y="30" width="130" height="56" rx="10"/><text x="445" y="55" text-anchor="middle">Fetch</text><text class="small" x="445" y="72" text-anchor="middle">is the page alive?</text>
+    <rect class="box py" x="550" y="30" width="130" height="56" rx="10"/><text x="615" y="55" text-anchor="middle">Login ladder</text><text class="small" x="615" y="72" text-anchor="middle">legal way in</text>
+    <rect class="box py" x="720" y="30" width="190" height="56" rx="10"/><text x="815" y="55" text-anchor="middle">Step loop</text><text class="small" x="815" y="72" text-anchor="middle">screenshot at every action</text>
+    <path class="edge" d="M150 58 H190"/><path class="edge" d="M340 58 H380"/><path class="edge" d="M510 58 H550"/><path class="edge" d="M680 58 H720"/>
+
+    <path class="edge" d="M815 86 V130 H80 V170"/>
+    <rect class="box py" x="10" y="170" width="150" height="62" rx="10"/><text x="85" y="195" text-anchor="middle">Judge A</text><text class="small" x="85" y="212" text-anchor="middle">run's final look</text>
+    <rect class="box py" x="200" y="170" width="160" height="62" rx="10"/><text x="280" y="195" text-anchor="middle">Judge B</text><text class="small" x="280" y="212" text-anchor="middle">blind proof check</text>
+    <rect class="box ok" x="400" y="170" width="160" height="62" rx="10"/><text x="480" y="195" text-anchor="middle">Verdict by code</text><text class="small" x="480" y="212" text-anchor="middle">claim_points</text>
+    <rect class="box warn" x="600" y="170" width="170" height="62" rx="10"/><text x="685" y="195" text-anchor="middle">Retry / never-blame</text><text class="small" x="685" y="212" text-anchor="middle">before any "broken"</text>
+    <rect class="box db" x="810" y="170" width="170" height="62" rx="10"/><text x="895" y="195" text-anchor="middle">Result + steps</text><text class="small" x="895" y="212" text-anchor="middle">saved to Postgres, R2</text>
+    <path class="edge" d="M160 201 H200"/><path class="edge" d="M360 201 H400"/><path class="edge" d="M560 201 H600"/><path class="edge" d="M770 201 H810"/>
+    <text class="small" x="500" y="270" text-anchor="middle">Judge B sees only the screenshots and the expected result, never Judge A's verdict.</text>
+  </svg>
+  <figcaption>The line between the acting layer (planner side and step loop) and the judging layer is <code>judge.final_look(...)</code>.</figcaption>
+  </figure>
+
+  <h3>Test types the planner writes</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Type</th><th>What it does</th><th>Feeds group</th></tr>
+    <tr><td>Normal</td><td>Uses the claimed feature as shown</td><td>Core, or the organizer's criterion</td></tr>
+    <tr><td>Demo Replay</td><td>Follows the exact click path from the video and compares screens</td><td>Core, plus a mismatch flag</td></tr>
+    <tr><td>Known-answer</td><td>An input whose right answer is known (a CC0 dog photo, caption must say dog)</td><td>Logic</td></tr>
+    <tr><td>Repeat</td><td>Runs the main feature twice</td><td>Reliability</td></tr>
+    <tr><td>Bad input</td><td>One safe bad input (empty field, wrong file type)</td><td>Reliability</td></tr>
+    <tr><td>Access</td><td>Login, main pages, private pages blocked when signed out</td><td>Access</td></tr>
+  </table></div>
+
+  <h3>A claim is split into checks</h3>
+  <p class="lead">Every main plan (<code>normal</code>, <code>access</code>) carries one to four <code>checks</code>. Plain code rejects a plan whose quotes are not from the claim or leave most of it untested.</p>
+  <div class="grid g3">
+    <div class="card"><h4>text</h4><p>What must be visible on screen.</p></div>
+    <div class="card"><h4>quote</h4><p>The claim's own words that this check proves, copied from the claim.</p></div>
+    <div class="card"><h4>promise</h4><p>True for what the claim says the visitor <em>gets</em>; false for a step on the way (open the page, choose a photo).</p></div>
+  </div>
+
+  <h3>The step loop (acting layer)</h3>
+  <ol class="steps">
+    <li><strong>Look.</strong> The page is read as an accessibility snapshot. A screenshot is added only when the text is not enough.</li>
+    <li><strong>Choose one action.</strong> Steps that name one clear action ("type 'milk' into 'What needs to be done?'", "click Add", "press Enter") are turned into actions by plain code with no model call (<code>simple_steps.py</code>, switch <code>RUNNER_MODEL_FREE_STEPS</code>). Anything it does not fully understand goes to the model.</li>
+    <li><strong>Safety check.</strong> Plain code vets the action (<code>actions.py: unsafe_reason</code>): never pay, delete or message real users, stay on the project's site, test data is labelled "TalNex test".</li>
+    <li><strong>Do it.</strong> The driver performs the action through a TinyFish browser session and saves a screenshot, plus the network and console record and any secrets the site leaks.</li>
+    <li><strong>Repeat</strong> until the step's expected result is visible or limits hit. The time limit grows with the plan (<code>RUNNER_SECONDS_PER_STEP</code>).</li>
+    <li><strong>Hand over.</strong> The loop gives what was done and the final page to <code>judge.final_look</code>. It never blames a site for its own trouble: running out of time or actions, an unsolvable CAPTCHA or a refused action end as "blocked", not "broken".</li>
+  </ol>
+</section>
+
+<!-- 06 -->
+<section id="verdict">
+  <h2><span class="num">06</span>Verdicts and scoring</h2>
+  <p class="lead">Mistakes used to come from a model deciding in free text what "working" meant. Now both judges mark numbered checks, and code decides.</p>
+
+  <div class="grid g2">
+    <div class="card"><h4>Two judges, same checks</h4>
+      <p>The run's final judge and the blind screenshot check each mark every check as <code>seen</code>, <code>not_seen</code>, <code>cant_tell</code> or <code>beyond_claim</code>. The run's judge can no longer answer "blocked".</p></div>
+    <div class="card"><h4>Code decides</h4>
+      <p>A part is <code>not_seen</code> only when <b>both</b> judges say so. A contradiction is "disputed" and the claim stays unconfirmed. <code>beyond_claim</code> parts are left out. Only promise parts decide the result.</p></div>
+  </div>
+
+  <div class="tablewrap"><table>
+    <tr><th>Promise parts</th><th>Outcome</th><th>Points</th></tr>
+    <tr><td>Every promise seen</td><td><span class="pill ok">Works</span></td><td>1.0</td></tr>
+    <tr><td>Some promises seen, some not</td><td><span class="pill warn">Partly works</span></td><td>0.5</td></tr>
+    <tr><td>No promise seen, promises confirmed not seen, and the never-blame ladder passes</td><td><span class="pill bad">Broken</span></td><td>0</td></tr>
+    <tr><td>Anything else, a disputed part, or an incomplete test</td><td><span class="pill">Could not test / confirm</span></td><td>Left out of the score</td></tr>
+  </table></div>
+
+  <h3>The never-blame ladder</h3>
+  <p class="lead">Before any claim is marked Broken, all four rungs must hold. Otherwise it is "could not confirm".</p>
+  <div class="ladder">
+    <div class="rung"><b>1</b>Did the page actually load? <span>(Fetch check)</span></div>
+    <div class="rung"><b>2</b>Still failing after waiting about a minute? <span>(sleeping hosting wakes up)</span></div>
+    <div class="rung"><b>3</b>Does a second try, built a different way, also fail?</div>
+    <div class="rung"><b>4</b>Does an independent second check of the screenshots confirm it? <span>(a separate model call that sees only screenshots and the expected result)</span></div>
+  </div>
+  <p>An incomplete test (out of time, or a part it could not show) is retried once, built differently, and is never marked down. Limits: 3 tries per claim, 30 agent runs per project.</p>
+
+  <h3>The TalNex score</h3>
+  <div class="grid g2">
+    <div class="card"><h4>Group score</h4><p>Σ(importance × points) ÷ Σ(importance of tested claims) × 100. Importance: main = 3, supporting = 2, minor = 1.</p></div>
+    <div class="card"><h4>Coverage</h4><p>Tested claims ÷ all testable claims in the group. Below 50% the score is greyed out and left out of comparison.</p></div>
+    <div class="card"><h4>Confidence per claim</h4><p>High (agent and second check agree, repeat matches), Medium, Low, or Disagree (becomes "could not confirm").</p></div>
+    <div class="card"><h4>Recruiter mode</h4><p>A score out of 10 per feature. AI parts of repo-only projects are capped at 7/10. Untestable claims ("improved speed by 40%") are shown, never scored.</p></div>
+  </div>
+  <div class="callout ok">Scoring jobs use a low temperature (<code>LLM_TEMPERATURE</code>, default 0.1) so the same project gets nearly the same result each run. Red flags sit beside the score and are never subtracted. The AI opinion is never part of the score.</div>
+</section>
+
+<!-- 07 -->
+<section id="login">
+  <h2><span class="num">07</span>The login ladder</h2>
+  <p class="lead">TalNex never breaks past a site's security. It tries legal ways in, in order, until one works.</p>
+  <div class="ladder">
+    <div class="rung"><b>1</b>Test login from the form<span>Required in hackathon mode. Stored in TinyFish Vault, never in our database.</span></div>
+    <div class="rung"><b>2</b>Guest or demo button<span>"Try demo", "Continue as guest".</span></div>
+    <div class="rung"><b>3</b>Email sign-up<span>A fresh AgentMail inbox per run; the worker reads the code or link. A Gmail plus-address is the backup.</span></div>
+    <div class="rung"><b>4</b>Google or GitHub login<span>TalNex's own accounts, logged in once by a person, session kept in Vault and reused.</span></div>
+    <div class="rung"><b>5</b>Phone OTP<span>Hackathon: a test number with a fixed code. Recruiter: the team SIM with an SMS relay app, codes matched by arrival time. AgentCall is the backup.</span></div>
+    <div class="rung"><b>6</b>Could not test<span>The card states exactly why. Never counted against anyone, never "fake".</span></div>
+  </div>
+  <p>Code: <code>ai/talnex_ai/login/</code> (<code>ladder/</code>, <code>email/</code>, <code>phone/</code>). An agent never logs in to a team account itself, except the team LinkedIn account used by <code>browser/linkedin.py</code>.</p>
+</section>
+
+<!-- 08 -->
+<section id="checks">
+  <h2><span class="num">08</span>Checks and signals</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Component</th><th>Folder</th><th>What it does</th></tr>
+    <tr><td>Video reader</td><td><code>video/</code></td><td>yt-dlp download, ffmpeg frames, faster-whisper speech. A vision model reads frames plus speech for the features shown, the click path and login details on screen.</td></tr>
+    <tr><td>Resume reader</td><td><code>resume/</code></td><td>pdfplumber text including links hidden behind words; a model finds projects, bullets, links, repos and coding handles. The recruiter confirms first.</td></tr>
+    <tr><td>Claim reader</td><td><code>claims/</code></td><td>Turns video, resume, README and criteria into testable claims tagged with group, importance and testable or not.</td></tr>
+    <tr><td>Rule checks</td><td><code>checks/</code></td><td>Required items present, code before event dates, sponsor tech really called in a real feature, repo matches live site, tutorial copy.</td></tr>
+    <tr><td>Copy detector</td><td><code>checks/copy_between_teams/</code></td><td>Strips starter templates and library folders, reads code as structure with tree-sitter so renaming variables does not hide copying, compares every pair of teams, then lets a model look at only the top matching files.</td></tr>
+    <tr><td>Authorship proof</td><td><code>checks/authorship/</code></td><td>Links a claim to its code and to the GitHub account that wrote it.</td></tr>
+    <tr><td>Coding profiles</td><td><code>coding/</code></td><td>Codeforces by official API (Go). LeetCode by a TinyFish browser logged in as the team account from Vault, replaying contest code. CodeChef from public plagiarism info. One medium signal alone is never shown as a flag.</td></tr>
+    <tr><td>Feature comparison</td><td><code>scoring/feature_compare/</code></td><td>A local sentence-transformers model groups the same feature across teams, an LLM names each group, and the output is the top 3 teams that built it best, never one winner.</td></tr>
+    <tr><td>AI opinion</td><td><code>scoring/ai_opinion/</code></td><td>UI and innovation, each 1–5, two separate calls averaged. A gap above 1 point shows "models disagree". Always labelled "AI opinion — not tested proof".</td></tr>
+    <tr><td>Red flags</td><td><code>scoring/flags/</code></td><td>Levels Info, Review, Strong, shown beside the score.</td></tr>
+    <tr><td>Safety</td><td><code>safety/</code></td><td><code>hidden_instructions/</code> flags text aimed at an AI checker; <code>site_rules/</code> holds the live-site rules; <code>leaks/</code> detects secrets a live site exposes.</td></tr>
+  </table></div>
+</section>
+
+<!-- 09 -->
+<section id="models">
+  <h2><span class="num">09</span>Model layer</h2>
+  <p class="lead">All model calls go through <code>ai/talnex_ai/llm/</code>. One setting, <code>LLM_PROVIDER</code>, picks OpenRouter or Azure AI Foundry. No model name is written in code.</p>
+
+  <figure class="diagram">
+  <svg viewBox="0 0 960 190" role="img" aria-label="Model call path">
+    <rect class="box py" x="10" y="60" width="150" height="56" rx="10"/><text x="85" y="84" text-anchor="middle">Handler</text><text class="small" x="85" y="101" text-anchor="middle">a stage's job</text>
+    <rect class="box" x="200" y="60" width="150" height="56" rx="10"/><text x="275" y="84" text-anchor="middle">prompts/</text><text class="small" x="275" y="101" text-anchor="middle">one file per job</text>
+    <rect class="box" x="390" y="60" width="150" height="56" rx="10"/><text x="465" y="84" text-anchor="middle">provider.py</text><text class="small" x="465" y="101" text-anchor="middle">LLM_PROVIDER</text>
+    <rect class="box" x="590" y="20" width="170" height="52" rx="10"/><text x="675" y="42" text-anchor="middle">openrouter/</text><text class="small" x="675" y="58" text-anchor="middle">retries, cost logging</text>
+    <rect class="box" x="590" y="104" width="170" height="52" rx="10"/><text x="675" y="126" text-anchor="middle">azure_foundry/</text><text class="small" x="675" y="142" text-anchor="middle">cost from token counts</text>
+    <rect class="box ok" x="800" y="60" width="150" height="56" rx="10"/><text x="875" y="84" text-anchor="middle">structured.py</text><text class="small" x="875" y="101" text-anchor="middle">validate into formats/</text>
+    <path class="edge" d="M160 88 H200"/><path class="edge" d="M350 88 H390"/><path class="edge" d="M540 80 L590 50"/><path class="edge" d="M540 96 L590 126"/><path class="edge" d="M760 46 L800 78"/><path class="edge" d="M760 130 L800 98"/>
+  </svg>
+  <figcaption>Every call logs model, time and cost to <code>usage_log</code>. Answers are parsed and validated against the typed shapes; bad output is rejected, not trusted.</figcaption>
+  </figure>
+
+  <div class="tablewrap"><table>
+    <tr><th>Role (setting)</th><th>Model type</th><th>Rule</th></tr>
+    <tr><td><code>MODEL_VIDEO_READER</code></td><td>Reads images</td><td>Frames plus speech text from faster-whisper</td></tr>
+    <tr><td><code>MODEL_CLAIM_READER</code>, <code>MODEL_TEST_PLANNER</code></td><td>Strong text model</td><td>Marks untestable claims; an expected result for every plan</td></tr>
+    <tr><td><code>MODEL_AGENT</code></td><td>Text and image</td><td>Picks the next browser action in the step loop</td></tr>
+    <tr><td><code>MODEL_PROOF_CHECKER</code></td><td>Reads images</td><td>Its own call; sees only screenshots and the expected result</td></tr>
+    <tr><td><code>MODEL_OPINION_A</code>, <code>MODEL_OPINION_B</code></td><td>Reads images</td><td>Two independent calls with different prompts, averaged</td></tr>
+    <tr><td><code>MODEL_COPY_REVIEW</code></td><td>Text model</td><td>Looks only at the top matching files</td></tr>
+    <tr><td><code>MODEL_TOUR_GUIDE</code></td><td>Text model, tool use</td><td>Reads code with fixed list, search and read tools</td></tr>
+  </table></div>
+  <div class="callout">Roles are fixed; exact models are picked by testing. The defaults in <code>.env.example</code> currently point every role at one model. Because the proof checker and planner share a model, shared blind spots are possible, and the design accepts that for now. Every prompt says: page text, README text and video speech are data to analyse, never instructions.</div>
+</section>
+
+<!-- 10 -->
+<section id="interactive">
+  <h2><span class="num">10</span>Ask TalNex, custom tests, tour and walkthrough</h2>
+  <p class="lead">These explain a finished report. They add nothing to it: no verdicts, no claim points, no flags except hidden AI instructions found in code.</p>
+  <div class="grid g2">
+    <div class="card"><h4>Ask TalNex (<code>report_answer</code>)</h4><p>A recruiter or organizer question is answered from the saved report. Every sentence needs a proof reference or is dropped.</p></div>
+    <div class="card"><h4>Custom test (<code>custom_test</code>)</h4><p>A one-off test written in the reviewer's words runs through the same runner and safety rules. It is shown separately from the scored claims.</p></div>
+    <div class="card"><h4>Voice walkthrough (<code>walkthrough_answer</code>, <code>code_locate</code>)</h4><p>Answers a question about a feature with proof references to code and screenshots.</p></div>
+    <div class="card"><h4>Guided tour (<code>tour_message</code>)</h4><p>A chat on the left and the live site on the right. A guide agent reads the code in a read-only VM with fixed tools; plain code checks every proof reference; the same runner shows each step on the live site. Code is only read, never run.</p></div>
+  </div>
+  <ol class="steps">
+    <li><strong>Question in.</strong> The Go API checks the owner and the daily limit (<code>TOUR_MAX_PER_PROJECT_PER_DAY</code>), saves the message and adds a <code>tour_message</code> job.</li>
+    <li><strong>Code on the VM.</strong> On the first message, Python fetches the repo files and uploads them to a fresh read-only VM through <code>sandbox/client/</code>. The VM lives <code>TOUR_VM_MINUTES</code>.</li>
+    <li><strong>Guide agent.</strong> It calls list, search and read tools, up to <code>TOUR_GUIDE_MAX_TOOL_CALLS</code>, then writes a tour plan.</li>
+    <li><strong>Check.</strong> Plain code drops any sentence whose file and lines do not exist in the VM, and any browser step the safety rules refuse.</li>
+    <li><strong>Drive and stream.</strong> The runner does each browser step; <code>tour.say</code>, <code>tour.code</code> and <code>step.record</code> events stream to the page.</li>
+  </ol>
+</section>
+
+<!-- 11 -->
+<section id="live">
+  <h2><span class="num">11</span>Live events</h2>
+  <p class="lead">So a judge can watch a check as it happens instead of waiting at a spinner. The same stream is the debugging trace.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 960 130" role="img" aria-label="Live event path">
+    <rect class="box py" x="10" y="40" width="160" height="52" rx="10"/><text x="90" y="62" text-anchor="middle">Python worker</text><text class="small" x="90" y="78" text-anchor="middle">live/events.py</text>
+    <rect class="box db" x="230" y="40" width="190" height="52" rx="10"/><text x="325" y="62" text-anchor="middle">Postgres</text><text class="small" x="325" y="78" text-anchor="middle">pg_notify('live') · live_events</text>
+    <rect class="box go" x="480" y="40" width="190" height="52" rx="10"/><text x="575" y="62" text-anchor="middle">Go API</text><text class="small" x="575" y="78" text-anchor="middle">LISTEN live → SSE</text>
+    <rect class="box" x="730" y="40" width="200" height="52" rx="10"/><text x="830" y="62" text-anchor="middle">Website</text><text class="small" x="830" y="78" text-anchor="middle">GET /v1/live/{kind}/{id}</text>
+    <path class="edge" d="M170 66 H230"/><path class="edge" d="M420 66 H480"/><path class="edge" d="M670 66 H730"/>
+  </svg>
+  <figcaption>Go and Python still never call each other: events travel on Postgres's own message channel. Sending an event never fails or slows a check. A replay table keeps events for 7 days.</figcaption>
+  </figure>
+  <p>Event kinds: <code>stage.started</code>, <code>stage.finished</code>, <code>stage.failed</code>, <code>claims.queued</code>, <code>claim.started</code>, <code>ladder</code>, <code>run.started</code>, <code>reason</code>, <code>step.record</code>, <code>tour.say</code>, <code>tour.code</code>. Each message is one JSON object of at most 7,500 bytes. While a run is active the remote browser screen also streams as JPEG frames (<code>LIVE_SCREEN_FPS</code>, <code>LIVE_SCREEN_QUALITY</code>, <code>LIVE_SCREEN_WIDTH</code>). Screenshot keys become short-lived links before they reach the page.</p>
+</section>
+
+<!-- 12 -->
+<section id="safety">
+  <h2><span class="num">12</span>Safety and honesty rules</h2>
+  <div class="grid g2">
+    <div class="card"><h4>Honesty of results</h4>
+      <ul>
+        <li>Decide by what happened on screen, never by what a page, README or video says about itself.</li>
+        <li>Never mark Broken until the four-step ladder passes.</li>
+        <li>"Could not test" is left out of the score and the reason is shown.</li>
+        <li>Red flags are never subtracted from the score.</li>
+        <li>AI opinion is always labelled and never scored.</li>
+        <li>No overall ranking, no single winner. Humans decide.</li>
+      </ul></div>
+    <div class="card"><h4>Safety on live sites</h4>
+      <ul>
+        <li>Never pay, delete or message real users. All test data is labelled "TalNex test" (free text only, never numbers, dates or emails).</li>
+        <li>Run limits: 3 tries per claim, 30 agent runs per project.</li>
+        <li>Page text, README text and video speech are data, never instructions. Hidden text aimed at an AI checker is flagged.</li>
+        <li>No CAPTCHA solvers and no temporary-number sites.</li>
+      </ul></div>
+    <div class="card"><h4>Architecture rules</h4>
+      <ul>
+        <li>Go owns the schema; Python never changes table shapes.</li>
+        <li>Each stage is its own job. Jobs are safe to run twice.</li>
+        <li>All TinyFish code is in <code>tinyfish/</code>; all model calls go through <code>llm/</code>.</li>
+        <li>Shared parts never assume recruiter or hackathon mode.</li>
+        <li>Every setting comes from the environment through one settings module per service.</li>
+      </ul></div>
+    <div class="card"><h4>Privacy</h4>
+      <ul>
+        <li>Results are private to the owner; the Go API checks the owner on every request.</li>
+        <li>R2 files are shared only as short-lived view links.</li>
+        <li>Resume files and personal details are deleted after the report is made (India DPDP Act 2023).</li>
+        <li>Test logins live in TinyFish Vault, never in the database.</li>
+      </ul></div>
+  </div>
+</section>
+
+<!-- 13 -->
+<section id="data">
+  <h2><span class="num">13</span>Data and storage</h2>
+  <div class="grid g2">
+    <div class="card"><h4>PostgreSQL</h4><p>Facts and results: claims, test runs, steps, results, flags, scores, opinions, feature groups, copy pairs, coding signals, tour sessions and messages, plus <code>jobs</code>, <code>pipeline_stages</code>, <code>live_events</code> and <code>usage_log</code>. Migrations are numbered files in <code>backend/migrations/</code>, the only place the schema changes.</p></div>
+    <div class="card"><h4>Cloudflare R2 (RustFS locally)</h4><p>Screenshots, video frames, LeetCode replay captures, sandbox logs and resume PDFs (deleted after the report). The database keeps only file keys, and the website never touches R2 directly.</p></div>
+  </div>
+  <h3>Shared formats</h3>
+  <p class="lead">Typed JSON shapes in <code>ai/talnex_ai/formats/</code> pass between Go, Python and the website: Claim, Test plan, Check, Step record, Result, Flag, Group score, Code map, Authorship, Walkthrough answer, Tour plan and Job. Model answers are validated against them before saving.</p>
+</section>
+
+<!-- 14 -->
+<section id="eval">
+  <h2><span class="num">14</span>How TalNex checks itself</h2>
+  <p class="lead">Planted apps with known answers are the measuring stick for every change to testing, scoring, flags or prompts. The gate must pass before such a change is merged.</p>
+  <div class="grid g3">
+    <div class="card"><h4>Correctness</h4><p>Each planted app gets the verdict in <code>eval/expected/*.json</code>. "Could not test" is never wrong; a false "works" or "broken" is.</p></div>
+    <div class="card"><h4>Steadiness</h4><p>The same verdict in at least 2 of 3 runs; the TalNex score moves 10 points or less; no unexpected red flags.</p></div>
+    <div class="card"><h4>Accuracy</h4><p>Compared against human-checked real projects.</p></div>
+  </div>
+  <p>Planted apps: <code>honest</code>, <code>fake_claim</code>, <code>built_before_event</code>, <code>partly_works</code>, <code>copier_trickster</code>, <code>backend_only_repo</code>, plus <code>shelfmate</code>, <code>task_api</code> and <code>login_lab</code> in <code>testdata/planted/</code>. Run the gate with <code>python -m talnex_ai.worker.evaluate --all --runs 3 --project</code>; reports land in <code>eval/report/</code> and raw runs in <code>eval/runs/</code>.</p>
+  <div class="callout">The harness is split in two layers so two people never edit the same file: the <b>judging layer</b> (planner, checks, judge, proof check, retries, claim points) decides whether TalNex is right; the <b>acting layer</b> (step loop, actions, driver, runner sessions) decides whether TalNex manages to do the test, and how fast and cheaply.</div>
+</section>
+
+<!-- 15 -->
+<section id="deploy">
+  <h2><span class="num">15</span>Deployment</h2>
+  <p class="lead">Every service runs in its own container under Docker Compose.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Service</th><th>Role</th></tr>
+    <tr><td><code>postgres</code></td><td>Data and the job queue</td></tr>
+    <tr><td><code>s3</code></td><td>Local object storage (RustFS), R2 in production</td></tr>
+    <tr><td><code>migrate</code></td><td>Applies numbered migrations; carries the migration files from its build</td></tr>
+    <tr><td><code>api</code></td><td>Go public API</td></tr>
+    <tr><td><code>go-worker</code></td><td>Go jobs: GitHub, Codeforces, dates, cleanup</td></tr>
+    <tr><td><code>ai-worker</code></td><td>Python AI jobs; scalable with <code>--scale ai-worker=3</code></td></tr>
+    <tr><td><code>sandboxd</code>, <code>sandbox-image</code></td><td>VM host daemon and its base images; time and resource limited, fresh per run, no TalNex keys, destroyed by the reaper</td></tr>
+    <tr><td><code>web</code></td><td>Next.js website</td></tr>
+  </table></div>
+  <p>Cost strategy: Fetch and Search are free, so they run first. Browser sessions are cheap and Agent runs are expensive, so they are used only when the page is alive. Local models (faster-whisper, sentence-transformers) are free. A spending guard stops paid calls before a key's reserve is touched.</p>
+</section>
+
+<!-- 16 -->
+<section id="map">
+  <h2><span class="num">16</span>Code map</h2>
+  <p class="lead">Where each part of the AI lives under <code>ai/talnex_ai/</code>.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Folder</th><th>Job</th></tr>
+    <tr><td><code>worker/</code>, <code>worker/handlers/</code></td><td>Takes Python jobs and runs the right stage handler</td></tr>
+    <tr><td><code>settings.py</code></td><td>The one place Python reads settings</td></tr>
+    <tr><td><code>formats/</code></td><td>Typed shared shapes and the parsing that validates model answers</td></tr>
+    <tr><td><code>llm/</code></td><td><code>provider.py</code>, <code>openrouter/</code>, <code>azure_foundry/</code>, <code>models/</code>, <code>prompts/</code>, <code>structured.py</code></td></tr>
+    <tr><td><code>tinyfish/</code></td><td>All code that talks to TinyFish: client and spending budget</td></tr>
+    <tr><td><code>video/</code>, <code>resume/</code>, <code>claims/</code></td><td>Reading inputs into claims</td></tr>
+    <tr><td><code>testing/</code></td><td><code>planner/</code>, <code>runner/</code> (executor, actions, driver, judge, simple_steps, devtools, screencast), <code>proof_check/</code>, <code>retries/</code>, <code>demo_replay/</code></td></tr>
+    <tr><td><code>login/</code>, <code>browser/</code></td><td>Login ladder (email, phone) and the BQL browser helpers</td></tr>
+    <tr><td><code>checks/</code></td><td>required_items, sponsor_usage, repo_vs_live, copy_between_teams, tutorial_copy, authorship, event_dates</td></tr>
+    <tr><td><code>coding/</code></td><td>leetcode_capture, leetcode_signals, codechef</td></tr>
+    <tr><td><code>scoring/</code></td><td>claim_points, talnex_score, feature_compare, ai_opinion, flags</td></tr>
+    <tr><td><code>reports/</code></td><td>Recruiter proof report and walkthrough</td></tr>
+    <tr><td><code>sandbox/</code></td><td>client (the only code that calls sandboxd), stack_detect, route_discovery, api_tests, repo_tests, code_review, code_vm</td></tr>
+    <tr><td><code>safety/</code></td><td>hidden_instructions, site_rules, leaks</td></tr>
+    <tr><td><code>live/</code></td><td>Live event sender and terminal viewer</td></tr>
+    <tr><td><code>db/</code>, <code>storage/</code></td><td>Reads and writes shared tables; R2 uploads. Never schema changes</td></tr>
+  </table></div>
+</section>
+
+<footer>
+  Sources: <code>docs/talnex_architecture.md</code> (the source of truth), <code>docs/harness_handoff.md</code>, <code>docs/live_events.md</code>, the pipeline seed migrations and <code>ai/talnex_ai/</code>. If this page and the architecture document disagree, the architecture document wins.
+</footer>
+</main>
+</div>
+</body>
+</html>
