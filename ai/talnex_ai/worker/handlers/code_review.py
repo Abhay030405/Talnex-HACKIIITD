@@ -22,13 +22,14 @@ from talnex_ai.sandbox.api_tests.derive import SETUP_TEXT
 from talnex_ai.sandbox.client import SandboxError
 from talnex_ai.sandbox.code_review import review_claim
 from talnex_ai.sandbox.route_discovery import from_json
-from talnex_ai.sandbox.stack_detect.gather import read_facts
+from talnex_ai.sandbox.stack_detect.gather import clean_github_url, clone, read_facts
+from talnex_ai.sandbox.stack_detect.recipe import FULL_IMAGE
 from talnex_ai.sandbox.store import latest_run, save_code_review
 from talnex_ai.scoring.store import save_result
 from talnex_ai.worker.registry import JobContext, stage
 from talnex_ai.worker.resilience import never_stall
 from talnex_ai.worker.services import get_services
-from talnex_ai.worker.subjects import subject_of
+from talnex_ai.worker.subjects import load_subject_info, subject_of
 
 log = logging.getLogger("talnex.code_review")
 
@@ -59,13 +60,35 @@ def code_review(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     sv = get_services(ctx.pool)
     subject = subject_of(job)
     run = latest_run(ctx.pool, subject)
-    if run is None or not run.code_readable:
-        return {"skipped": True, "reason": "the code is not available (it could not be cloned), so no code review was done"}
-    vm = sv.sandbox.attach(run.vm_id)
+    if run is None:
+        return {"skipped": True, "reason": "the code is not available (no repository link), so no code review was done"}
+    vm, facts, fresh = None, None, False
+    if run.code_readable:
+        vm = sv.sandbox.attach(run.vm_id)
+        try:
+            facts = read_facts(vm)
+        except SandboxError:
+            facts = None   # the kept VM ran out of time (a long install): clone the code again below
+    if facts is None:
+        url = clean_github_url(load_subject_info(ctx.pool, subject).repo_url or "")
+        if not url or sv.sandbox is None:
+            return {"skipped": True, "reason": "the code is not available (it could not be cloned), so no code review was done"}
+        try:
+            vm, fresh = sv.sandbox.open_vm(FULL_IMAGE, services=[]), True
+            clone(vm, url)
+            facts = read_facts(vm)
+        except Exception as exc:  # the host is full or the repo is gone: a skipped review, never a failed stage
+            if fresh:
+                vm.destroy()
+            return {"skipped": True, "reason": f"the code could not be cloned for the review ({exc})"}
     try:
-        facts = read_facts(vm)
-    except SandboxError as exc:
-        return {"skipped": True, "reason": f"the VM ended before the code could be read ({exc})"}
+        return _review(job, ctx, sv, subject, run, vm, facts)
+    finally:
+        if fresh:
+            vm.destroy()
+
+
+def _review(job, ctx, sv, subject, run, vm, facts) -> Mapping[str, Any]:
 
     claims = [c for c in load_claims(ctx.pool, subject, testable_only=True) if c.id and worth_reviewing(c)]
     claims.sort(key=lambda c: -c.importance)
