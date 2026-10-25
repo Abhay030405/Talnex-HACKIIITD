@@ -1,0 +1,7 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/a/:id", "destination": "/app" },
+    { "source": "/a/:id/:page*", "destination": "/app" }
+  ]
+}
