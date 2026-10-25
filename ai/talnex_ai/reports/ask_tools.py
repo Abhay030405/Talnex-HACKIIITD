@@ -112,6 +112,12 @@ class GitHubReader:
                  "date": c["commit"]["author"].get("date", ""), "author": c["commit"]["author"].get("name", "")}
                 for c in rows]
 
+    def user_repos(self, user: str) -> list[dict]:
+        """A user's public repositories, most recently pushed first (one page of 100)."""
+        rows = self._get(f"/users/{user}/repos", per_page=100, sort="pushed")
+        return [{"name": r.get("name") or "", "url": r.get("html_url") or "", "homepage": r.get("homepage") or "",
+                 "fork": bool(r.get("fork"))} for r in rows]
+
     def branch_count(self, repo: str) -> int:
         return len(self._get(f"/repos/{repo}/branches", per_page=100))
 

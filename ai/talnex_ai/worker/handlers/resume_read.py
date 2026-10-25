@@ -10,12 +10,40 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from talnex_ai.db.jobs import Job
+import logging
+
+from talnex_ai.reports.ask_tools import GitHubReader
 from talnex_ai.resume.extract import ResumeError, pdf_text
+from talnex_ai.resume.github_match import fill_missing_repos
 from talnex_ai.resume.reader import read_resume
 from talnex_ai.resume.store import save_resume
 from talnex_ai.scoring.flags.store import add_flag
 from talnex_ai.worker.registry import JobContext, stage
 from talnex_ai.worker.services import get_services
+
+log = logging.getLogger("talnex.resume_read")
+
+
+def _github_user(found) -> str | None:
+    if found.github_username:
+        return found.github_username
+    link = (found.profile_links or {}).get("github") or ""
+    parts = link.split("github.com/", 1)[-1].strip("/").split("/") if "github.com/" in link else []
+    return parts[0] if parts and parts[0] else None
+
+
+def _find_missing_repos(sv, found) -> list[str]:
+    """Projects with no repository link: look for them on the person's own GitHub. Never fails the read."""
+    user = _github_user(found)
+    if not user or all(p.repo_url for p in found.projects):
+        return []
+    try:
+        repos = GitHubReader(sv.cfg.github_api_base_url, sv.cfg.github_token).user_repos(user)
+    except Exception as err:  # GitHub down or rate limited: the recruiter can still add the link by hand
+        log.warning("could not list %s's repositories: %s", user, err)
+        return []
+    found.projects, filled = fill_missing_repos(found.projects, repos)
+    return filled
 
 
 def _set_candidate(pool, candidate_id: str, status: str, detail: str | None = None) -> None:
@@ -49,11 +77,12 @@ def resume_read(job: Job, ctx: JobContext) -> Mapping[str, Any]:
         if finding.level in ("strong", "review"):
             add_flag(ctx.pool, "candidate", candidate_id, "hidden_ai_instructions", finding.level,
                      "Text aimed at an AI checker was found in the resume", finding.as_flag_evidence())
+    repos_found = _find_missing_repos(sv, found)
     # Nothing is tested yet. The recruiter sees what was found and confirms it; the Go API starts the checks then.
     ids = save_resume(ctx.pool, candidate_id, found)
     _set_candidate(ctx.pool, candidate_id, "awaiting_confirmation")
     return {
         "projects": len(ids), "candidate_project_ids": ids,
         "coding_handles": sorted(found.coding_handles), "github_username": found.github_username,
-        "dropped": found.dropped, "hidden_instruction_findings": len(found.findings),
+        "repos_found_on_github": repos_found, "dropped": found.dropped, "hidden_instruction_findings": len(found.findings),
     }
