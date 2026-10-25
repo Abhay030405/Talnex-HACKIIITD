@@ -1,6 +1,6 @@
 {
   "app": "partly_works",
-  "description": "NoteBox: adding and searching notes work; pinning does nothing and an empty title is not refused.",
+  "description": "NoteBox (no login): adding, searching, editing and deleting notes work; pinning does nothing, an empty title is not refused and the note counter ignores deletes.",
   "url": "https://talnex-partly-works.vercel.app",
   "role_level": "fresher",
   "claims": [
@@ -17,6 +17,18 @@
       "expected": "works"
     },
     {
+      "text": "Edit a note's title or text and save the change",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Delete a note and it disappears from the list",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
       "text": "Pin a note so it moves to the top of the list with a Pinned label",
       "group": "Core",
       "importance": 2,
@@ -27,6 +39,12 @@
       "group": "Reliability",
       "importance": 2,
       "expected": "broken"
+    },
+    {
+      "text": "A counter shows how many notes there are and goes down when a note is deleted",
+      "group": "Core",
+      "importance": 1,
+      "expected": ["broken", "partly_works"]
     }
   ],
   "controls": [

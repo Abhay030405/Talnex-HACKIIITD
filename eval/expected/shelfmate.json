@@ -1,35 +1,23 @@
 {
   "app": "shelfmate",
-  "description": "ShelfMate: a reading tracker where seven features work; the CSV export and the reading goal's progress bar do not do what they promise.",
+  "description": "ShelfMate: a reading tracker (no login) where six features work; the CSV export and the reading goal's progress bar do not do what they promise.",
   "url": "https://talnex-shelfmate.vercel.app",
   "role_level": "fresher",
   "claims": [
     {
-      "text": "Create an account with an email and a password",
-      "group": "Access",
-      "importance": 2,
-      "expected": "works"
-    },
-    {
-      "text": "Sign in and sign out",
-      "group": "Access",
-      "importance": 2,
-      "expected": "works"
-    },
-    {
-      "text": "Add a book with a title and an author",
+      "text": "Add a book with a title and an author and it appears on the shelf",
       "group": "Core",
       "importance": 3,
       "expected": "works"
     },
     {
-      "text": "See your books and search them by title or author",
+      "text": "Search the shelf by title or author and the list narrows to the matching books",
       "group": "Core",
       "importance": 2,
       "expected": "works"
     },
     {
-      "text": "Edit a book's details or delete it",
+      "text": "Edit a book's title or author, or delete the book",
       "group": "Core",
       "importance": 2,
       "expected": "works"
@@ -41,7 +29,13 @@
       "expected": "works"
     },
     {
-      "text": "Rate finished books from 1 to 5 and see the average rating",
+      "text": "Rate finished books from 1 to 5 stars and see the average rating",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "Filter the shelf by status with the All, Want to read, Reading and Finished tabs",
       "group": "Core",
       "importance": 2,
       "expected": "works"
@@ -50,19 +44,13 @@
       "text": "Export the shelf as a CSV file",
       "group": "Core",
       "importance": 1,
-      "expected": [
-        "broken",
-        "partly_works"
-      ]
+      "expected": ["broken", "partly_works"]
     },
     {
       "text": "Set a yearly reading goal and a progress bar shows how many books are finished",
       "group": "Core",
       "importance": 1,
-      "expected": [
-        "broken",
-        "partly_works"
-      ]
+      "expected": ["broken", "partly_works"]
     }
   ],
   "controls": [],
