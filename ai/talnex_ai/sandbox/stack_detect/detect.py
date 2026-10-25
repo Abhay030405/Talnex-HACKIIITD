@@ -141,6 +141,10 @@ def readme_commands(text: str) -> dict:
 
 
 # The placeholder values for a repo's .env.example live in envvalues.py (env_placeholders is imported above).
+def _env_example(facts: RepoFacts, directory: str) -> str:
+    """The app's settings example, by whichever of the usual names it has."""
+    return next((t for n in (".env.example", ".env.sample", ".env.template") if (t := facts.text(_join(directory, n)))), "")
+
 
 
 def services_needed(facts: RepoFacts, directory: str) -> list[str]:
@@ -186,7 +190,7 @@ def _node_recipe(facts: RepoFacts, directory: str) -> Recipe:
     test = ""
     if scripts.get("test") and "no test specified" not in scripts["test"]:
         test = "npm test"
-    env = {"PORT": "3000", "NODE_ENV": "development", **env_placeholders(facts.text(_join(directory, ".env.example")))}
+    env = {"PORT": "3000", "NODE_ENV": "development", **env_placeholders(_env_example(facts, directory))}
     return Recipe(stack="node", image=IMAGES["node"], app_dir=directory, install_cmd=install, build_cmd=build, start_cmd=start,
                   env=env, services=services_needed(facts, directory), test_cmd=test, source="package_files",
                   confidence="high" if scripts.get("start") else "medium", notes=notes)
@@ -234,7 +238,7 @@ def _python_recipe(facts: RepoFacts, directory: str) -> Recipe:
             start = f"python {app[0]}" if runs_itself else f"flask --app {app[1]}:{app[2]} run --host 0.0.0.0 --port 5000"
             port, confidence = (None if runs_itself else 5000), "high"
     test = "python -m pytest -x -q" if ("pytest" in deps or any(f.startswith(_join(directory, "tests")) for f in facts.files)) else ""
-    env = {"PYTHONUNBUFFERED": "1", **env_placeholders(facts.text(_join(directory, ".env.example")))}
+    env = {"PYTHONUNBUFFERED": "1", **env_placeholders(_env_example(facts, directory))}
     return Recipe(stack="python", image=IMAGES["python"], app_dir=directory, install_cmd=install, start_cmd=start, port=port,
                   env=env, services=services_needed(facts, directory), test_cmd=test, source="package_files",
                   confidence=confidence if start else "low", notes=notes)

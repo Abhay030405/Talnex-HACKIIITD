@@ -10,13 +10,14 @@ model-assisted fix ends as "could not run" with the last log lines as proof. It 
 """
 from __future__ import annotations
 
+import shlex
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from talnex_ai.llm.structured import ChatClient, StructuredError
 from talnex_ai.sandbox.stack_detect.bringup import BringUp, RunnableVm, bring_up
 from talnex_ai.sandbox.stack_detect.detect import RepoFacts, detect_recipe
-from talnex_ai.sandbox.stack_detect.envvalues import service_env
+from talnex_ai.sandbox.stack_detect.envvalues import GREP_PATTERN, code_env_names, placeholder_for, service_env
 from talnex_ai.sandbox.stack_detect.fix import propose_fix
 from talnex_ai.sandbox.stack_detect.gather import REPO_DIR, RepoUnreachable, clean_github_url, clone, read_facts
 from talnex_ai.sandbox.stack_detect.recipe import FULL_IMAGE, IMAGES, Recipe
@@ -104,6 +105,7 @@ def _run_in(vm, new_vm, model, url, build_timeout, start_timeout, job_id) -> Run
         if recipe.services:
             recipe = recipe.model_copy(update={"env": {**recipe.env, **service_env(recipe.services)}})
 
+    recipe = _fill_settings_the_code_reads(vm, recipe)
     result = RunResult(status="could_not_run", url=url, recipe=recipe, facts=facts)
     first = bring_up(vm, recipe, build_timeout_seconds=build_timeout, start_timeout_seconds=start_timeout)
     result.attempts.append(first)
@@ -128,6 +130,20 @@ def _run_in(vm, new_vm, model, url, build_timeout, start_timeout, job_id) -> Run
     result.reason = _explain_failure(result)
     vm.destroy()
     return result
+
+
+def _fill_settings_the_code_reads(vm, recipe: Recipe) -> Recipe:
+    """A temporary env for the run: every setting the code reads that is still unset gets a harmless fake value, so a
+    missing secret does not crash the app (a real key is never given). Values already set are kept."""
+    globs = " ".join(f"--include='*.{x}'" for x in ("js", "mjs", "cjs", "ts", "jsx", "tsx", "py"))
+    skip = " ".join(f"--exclude-dir={d}" for d in ("node_modules", ".git", ".venv", "venv", "dist", "build", ".next"))
+    res = vm.exec(f"grep -rhoE {shlex.quote(GREP_PATTERN)} {globs} {skip} . 2>/dev/null | head -n 2000",
+                  workdir=f"{REPO_DIR}/{recipe.app_dir}" if recipe.app_dir else REPO_DIR, timeout_seconds=60)
+    missing = [n for n in code_env_names(res.stdout) if n not in recipe.env]
+    if not missing:
+        return recipe
+    env = {**recipe.env, **{n: placeholder_for(n, "") for n in missing}}
+    return recipe.model_copy(update={"env": env, "notes": [*recipe.notes, f"{len(missing)} settings the code reads were given harmless fake values"]})
 
 
 def _explain_failure(result: RunResult) -> str:

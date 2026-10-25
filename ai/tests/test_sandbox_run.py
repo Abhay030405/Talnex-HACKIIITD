@@ -359,3 +359,20 @@ def test_an_app_that_listens_but_answers_only_500_is_still_kept_running_for_the_
     res = prepare_and_run(factory, None, URL)
     assert res.status == "running" and res.vm is factory.made[0] and not res.vm.destroyed
     assert res.bringup.failed_step == "health" and res.bringup.port
+
+
+def test_settings_the_code_reads_get_a_temporary_fake_env_but_set_values_are_kept():
+    from talnex_ai.sandbox.stack_detect.envvalues import code_env_names
+
+    code = 'const k = process.env.STRIPE_SECRET_KEY; db(process.env["MONGO_URI"]); x = os.getenv("JWT_EXPIRES_IN"); os.environ["HOME"]'
+    assert code_env_names(code) == ["STRIPE_SECRET_KEY", "MONGO_URI", "JWT_EXPIRES_IN"]
+
+    class Greps(FakeVm):
+        def exec(self, command, **kw):
+            if command.startswith("grep -rhoE"):
+                return ExecResult(0, stdout="process.env.STRIPE_SECRET_KEY\nprocess.env.PORT\n")
+            return super().exec(command, **kw)
+
+    made = []
+    res = prepare_and_run(lambda image, services=(): made.append(Greps(image, NODE_REPO)) or made[-1], None, URL)
+    assert res.ok and res.recipe.env["STRIPE_SECRET_KEY"].startswith("talnex-placeholder") and res.recipe.env["PORT"] == "3000"
