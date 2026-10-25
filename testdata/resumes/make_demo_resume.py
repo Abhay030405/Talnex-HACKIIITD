@@ -52,6 +52,7 @@ PROJECTS = [
 ]
 
 SKILLS = "JavaScript, Node.js, HTML, CSS, REST APIs, Vercel serverless functions, Git, SQL, Python"
+CODING = "Codeforces: https://codeforces.com/profile/absolutabhay | LeetCode: https://leetcode.com/u/absolutabhay"
 
 
 def build(path: Path) -> None:
@@ -101,6 +102,9 @@ def build(path: Path) -> None:
 
     heading("Skills")
     para(SKILLS)
+
+    heading("Coding profiles")
+    para(CODING)
     pdf.showPage()
     pdf.save()
 
