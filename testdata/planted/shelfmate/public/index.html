@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ShelfMate - your reading shelf</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>ShelfMate</h1>
+    <p class="tag">Keep track of the books you want to read, are reading, and have finished.</p>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="add-h">
+      <h2 id="add-h">Add a book</h2>
+      <form id="add-form">
+        <label>Title <input id="title" type="text" placeholder="Title"></label>
+        <label>Author <input id="author" type="text" placeholder="Author"></label>
+        <button type="submit" id="add-btn">Add book</button>
+      </form>
+      <p id="add-msg" class="msg" role="status"></p>
+    </section>
+
+    <section class="card" aria-labelledby="goal-h">
+      <h2 id="goal-h">Yearly reading goal</h2>
+      <form id="goal-form">
+        <label>Books to read this year <input id="goal" type="number" min="1" placeholder="12"></label>
+        <button type="submit" id="goal-btn">Set goal</button>
+      </form>
+      <div class="bar" aria-hidden="true"><div id="goal-fill" class="fill"></div></div>
+      <p id="goal-text" class="msg">No goal set yet.</p>
+    </section>
+
+    <section class="card" aria-labelledby="shelf-h">
+      <h2 id="shelf-h">Your shelf</h2>
+      <div class="tools">
+        <input id="search" type="search" placeholder="Search by title or author" aria-label="Search books">
+        <nav class="tabs" id="tabs" aria-label="Filter by status">
+          <button type="button" data-filter="all" class="on">All</button>
+          <button type="button" data-filter="want">Want to read</button>
+          <button type="button" data-filter="reading">Reading</button>
+          <button type="button" data-filter="finished">Finished</button>
+        </nav>
+        <button type="button" id="export-btn">Export CSV</button>
+      </div>
+      <p id="count" class="msg"></p>
+      <p id="avg" class="msg"></p>
+      <ul id="books" class="books"></ul>
+      <p id="empty" class="msg" hidden>No books to show.</p>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

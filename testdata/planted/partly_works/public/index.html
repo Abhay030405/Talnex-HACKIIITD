@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NoteBox - quick notes</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>NoteBox</h1>
+    <p class="tag">Write short notes, pin the important ones and find them again.</p>
+  </header>
+  <main>
+    <section class="card">
+      <h2>New note</h2>
+      <form id="add-form">
+        <label>Title <input id="title" type="text" placeholder="Title"></label>
+        <label>Note <input id="body" type="text" placeholder="Write something"></label>
+        <button type="submit" id="add-btn">Add note</button>
+      </form>
+      <p id="msg" class="msg" role="status"></p>
+    </section>
+    <section class="card">
+      <h2>Your notes</h2>
+      <div class="tools">
+        <input id="search" type="search" placeholder="Search notes" aria-label="Search notes">
+        <button type="button" id="pdf-btn" hidden>Export PDF</button>
+      </div>
+      <p id="count" class="msg"></p>
+      <ul id="notes" class="notes"></ul>
+      <p id="empty" class="msg" hidden>No notes yet.</p>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
