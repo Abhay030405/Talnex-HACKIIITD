@@ -26,3 +26,12 @@ export async function retryJobAction(jobId: string, liveHref: string): Promise<{
   }
   redirect(liveHref);
 }
+
+/** The live events one job sent while it ran, for the stage's log in the jobs graph. */
+export async function jobLogAction(jobId: string): Promise<{ events?: unknown[]; error?: string }> {
+  try {
+    return await apiFetch<{ events: unknown[] }>(`/v1/jobs/${encodeURIComponent(jobId)}/log`);
+  } catch (error) {
+    return { error: problem(error, "We could not read this stage's log.") };
+  }
+}

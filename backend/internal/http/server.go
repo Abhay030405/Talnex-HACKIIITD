@@ -104,6 +104,7 @@ func NewHandler(o Options) http.Handler {
 	private.HandleFunc("GET /v1/projects/{id}/jobs", auth.RequireRole(auth.RoleOrganizer, s.listProjectJobs))
 	private.HandleFunc("POST /v1/projects/{id}/run-stages", auth.RequireRole(auth.RoleOrganizer, s.runProjectStages))
 	private.HandleFunc("POST /v1/jobs/{id}/retry", s.retryJob)
+	private.HandleFunc("GET /v1/jobs/{id}/log", s.getJobLog)
 	private.HandleFunc("POST /v1/candidates/{id}/ask", auth.RequireRole(auth.RoleRecruiter, s.askCandidate))
 	private.HandleFunc("GET /v1/candidates/{id}/asks", auth.RequireRole(auth.RoleRecruiter, s.listCandidateAsks))
 	private.HandleFunc("POST /v1/candidate-projects/{id}/rerun", auth.RequireRole(auth.RoleRecruiter, s.rerunCandidateProject))

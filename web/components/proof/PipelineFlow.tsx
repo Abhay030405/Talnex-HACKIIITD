@@ -14,6 +14,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useEffect, useRef, useState } from "react";
 
+import { jobLogAction } from "@/app/jobs-actions";
+import { clock, emptyLiveState, reduceLive, type LiveEvent, type LogLine } from "@/lib/live";
 import { layoutPipeline, type FlowStage } from "@/lib/pipeline-flow";
 import type { JobRow } from "@/lib/types";
 
@@ -122,6 +124,7 @@ export function PipelineFlow({
           ) : (
             <p className="note">This stage has not started in this run.</p>
           )}
+          {chosen.job && <StageLog jobId={chosen.job.id} live={chosen.job.status !== "done" && chosen.job.status !== "failed"} />}
           <div className="row">
             {chosen.job?.status === "failed" && (
               <button type="button" className="button button--sm" disabled={pending} onClick={() => retry(chosen.job!.id)}>
@@ -142,6 +145,51 @@ export function PipelineFlow({
         </aside>
       )}
     </div>
+  );
+}
+
+/** What one stage did, step by step: the same lines as the live view, read back for this job only. */
+function StageLog({ jobId, live }: { jobId: string; live: boolean }) {
+  const [lines, setLines] = useState<LogLine[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let stopped = false;
+    const load = async () => {
+      const answer = await jobLogAction(jobId);
+      if (stopped) return;
+      if (answer.error) return setError(answer.error);
+      let state = emptyLiveState();
+      for (const raw of answer.events ?? []) {
+        const ev = raw as LiveEvent;
+        state = reduceLive(state, ev.kind ?? "", ev);
+      }
+      setError(null);
+      setLines(Object.values(state.subjects).flatMap((s) => s.log));
+    };
+    load();
+    const timer = live ? setInterval(load, 3000) : undefined;
+    return () => {
+      stopped = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [jobId, live]);
+
+  if (error) return <p className="note">{error}</p>;
+  if (lines === null) return <p className="note">Loading the log…</p>;
+  if (lines.length === 0) return <p className="note">This stage wrote no log lines.</p>;
+  return (
+    <ol className="live-log">
+      {lines.map((line, i) => (
+        <li key={`${line.at}-${i}`} className={`live-log__line live-log__line--${line.tone}`}>
+          <span className="live-log__at">{clock(line.at)}</span>
+          <span className="live-log__label">{line.label}</span>
+          <span className="live-log__text">
+            {line.claim && <span className="live-log__claim">{line.claim}</span>}
+            {line.text}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

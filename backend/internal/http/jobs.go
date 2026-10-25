@@ -110,33 +110,71 @@ func (s *server) ownsJobTarget(ctx context.Context, userID, targetType, targetID
 }
 
 // retryJob puts one failed job back in the queue, in its own run.
-func (s *server) retryJob(w http.ResponseWriter, r *http.Request) {
+// ownedJob reads the job id from the path and checks the signed-in person owns its target. It writes the error itself.
+func (s *server) ownedJob(w http.ResponseWriter, r *http.Request) (string, bool) {
 	who, ok := s.identity(w, r)
 	if !ok {
-		return
+		return "", false
 	}
 	id := r.PathValue("id")
 	if _, err := uuid.Parse(id); err != nil {
 		writeError(w, http.StatusNotFound, "job not found")
-		return
+		return "", false
 	}
 	var targetType, targetID string
 	err := s.opts.Pool.QueryRow(r.Context(), `SELECT target_type, target_id::text FROM jobs WHERE id = $1::uuid`, id).Scan(&targetType, &targetID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "job not found")
-		return
+		return "", false
 	}
 	if err != nil {
 		s.fail(w, "read job", err)
-		return
+		return "", false
 	}
 	owns, err := s.ownsJobTarget(r.Context(), who.UserID, targetType, targetID)
 	if err != nil {
 		s.fail(w, "check job owner", err)
-		return
+		return "", false
 	}
 	if !owns {
 		writeError(w, http.StatusNotFound, "job not found")
+		return "", false
+	}
+	return id, true
+}
+
+// getJobLog returns the live events one job sent (what the stage did, step by step), oldest first.
+func (s *server) getJobLog(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.ownedJob(w, r)
+	if !ok {
+		return
+	}
+	rows, err := s.opts.Pool.Query(r.Context(), `SELECT payload FROM (SELECT id, payload FROM live_events
+		WHERE job_id = $1::uuid ORDER BY id DESC LIMIT 500) t ORDER BY id`, id)
+	if err != nil {
+		s.fail(w, "read job log", err)
+		return
+	}
+	defer rows.Close()
+	events := []json.RawMessage{}
+	for rows.Next() {
+		var raw []byte
+		if err := rows.Scan(&raw); err != nil {
+			s.fail(w, "read job log", err)
+			return
+		}
+		events = append(events, raw)
+	}
+	if err := rows.Err(); err != nil {
+		s.fail(w, "read job log", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"events": events})
+}
+
+func (s *server) retryJob(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.ownedJob(w, r)
+	if !ok {
 		return
 	}
 	done, err := pipeline.RetryFailed(r.Context(), s.opts.Pool, id)

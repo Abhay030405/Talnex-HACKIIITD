@@ -960,6 +960,19 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               example: { error: only a failed job can be retried }
 
+  /v1/jobs/{id}/log:
+    get:
+      operationId: getJobLog
+      tags: [Projects]
+      summary: Read one job's log
+      description: The live events one job sent while it ran (what the stage did, step by step), oldest first, at most 500. Only the owner of what the job is about may.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: The job's events., content: { application/json: { schema: { type: object, properties: { events: { type: array, items: { type: object } } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/candidate-projects/{id}/custom-test:
     post:
       operationId: customTestCandidateProject
