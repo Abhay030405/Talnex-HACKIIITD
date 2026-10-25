@@ -89,11 +89,11 @@ class TestReport:
 
 
 class TestTheRealExpectedFile:
-    def test_the_honest_app_file_is_well_formed(self):
-        data = json.loads(Path(REPO_ROOT / "eval" / "expected" / "honest.json").read_text(encoding="utf-8"))
-        assert data["app"] == "honest" and data["url"].startswith("https://")
-        assert len(data["claims"]) >= 5 and all(c["expected"] == "works" for c in data["claims"])
-        assert data["controls"] and all(c["expected"] == "broken" for c in data["controls"])
+    def test_the_shelfmate_file_is_well_formed(self):
+        data = json.loads(Path(REPO_ROOT / "eval" / "expected" / "shelfmate.json").read_text(encoding="utf-8"))
+        assert data["app"] == "shelfmate" and data["url"].startswith("https://")
+        assert len(data["claims"]) >= 7
+        assert any(c["expected"] == "works" for c in data["claims"]) and any(c["expected"] != "works" for c in data["claims"])
         texts = [c["text"] for c in data["claims"] + data["controls"]]
         assert len(texts) == len(set(texts))
         assert all(1 <= c.get("importance", 2) <= 3 for c in data["claims"] + data["controls"])
@@ -102,11 +102,12 @@ class TestTheRealExpectedFile:
 class TestEveryPlantedApp:
     def test_every_expected_file_is_well_formed(self):
         files = sorted((REPO_ROOT / "eval" / "expected").glob("*.json"))
-        assert {f.stem for f in files} >= {"honest", "fake_claim", "partly_works", "copier_trickster", "shelfmate"}
+        assert {f.stem for f in files} >= {"partly_works", "shelfmate", "backend_only_repo", "expense_api", "task_api"}
         allowed = {"works", "partly_works", "broken"}
         for f in files:
             data = json.loads(f.read_text(encoding="utf-8"))
-            assert data["app"] == f.stem and data["url"].startswith("https://") and data["claims"]
+            assert data["app"] == f.stem and data["claims"]
+            assert (data.get("url") or data.get("repo", "")).startswith("https://"), f.stem
             items = data["claims"] + data.get("controls", [])
             for c in items:
                 want = c["expected"] if isinstance(c["expected"], list) else [c["expected"]]

@@ -32,6 +32,7 @@ from talnex_ai.db import open_pool
 from talnex_ai.db.jobs import start_pipeline
 from talnex_ai.formats import Claim
 from talnex_ai.worker.live_check import create_subject, stage_states
+from talnex_ai.worker.sandbox_check import create_subject as create_repo_subject
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -172,7 +173,27 @@ def collect(pool, subject, expected: dict[str, Any], index: int, seconds: float,
     return data
 
 
+def run_once_repo(pool, expected: dict[str, Any], index: int, project: bool, timeout: int) -> RunData:
+    """A repo-only app (no live link): the sandbox track clones the repo into a throwaway VM and tests its routes."""
+    subject = create_repo_subject(pool, repo=expected["repo"], name=f"Evaluation {expected['app']} #{index}", candidate=not project)
+    save_claims(pool, subject, [
+        Claim(text=c["text"], claim_group=c.get("group", "Core"), importance=c.get("importance", 2), source="readme", track="sandbox")
+        for c in expected["claims"] + expected.get("controls", [])])
+    start_pipeline(pool, "sandbox_check_project" if project else "sandbox_check", subject.kind, subject.id)
+    started = time.monotonic()
+    finished = False
+    while time.monotonic() - started < timeout:
+        states = stage_states(pool, subject)
+        if states.get("sandbox_end") in ("done", "failed") or "failed" in states.values():
+            finished = states.get("sandbox_end") == "done"
+            break
+        time.sleep(3)
+    return collect(pool, subject, expected, index, time.monotonic() - started, finished)
+
+
 def run_once(pool, expected: dict[str, Any], index: int, project: bool, timeout: int) -> RunData:
+    if expected.get("repo") and not expected.get("url"):
+        return run_once_repo(pool, expected, index, project, timeout)
     subject = create_subject(pool, project=project, url=expected["url"], name=f"Evaluation {expected['app']} #{index}",
                              role=expected.get("role_level", "fresher"))
     save_claims(pool, subject, [
@@ -193,21 +214,33 @@ def run_once(pool, expected: dict[str, Any], index: int, project: bool, timeout:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--expected", help="the expected-answers file, for example eval/expected/honest.json")
-    parser.add_argument("--all", action="store_true", help="every file in eval/expected that tests a live site, side by side")
+    parser.add_argument("--all", action="store_true", help="every file in eval/expected that tests a live site or a repo, side by side")
+    parser.add_argument("--dir", help="a folder of expected-answers files, for example eval/expected/login")
+    parser.add_argument("--skip", default="", help="with --dir: skip files whose name contains any of these words, comma separated")
+    parser.add_argument("--only", default="", help="with --dir: keep only files whose name contains any of these words, comma separated")
+    parser.add_argument("--out", default="", help="save reports in eval/report/<this folder> (for example login_before) instead of eval/report")
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--project", action="store_true", help="test as a hackathon project instead of a resume project")
     parser.add_argument("--timeout", type=int, default=1500, help="seconds to wait for each run")
     parser.add_argument("--note", default="", help="a line added to the report (for example what was different about this run)")
     args = parser.parse_args(argv)
-    if bool(args.all) == bool(args.expected):
-        parser.error("give either --expected <file> or --all")
+    if [bool(args.all), bool(args.expected), bool(args.dir)].count(True) != 1:
+        parser.error("give one of --expected <file>, --dir <folder> or --all")
 
     if args.all:
         files = [f for f in sorted((REPO_ROOT / "eval" / "expected").glob("*.json"))
-                 if json.loads(f.read_text(encoding="utf-8")).get("url")]  # repo-only apps need the sandbox track
+                 if json.loads(f.read_text(encoding="utf-8")).get("url") or json.loads(f.read_text(encoding="utf-8")).get("repo")]
+    elif args.dir:
+        folder = Path(args.dir) if Path(args.dir).is_absolute() else REPO_ROOT / args.dir
+        skip = [w.strip() for w in args.skip.split(",") if w.strip()]
+        only = [w.strip() for w in args.only.split(",") if w.strip()]
+        files = [f for f in sorted(folder.glob("*.json"))
+                 if not any(w in f.name for w in skip) and (not only or any(w in f.name for w in only))]
     else:
         path = Path(args.expected)
         files = [path if path.is_absolute() else REPO_ROOT / path]
+    global REPORT_SUBDIR
+    REPORT_SUBDIR = args.out
     apps = [json.loads(f.read_text(encoding="utf-8")) for f in files]
     pool = open_pool(settings_module.load().database_url, max_size=4 + len(apps))
     with ThreadPoolExecutor(max_workers=len(apps)) as threads:
@@ -236,7 +269,7 @@ def evaluate_app(pool, expected: dict[str, Any], runs_wanted: int, project: bool
     runs_dir.mkdir(parents=True, exist_ok=True)
     (runs_dir / f"{stamp}.json").write_text(
         json.dumps({"when": when, "runs": [asdict(r) for r in runs], "analysis": analysis}, indent=2), encoding="utf-8")
-    report_dir = REPO_ROOT / "eval" / "report"
+    report_dir = REPO_ROOT / "eval" / "report" / REPORT_SUBDIR
     report_dir.mkdir(parents=True, exist_ok=True)
     (report_dir / f"{expected['app']}.md").write_text(render_report(analysis, when, note), encoding="utf-8")
 
@@ -244,8 +277,11 @@ def evaluate_app(pool, expected: dict[str, Any], runs_wanted: int, project: bool
           f"unconfirmed {analysis['pairs']['unconfirmed']}, talnex spread {analysis['talnex_spread']}")
     for name, ok in analysis["checks"].items():
         print(f"[{app}]   {'PASS' if ok else 'FAIL'}: {name}")
-    print(f"[{app}] report: eval/report/{expected['app']}.md", flush=True)
+    print(f"[{app}] report: {report_dir.relative_to(REPO_ROOT).as_posix()}/{expected['app']}.md", flush=True)
     return analysis
+
+
+REPORT_SUBDIR = ""  # set by main from --out
 
 
 def render_summary(results: list[dict[str, Any]], when: str, note: str = "") -> str:
@@ -268,7 +304,10 @@ def render_summary(results: list[dict[str, Any]], when: str, note: str = "") -> 
 
 def write_summary(results: list[dict[str, Any]], note: str = "") -> None:
     when = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    (REPO_ROOT / "eval" / "report" / "summary.md").write_text(render_summary(results, when, note), encoding="utf-8")
+    folder = REPO_ROOT / "eval" / "report" / REPORT_SUBDIR
+    folder.mkdir(parents=True, exist_ok=True)
+    name = "summary.md" if not REPORT_SUBDIR else f"summary_{results[0]['app'].split('_')[1]}.md"  # one file per batch of apps
+    (folder / name).write_text(render_summary(results, when, note), encoding="utf-8")
     print("\n" + render_summary(results, when, note), flush=True)
 
 
