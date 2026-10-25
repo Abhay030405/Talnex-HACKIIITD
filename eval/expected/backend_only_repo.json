@@ -1,0 +1,62 @@
+{
+  "app": "backend_only_repo",
+  "description": "Bookmark Keeper (Node, Express): seven routes work; updating a bookmark does not validate and the import route crashes on an empty body.",
+  "repo": "https://github.com/Abhay030405/talnex-planted-bookmark-api",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "GET /health returns status ok",
+      "group": "Setup",
+      "importance": 1,
+      "expected": "works"
+    },
+    {
+      "text": "POST /bookmarks saves a bookmark and refuses a missing or invalid url or an empty title with 400",
+      "group": "Core",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "GET /bookmarks lists all bookmarks, newest first",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "GET /bookmarks?tag=x lists only bookmarks that have the tag",
+      "group": "Logic",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "GET /bookmarks/:id returns one bookmark or 404 if it does not exist",
+      "group": "Edge cases",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "DELETE /bookmarks/:id removes a bookmark and answers 404 for an unknown id",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "PUT /bookmarks/:id refuses a missing or invalid url or an empty title with 400",
+      "group": "Edge cases",
+      "importance": 2,
+      "expected": "broken"
+    },
+    {
+      "text": "POST /bookmarks/import with an empty or malformed body is refused with 400",
+      "group": "Reliability",
+      "importance": 2,
+      "expected": "broken"
+    }
+  ],
+  "controls": [],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}

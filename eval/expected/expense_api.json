@@ -1,0 +1,68 @@
+{
+  "app": "expense_api",
+  "description": "Expense Ledger (Node, Express): six routes work; a negative amount is accepted and the per-category summary is wrong.",
+  "repo": "https://github.com/Abhay030405/talnex-planted-expense-api",
+  "role_level": "fresher",
+  "claims": [
+    {
+      "text": "GET /health returns status ok",
+      "group": "Setup",
+      "importance": 1,
+      "expected": "works"
+    },
+    {
+      "text": "POST /expenses refuses an amount that is not a positive number with 400",
+      "group": "Edge cases",
+      "importance": 3,
+      "expected": "broken"
+    },
+    {
+      "text": "POST /expenses records an expense with an amount and a category and refuses a missing category",
+      "group": "Core",
+      "importance": 3,
+      "expected": "works"
+    },
+    {
+      "text": "GET /expenses lists expenses newest first and supports ?category= and ?limit=",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "GET /expenses/:id returns one expense or 404",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "DELETE /expenses/:id removes an expense and answers 404 for an unknown id",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "PATCH /expenses/:id changes the note or the category of an expense",
+      "group": "Core",
+      "importance": 2,
+      "expected": "works"
+    },
+    {
+      "text": "GET /expenses/summary returns the total spent and the correct total for each category",
+      "group": "Logic",
+      "importance": 2,
+      "expected": "broken"
+    },
+    {
+      "text": "GET /expenses/export returns all expenses as CSV with a header row",
+      "group": "Core",
+      "importance": 1,
+      "expected": "works"
+    }
+  ],
+  "controls": [],
+  "expected_flags": 0,
+  "criteria": {
+    "verdict_agreement_runs": 2,
+    "talnex_score_spread_max": 10
+  }
+}
