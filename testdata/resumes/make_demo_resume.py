@@ -52,7 +52,7 @@ PROJECTS = [
 ]
 
 SKILLS = "JavaScript, Node.js, HTML, CSS, REST APIs, Vercel serverless functions, Git, SQL, Python"
-CODING = "Codeforces: https://codeforces.com/profile/absolutabhay | LeetCode: https://leetcode.com/u/absolutabhay"
+CODING = "Codeforces: https://codeforces.com/profile/absolutabhay | LeetCode: https://leetcode.com/u/MKhubaibZafar"
 
 
 def build(path: Path) -> None:
