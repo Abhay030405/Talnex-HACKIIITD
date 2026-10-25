@@ -88,6 +88,32 @@ export function ConfirmForm({ candidateId, found }: { candidateId: string; found
                 />
               </Field>
             </div>
+            <div className="form-grid form-grid--wide">
+              <Field label="Built from (resume)" htmlFor={`start-${row.key}`}>
+                <input className="input" id={`start-${row.key}`} name={`project.${row.key}.claimed_start`}
+                  defaultValue={row.project.claimed_start ?? ""} placeholder="2026-01" />
+              </Field>
+              <Field label="Built until" htmlFor={`end-${row.key}`}>
+                <input className="input" id={`end-${row.key}`} name={`project.${row.key}.claimed_end`}
+                  defaultValue={row.project.claimed_end ?? ""} placeholder="2026-03 or present" />
+              </Field>
+              <Field label="Solo or team" htmlFor={`team-${row.key}`}>
+                <select className="input" id={`team-${row.key}`} name={`project.${row.key}.claimed_team`}
+                  defaultValue={row.project.claimed_team ?? ""}>
+                  <option value="">Not said</option>
+                  <option value="solo">Solo</option>
+                  <option value="team">Team</option>
+                </select>
+              </Field>
+              <Field label="Team size" htmlFor={`size-${row.key}`}>
+                <input className="input" id={`size-${row.key}`} name={`project.${row.key}.claimed_team_size`} type="number"
+                  min={1} max={99} defaultValue={row.project.claimed_team_size || ""} />
+              </Field>
+              <Field label="Their role" htmlFor={`role-${row.key}`}>
+                <input className="input" id={`role-${row.key}`} name={`project.${row.key}.claimed_role`} maxLength={40}
+                  defaultValue={row.project.claimed_role ?? ""} placeholder="lead, backend…" />
+              </Field>
+            </div>
             {row.project.bullets && row.project.bullets.length > 0 && (
               <details className="confirm-project__bullets">
                 <summary>What the resume says about it</summary>

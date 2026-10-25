@@ -8,6 +8,12 @@ from psycopg_pool import ConnectionPool
 from talnex_ai.resume.reader import ResumeRead
 
 
+
+def _claims(project) -> tuple:
+    c = getattr(project, "claims", None) or {}
+    return c.get("start"), c.get("end"), c.get("team"), c.get("team_size"), c.get("role")
+
+
 def save_resume(pool: ConnectionPool, candidate_id: str, read: ResumeRead) -> list[str]:
     """Save the projects and coding handles; return the candidate project ids in resume order.
 
@@ -21,16 +27,18 @@ def save_resume(pool: ConnectionPool, candidate_id: str, read: ResumeRead) -> li
                 (candidate_id, project.name)).fetchone()
             if row:
                 conn.execute(
-                    """UPDATE candidate_projects SET bullets = %s, live_url = %s, repo_url = %s, video_url = %s
+                    """UPDATE candidate_projects SET bullets = %s, live_url = %s, repo_url = %s, video_url = %s,
+                              claimed_start = %s, claimed_end = %s, claimed_team = %s, claimed_team_size = %s, claimed_role = %s
                         WHERE id = %s::uuid""",
-                    (list(project.bullets), project.live_url, project.repo_url, project.video_url, row[0]))
+                    (list(project.bullets), project.live_url, project.repo_url, project.video_url, *_claims(project), row[0]))
                 ids.append(row[0])
             else:
                 ids.append(conn.execute(
-                    """INSERT INTO candidate_projects (candidate_id, name, bullets, live_url, repo_url, video_url)
-                       VALUES (%s::uuid, %s, %s, %s, %s, %s) RETURNING id::text""",
+                    """INSERT INTO candidate_projects (candidate_id, name, bullets, live_url, repo_url, video_url,
+                              claimed_start, claimed_end, claimed_team, claimed_team_size, claimed_role)
+                       VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id::text""",
                     (candidate_id, project.name, list(project.bullets), project.live_url, project.repo_url,
-                     project.video_url)).fetchone()[0])
+                     project.video_url, *_claims(project))).fetchone()[0])
         if read.coding_handles:
             # resume handles first, then what the recruiter typed wins
             conn.execute("UPDATE candidates SET coding_handles = %s::jsonb || coding_handles, updated_at = now() WHERE id = %s::uuid",

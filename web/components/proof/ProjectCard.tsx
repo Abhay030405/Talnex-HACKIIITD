@@ -1,3 +1,4 @@
+import { ClaimsVsGithub } from "@/components/proof/ClaimsVsGithub";
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
 import { EngineeringQuality } from "@/components/proof/EngineeringQuality";
@@ -248,6 +249,7 @@ export function ProjectCard({ project, candidateId }: { project: ReportProject; 
             { id: "engineering", label: "Engineering", content: <EngineeringQuality engineering={project.engineering} /> },
             { id: "network", label: "Network", content: <NetworkTab features={project.features} /> },
             { id: "repository", label: "Repository", content: <RepositoryTab project={project} /> },
+            { id: "claims", label: "Resume vs GitHub", content: <ClaimsVsGithub claims={project.claims_vs_github} /> },
             {
               id: "ask",
               label: "Ask",

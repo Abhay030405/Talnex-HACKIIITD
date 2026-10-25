@@ -14,11 +14,13 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from talnex_ai.coding.claims_vs_github import claimed_from_text
 from talnex_ai.formats import parse_model
 from talnex_ai.llm.prompts.resume_reader import SYSTEM, user
 from talnex_ai.llm.structured import ChatClient, ask_json
 from talnex_ai.safety.hidden_instructions import Finding, find_hidden_instructions
 
+REGION_CHARS = 1200   # resume text read after a project name for its dates and team words
 log = logging.getLogger("talnex.resume")
 
 MAX_PROJECTS = 8
@@ -56,6 +58,11 @@ class RawProject(_Raw):
     live_url: Optional[str] = None
     repo_url: Optional[str] = None
     video_url: Optional[str] = None
+    claimed_start: Optional[str] = None
+    claimed_end: Optional[str] = None
+    claimed_team: Optional[str] = None
+    claimed_team_size: Optional[int] = None
+    claimed_role: Optional[str] = None
 
 
 class RawResume(_Raw):
@@ -71,6 +78,8 @@ class Project:
     live_url: Optional[str]
     repo_url: Optional[str]
     video_url: Optional[str]
+    # What the resume says about when and by whom it was built (claims_vs_github.claimed_from_text): never guessed
+    claims: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -228,7 +237,16 @@ def validate(raw: RawResume, text: str) -> ResumeRead:
                 bullets.append(sentence)
             else:
                 result.dropped.append(f"bullet not on the resume: {sentence[:60]}")
-        result.projects.append(Project(name, tuple(bullets), found.get("live"), found.get("repo"), found.get("video")))
+        at = re.sub(r"\s+", " ", text).lower().find(key)
+        region = re.sub(r"\s+", " ", text)[at:at + REGION_CHARS] if at >= 0 else ""
+        for other in raw.projects:   # stop at the next project's name
+            o = re.sub(r"\s+", " ", other.name).strip().lower()
+            cut = region.lower().find(o, len(key)) if o and o != key else -1
+            if cut > 0:
+                region = region[:cut]
+        claims = claimed_from_text(region, item.model_dump())
+        result.projects.append(Project(name, tuple(bullets), found.get("live"), found.get("repo"), found.get("video"),
+                                       {k: v for k, v in claims.items() if v is not None}))
         if len(result.projects) == MAX_PROJECTS:
             break
 
