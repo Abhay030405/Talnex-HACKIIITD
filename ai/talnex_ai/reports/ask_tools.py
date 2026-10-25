@@ -71,7 +71,7 @@ class GitHubReader:
         headers = {"Accept": "application/vnd.github+json", "User-Agent": "talnex"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
-        self.http = http or httpx.Client(timeout=TIMEOUT, headers=headers)
+        self.http = http or httpx.Client(timeout=TIMEOUT, headers=headers, follow_redirects=True)  # a renamed repo answers 301
         self.headers = headers
 
     def _get(self, path: str, **params) -> Any:

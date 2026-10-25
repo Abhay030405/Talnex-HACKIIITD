@@ -79,7 +79,8 @@ def sandbox_run(job: Job, ctx: JobContext) -> Mapping[str, Any]:
         return _could_not_run(ctx, run_id, result.reason, **fields)
 
     bring = result.bringup
-    update_run(ctx.pool, run_id, status="running", status_detail="the app is running",
+    detail = "the app is running" if bring.ok else "the app is running, but its health paths answer with a server error"
+    update_run(ctx.pool, run_id, status="running", status_detail=detail,
                resources={"vm_id": result.vm.id, "port": bring.port, "health_path": bring.health_path,
                           "app_dir": result.recipe.app_dir, "repo_dir": "/work/repo"},
                **fields)

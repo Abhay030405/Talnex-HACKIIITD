@@ -351,3 +351,11 @@ class TestSandboxRunStage:
         run_stage(pool, project, client)
         assert first_vm in client.destroyed
         assert latest_run(pool, Subject("project", project)).vm_id == client.factory.made[-1].id
+
+
+def test_an_app_that_listens_but_answers_only_500_is_still_kept_running_for_the_test_stages(monkeypatch):
+    monkeypatch.setattr(FakeVm, "request", lambda self, method, port, path, **kw: HttpResult(status=500), raising=False)
+    factory = Factory(NODE_REPO)
+    res = prepare_and_run(factory, None, URL)
+    assert res.status == "running" and res.vm is factory.made[0] and not res.vm.destroyed
+    assert res.bringup.failed_step == "health" and res.bringup.port

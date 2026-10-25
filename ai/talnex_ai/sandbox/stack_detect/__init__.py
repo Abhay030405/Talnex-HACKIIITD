@@ -120,7 +120,9 @@ def _run_in(vm, new_vm, model, url, build_timeout, start_timeout, job_id) -> Run
             result.attempts.append(second)
             result.recipe, result.bringup = fixed, second
 
-    if result.bringup.ok:
+    # Listening but answering only with server errors (often a missing secret or database) is still up: test it anyway,
+    # so the routes, tests and code review still run, and every 500 they meet is shown.
+    if result.bringup.ok or result.bringup.failed_step == "health":
         result.status, result.vm = "running", vm
         return result
     result.reason = _explain_failure(result)
