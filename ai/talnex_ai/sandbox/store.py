@@ -34,6 +34,11 @@ class SandboxRun:
         return self.resources.get("vm_id")
 
     @property
+    def code_readable(self) -> bool:
+        """A VM holds the cloned code: the app is running, or it could not start but the VM was kept to read the code."""
+        return bool(self.vm_id) and (self.status == "running" or bool(self.resources.get("code_only")))
+
+    @property
     def port(self) -> Optional[int]:
         return self.resources.get("port")
 

@@ -59,8 +59,8 @@ def code_review(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     sv = get_services(ctx.pool)
     subject = subject_of(job)
     run = latest_run(ctx.pool, subject)
-    if run is None or run.status != "running" or not run.vm_id:
-        return {"skipped": True, "reason": "the code is not available (the app did not run), so no code review was done"}
+    if run is None or not run.code_readable:
+        return {"skipped": True, "reason": "the code is not available (it could not be cloned), so no code review was done"}
     vm = sv.sandbox.attach(run.vm_id)
     try:
         facts = read_facts(vm)

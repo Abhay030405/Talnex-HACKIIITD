@@ -45,7 +45,7 @@ def sandbox_run(job: Job, ctx: JobContext) -> Mapping[str, Any]:
 
     # A run that was left behind by an earlier try of this stage must not keep its VM alive.
     previous = latest_run(ctx.pool, subject)
-    if previous is not None and previous.vm_id and previous.status == "running" and sv.sandbox is not None:
+    if previous is not None and previous.code_readable and sv.sandbox is not None:
         try:
             sv.sandbox.destroy(previous.vm_id)
         except SandboxError:
@@ -76,7 +76,13 @@ def sandbox_run(job: Job, ctx: JobContext) -> Mapping[str, Any]:
             fields["run_log_key"] = _save_log(sv, subject.id, run_id, "run.log", last.app_log_tail)
 
     if not result.ok:
-        return _could_not_run(ctx, run_id, result.reason, **fields)
+        if result.vm is None:
+            return _could_not_run(ctx, run_id, result.reason, **fields)
+        # The app did not start, but the VM keeps the cloned code so the code review can still read it.
+        update_run(ctx.pool, run_id, status="could_not_run", status_detail=result.reason[:500],
+                   resources={"vm_id": result.vm.id, "code_only": True, "app_dir": result.recipe.app_dir if result.recipe else "",
+                              "repo_dir": "/work/repo"}, **fields)
+        return {"status": "could_not_run", "reason": result.reason, "run_id": run_id, "code_kept": True}
 
     bring = result.bringup
     detail = "the app is running" if bring.ok else "the app is running, but its health paths answer with a server error"

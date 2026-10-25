@@ -17,9 +17,12 @@ from talnex_ai.worker.subjects import subject_of
 def sandbox_end(job: Job, ctx: JobContext) -> Mapping[str, Any]:
     sv = get_services(ctx.pool)
     run = latest_run(ctx.pool, subject_of(job))
-    if run is None or not run.vm_id or run.status != "running":
+    if run is None or not run.code_readable:
         return {"skipped": True, "reason": "there was no running VM to end"}
     if sv.sandbox is not None:
         sv.sandbox.attach(run.vm_id).destroy()   # never raises: a VM already gone is fine, the reaper covers the rest
+    if run.status != "running":   # a VM kept only to read the code: the run stays "could not run"
+        update_run(ctx.pool, run.id, resources={"code_only": False}, status_detail=f"{run.status_detail or ''} (the code was reviewed, then the VM destroyed)"[:500], ended=True)
+        return {"destroyed": run.vm_id}
     update_run(ctx.pool, run.id, status="done", status_detail="the tests are finished and the VM was destroyed", ended=True)
     return {"destroyed": run.vm_id}

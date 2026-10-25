@@ -35,7 +35,7 @@ class RunResult:
     bringup: Optional[BringUp] = None
     attempts: list[BringUp] = field(default_factory=list)   # every try, the last one is `bringup`
     fix_used: bool = False
-    # The VM that holds the running app. Set only when status is "running"; every other VM made here is destroyed.
+    # The VM that holds the cloned code: the running app, or (could not run) the code alone, kept for the code review.
     vm: Any = None
 
     @property
@@ -89,7 +89,8 @@ def _run_in(vm, new_vm, model, url, build_timeout, start_timeout, job_id) -> Run
         return _could_not_run("the repository is empty", url=url, facts=facts)
     recipe = detect_recipe(facts)
     if recipe.stack == "unknown":
-        return _could_not_run(recipe.notes[0] if recipe.notes else "the stack could not be worked out", url=url, facts=facts, recipe=recipe)
+        # Kept (not destroyed): the code is cloned, so the code review can still read it.
+        return _could_not_run(recipe.notes[0] if recipe.notes else "the stack could not be worked out", url=url, facts=facts, recipe=recipe, vm=vm)
 
     # The first VM was made from the base image with no services. If the repo needs another image, or needs backing
     # stores (postgres, redis...) started beside it, replace it with a VM that has them, and clone again.
@@ -128,7 +129,7 @@ def _run_in(vm, new_vm, model, url, build_timeout, start_timeout, job_id) -> Run
         result.status, result.vm = "running", vm
         return result
     result.reason = _explain_failure(result)
-    vm.destroy()
+    result.vm = vm   # could not run, but the cloned code is still there for the code review; sandbox_end destroys it
     return result
 
 
@@ -149,6 +150,6 @@ def _fill_settings_the_code_reads(vm, recipe: Recipe) -> Recipe:
 def _explain_failure(result: RunResult) -> str:
     recipe, last = result.recipe, result.bringup
     assert recipe is not None and last is not None
-    needs = f"; the app seems to need {', '.join(recipe.services)}, which the sandbox cannot start yet" if recipe.services else ""
+    needs = f", even with {', '.join(recipe.services)} started beside it" if recipe.services else ""
     tried = " after the README steps and one automatic fix" if result.fix_used else ""
     return f"could not run{tried}: {last.reason}{needs}"
