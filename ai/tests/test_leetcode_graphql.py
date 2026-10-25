@@ -24,6 +24,17 @@ def test_facts_include_solved_counts_rating_and_removed_contests():
     assert f["removed_contests"] == [{"contest": "Biweekly 188", "start_time": 2}]
 
 
+def test_a_voided_contest_is_left_out_of_the_rating_trend():
+    # A removed contest keeps the starting 1500, which made a real 1989 -> 2377 climb look like it began at 1500.
+    history = [{"attended": True, "ranking": 0, "problemsSolved": 0, "rating": 1500, "contest": {"title": "B 180", "startTime": 1}},
+               {"attended": True, "ranking": 396, "problemsSolved": 4, "rating": 1989.2, "contest": {"title": "B 192", "startTime": 2}},
+               {"attended": True, "ranking": 13, "problemsSolved": 4, "rating": 2316.4, "contest": {"title": "W 522", "startTime": 3}},
+               {"attended": True, "ranking": 0, "problemsSolved": 0, "rating": 1500, "contest": {"title": "W 523", "startTime": 4}}]
+    f = graphql.facts_from_payload({"data": {**FOUND["data"], "userContestRankingHistory": history}})
+    assert f["recent_ratings"] == [1989, 2316] and f["last_contest_at"] == 3
+    assert [r["contest"] for r in f["removed_contests"]] == ["B 180", "W 523"]
+
+
 def test_a_user_with_no_contest_history_still_reads_the_solved_counts():
     payload = {"data": {"matchedUser": {"username": "x", "submitStatsGlobal": {"acSubmissionNum": [
         {"difficulty": "All", "count": 5}]}}, "userContestRanking": None, "userContestRankingHistory": None}}
