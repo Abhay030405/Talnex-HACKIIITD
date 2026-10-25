@@ -177,7 +177,10 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request, ids []string) {
 
 // savedEvents are the latest saved events for the subjects, oldest first. None when the table is missing.
 func (s *server) savedEvents(ctx context.Context, ids []string) [][]byte {
-	query := `SELECT payload FROM (SELECT id, payload FROM live_events WHERE subject_id = ANY($1::uuid[]) ORDER BY id DESC LIMIT $2) t ORDER BY id`
+	// The latest events of EACH subject: a shared limit let a busy project push out the candidate's own stages (the
+	// coding checks run first). ponytail: 400 per subject, so a big event replays many; page it if that gets slow.
+	query := `SELECT payload FROM (SELECT id, payload, row_number() OVER (PARTITION BY subject_id ORDER BY id DESC) AS n
+		FROM live_events WHERE subject_id = ANY($1::uuid[])) t WHERE n <= $2 ORDER BY id`
 	args := []any{ids, liveReplay}
 	if ids == nil {
 		query = `SELECT payload FROM (SELECT id, payload FROM live_events ORDER BY id DESC LIMIT $1) t ORDER BY id`
