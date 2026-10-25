@@ -316,7 +316,7 @@ export function reduceLive(state: LiveState, kind: string, ev: LiveEvent): LiveS
 }
 
 // The last stage of each kind of check: once it has ended and nothing else runs, the check is finished.
-const FINAL_STAGES = new Set(["project_report", "candidate_report", "ai_opinion"]);
+const FINAL_STAGES = new Set(["project_report", "candidate_report", "ai_opinion", "project_summary", "resume_cleanup"]);
 
 /** One short word for a panel's header: what runs now, "finished", "stopped", or "waiting" between stages. */
 export function panelStatus(s: LiveSubject): string {
