@@ -114,7 +114,7 @@ function editRow(b) {
   const li = document.createElement("li");
   li.className = "book";
   const form = document.createElement("form");
-  form.innerHTML = `<label>Title <input name="t"></label><label>Author <input name="a"></label>
+  form.innerHTML = `<label>Edit title <input name="t"></label><label>Edit author <input name="a"></label>
     <button type="submit">Save</button><button type="button" class="plain">Cancel</button>`;
   form.t.value = b.title;
   form.a.value = b.author;

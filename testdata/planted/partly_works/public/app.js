@@ -76,7 +76,7 @@ function editRow(n) {
   const li = document.createElement("li");
   li.className = "note";
   const form = document.createElement("form");
-  form.innerHTML = `<label>Title <input name="t"></label><label>Note <input name="b"></label>
+  form.innerHTML = `<label>Edit title <input name="t"></label><label>Edit note <input name="b"></label>
     <button type="submit">Save</button><button type="button" class="plain">Cancel</button>`;
   form.t.value = n.title;
   form.b.value = n.body;
