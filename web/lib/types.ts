@@ -322,8 +322,20 @@ export interface ReportProject {
   sandbox?: SandboxFacts | null;
   /** What the resume says about the project beside its GitHub history (coding/claims_vs_github.py). */
   claims_vs_github?: ClaimsVsGithub | null;
-  /** Engineering quality, when another stage adds it; shown in the Repository tab if present. */
-  engineering?: Record<string, unknown> | null;
+  /** The repository judged as engineering work (stage repo_quality). Missing when it was not judged. */
+  engineering?: Engineering | null;
+}
+
+/** One project's engineering quality: per area a score out of 10, a summary and evidence that links to GitHub. */
+export interface Engineering {
+  overall: number | null;
+  areas: {
+    area: string;
+    label: string;
+    score: number | null;
+    summary: string;
+    evidence: { kind: "file" | "commit"; path?: string; sha?: string; message?: string; note: string; url?: string }[];
+  }[];
 }
 
 /** The VM (sandbox) facts of one project. Log keys arrive from the API as short-lived links. */
@@ -465,6 +477,7 @@ export interface HackathonCard {
   features: ReportFeature[];
   flags: ReportFlag[];
   checks: CardCheck[];
+  engineering?: Engineering | null;
   run?: RunUsage | null;
   ai_opinion: AiOpinion | null;
   who_built_what?: WhoBuiltWhatRow[] | null;

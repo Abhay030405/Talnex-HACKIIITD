@@ -18,7 +18,13 @@ export function weightedScore(
   criteria: { name: string; weight: number }[],
 ): { score: number | null; parts: WeightedPart[] } {
   const features = report.projects.flatMap((p) => p.features).filter((f) => f.score10 !== null);
+  const engineering = report.projects.map((p) => p.engineering?.overall).filter((s): s is number => typeof s === "number");
   const parts = criteria.map((c) => {
+    // A criterion called "Engineering" weighs the repository engineering quality instead of a feature group.
+    if (c.name.trim().toLowerCase() === "engineering") {
+      const average = engineering.length ? engineering.reduce((a, b) => a + b, 0) / engineering.length : null;
+      return { name: c.name, weight: c.weight, average, features: engineering.length };
+    }
     const inGroup = features.filter((f) => (f.group ?? "").toLowerCase() === c.name.toLowerCase());
     const average = inGroup.length ? inGroup.reduce((sum, f) => sum + (f.score10 ?? 0), 0) / inGroup.length : null;
     return { name: c.name, weight: c.weight, average, features: inGroup.length };

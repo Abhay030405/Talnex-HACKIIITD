@@ -137,7 +137,7 @@ func TestStageWithSeveralPredecessorsStartsExactlyOnce(t *testing.T) {
 	for round := 0; round < 25; round++ {
 		target := newID()
 		var ids []string
-		for _, stage := range []string{"feature_score", "repo_checks", "tutorial_copy", "authorship_read"} {
+		for _, stage := range []string{"feature_score", "repo_checks", "tutorial_copy", "authorship_read", "repo_quality"} {
 			id, err := q.Enqueue(ctx, jobs.EnqueueParams{
 				Type: stage, Runner: jobs.RunnerPython, TargetType: "project", TargetID: target, Pipeline: "hackathon",
 			})
@@ -173,21 +173,21 @@ func TestStageWaitsUntilEveryPredecessorIsDone(t *testing.T) {
 	target := newID()
 
 	var ids []string
-	for _, stage := range []string{"feature_score", "repo_checks", "tutorial_copy", "authorship_read"} {
+	for _, stage := range []string{"feature_score", "repo_checks", "tutorial_copy", "authorship_read", "repo_quality"} {
 		id, _ := q.Enqueue(ctx, jobs.EnqueueParams{
 			Type: stage, Runner: jobs.RunnerPython, TargetType: "project", TargetID: target, Pipeline: "hackathon"})
 		markRunning(t, pool, id, "w")
 		ids = append(ids, id)
 	}
-	for i, id := range ids[:3] {
+	for i, id := range ids[:4] {
 		if _, err := q.Complete(ctx, id, "w", nil); err != nil {
 			t.Fatal(err)
 		}
 		if n := count(t, pool, target, "project_score"); n != 0 {
-			t.Fatalf("after %d of 4 predecessors, project_score already added", i+1)
+			t.Fatalf("after %d of 5 predecessors, project_score already added", i+1)
 		}
 	}
-	if _, err := q.Complete(ctx, ids[3], "w", nil); err != nil {
+	if _, err := q.Complete(ctx, ids[4], "w", nil); err != nil {
 		t.Fatal(err)
 	}
 	if n := count(t, pool, target, "project_score"); n != 1 {

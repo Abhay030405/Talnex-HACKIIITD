@@ -1,5 +1,6 @@
 import { weightedFromGroups } from "@/lib/role-score";
 import { FlagList } from "@/components/flags/FlagBadge";
+import { EngineeringQuality } from "@/components/proof/EngineeringQuality";
 import { FeaturesTab, NetworkTab, VerdictBar } from "@/components/proof/ProjectCard";
 import { VmTestPanel } from "@/components/proof/VmTestPanel";
 import { WalkthroughBox } from "@/components/proof/WalkthroughBox";
@@ -216,6 +217,7 @@ export function HackathonCardView({
             ),
           },
           { id: "vm", label: "VM test", content: <VmTestPanel sandbox={card.sandbox} /> },
+          { id: "engineering", label: "Engineering", content: <EngineeringQuality engineering={card.engineering} /> },
           { id: "network", label: "Network", content: <NetworkTab features={card.features} /> },
           { id: "jobs", label: "Jobs", content: jobs },
         ]}

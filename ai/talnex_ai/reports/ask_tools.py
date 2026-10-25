@@ -97,6 +97,24 @@ class GitHubReader:
                 f"{r.get('default_branch')}, created {r.get('created_at')}, last push {r.get('pushed_at')}, fork: "
                 f"{r.get('fork')}, languages: {', '.join(langs) or 'none'}")
 
+    # Data reads for the repo_quality stage (checks/repo_quality): plain values, not text for a model.
+
+    def tree(self, repo: str) -> tuple[list[str], dict[str, int], str]:
+        """Every file path in the default branch, their sizes, and the branch name."""
+        branch = self._get(f"/repos/{repo}").get("default_branch") or "main"
+        data = self._get(f"/repos/{repo}/git/trees/{branch}", recursive="1")
+        blobs = [t for t in data.get("tree") or [] if t.get("type") == "blob"]
+        return [t["path"] for t in blobs], {t["path"]: int(t.get("size") or 0) for t in blobs}, branch
+
+    def commit_list(self, repo: str, n: int = 100) -> list[dict]:
+        rows = self._get(f"/repos/{repo}/commits", per_page=min(n, 100))
+        return [{"sha": c["sha"], "message": c["commit"].get("message") or "",
+                 "date": c["commit"]["author"].get("date", ""), "author": c["commit"]["author"].get("name", "")}
+                for c in rows]
+
+    def branch_count(self, repo: str) -> int:
+        return len(self._get(f"/repos/{repo}/branches", per_page=100))
+
     def file(self, repo: str, path: str) -> str:
         if not path or ".." in path or path.startswith("/"):
             raise ToolRefused("give a file path inside the repository")

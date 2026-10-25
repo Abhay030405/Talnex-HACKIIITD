@@ -1,7 +1,7 @@
 import { ClaimsVsGithub } from "@/components/proof/ClaimsVsGithub";
 import { FlagList } from "@/components/flags/FlagBadge";
 import { ClaimRow } from "@/components/proof/ClaimRow";
-import { EvidenceFacts } from "@/components/proof/EvidenceFacts";
+import { EngineeringQuality } from "@/components/proof/EngineeringQuality";
 import { NetworkBlock } from "@/components/proof/NetworkBlock";
 import { RerunButton } from "@/components/proof/RerunButton";
 import { VmTestPanel } from "@/components/proof/VmTestPanel";
@@ -10,7 +10,7 @@ import { ProjectScore } from "@/components/scores/ProjectScore";
 import { Tabs } from "@/components/ui/Tabs";
 import { BADGE_CLASS, formatDate } from "@/lib/format";
 import { networkSummary } from "@/lib/network";
-import { evidenceFacts, projectStatusInfo } from "@/lib/report-format";
+import { projectStatusInfo } from "@/lib/report-format";
 import { VERDICT_GROUP_TITLE, VERDICT_ORDER, groupByVerdict, projectAuthorship, verdictCounts } from "@/lib/report-layout";
 import type { ReportFeature, ReportProject } from "@/lib/types";
 
@@ -199,12 +199,6 @@ function RepositoryTab({ project }: { project: ReportProject }) {
           </>
         )}
       </div>
-      {project.engineering && (
-        <div className="stack stack--tight">
-          <h3 className="claims__group-title">Engineering quality</h3>
-          <EvidenceFacts facts={evidenceFacts(project.engineering)} />
-        </div>
-      )}
     </div>
   );
 }
@@ -252,6 +246,7 @@ export function ProjectCard({ project, candidateId }: { project: ReportProject; 
           tabs={[
             { id: "features", label: "Features", content: <FeaturesTab features={project.features} flags={project.flags} /> },
             { id: "vm", label: "VM test", content: <VmTestPanel sandbox={project.sandbox} /> },
+            { id: "engineering", label: "Engineering", content: <EngineeringQuality engineering={project.engineering} /> },
             { id: "network", label: "Network", content: <NetworkTab features={project.features} /> },
             { id: "repository", label: "Repository", content: <RepositoryTab project={project} /> },
             { id: "claims", label: "Resume vs GitHub", content: <ClaimsVsGithub claims={project.claims_vs_github} /> },
